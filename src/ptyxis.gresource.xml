@@ -32,6 +32,7 @@
     <file>style.css</file>
 
     <!-- Core palettes -->
+    <file>palettes/Adwaita.palette</file>
     <file>palettes/campbell.palette</file>
     <file>palettes/dracula.palette</file>
     <file>palettes/gnome.palette</file>
