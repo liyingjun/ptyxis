@@ -1135,12 +1135,15 @@ ptyxis_run_context_push_scope_cb (PtyxisRunContext    *self,
 
   if (has_systemd ())
     {
+      g_autofree char *uuid = g_uuid_string_random ();
+
       ptyxis_run_context_append_argv (self, "systemd-run");
       ptyxis_run_context_append_argv (self, "--user");
       ptyxis_run_context_append_argv (self, "--scope");
       ptyxis_run_context_append_argv (self, "--collect");
       ptyxis_run_context_append_argv (self, "--quiet");
       ptyxis_run_context_append_argv (self, "--same-dir");
+      ptyxis_run_context_append_formatted (self, "--unit=ptyxis-spawn-%s.scope", uuid);
     }
 
   ptyxis_run_context_append_args (self, argv);
