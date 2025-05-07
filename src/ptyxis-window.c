@@ -1089,6 +1089,15 @@ ptyxis_window_toplevel_state_changed_cb (PtyxisWindow *self,
   if (!self->is_fullscreen && is_fullscreen)
     ptyxis_fullscreen_box_reveal (self->fullscreen_box);
 
+  /* Ensure our CSS can apply a different background for fullscreen as the compositor
+   * is required (in Wayland) to not allow a window to see things behind it when
+   * in fullscreen mode.
+   */
+  if (is_fullscreen)
+    gtk_widget_add_css_class (GTK_WIDGET (self), "fullscreen");
+  else
+    gtk_widget_remove_css_class (GTK_WIDGET (self), "fullscreen");
+
   self->is_fullscreen = is_fullscreen;
   self->is_maximized = is_maximized;
 }

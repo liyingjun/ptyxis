@@ -116,6 +116,9 @@ ptyxis_window_dressing_update (PtyxisWindowDressing *self)
                               "window.%s { color: %s; background-color: alpha(%s, %s); }\n",
                               self->css_class, fg, bg, window_alpha_str);
       g_string_append_printf (string,
+                              "window.%s.fullscreen { background-color: %s; }\n",
+                              self->css_class, bg);
+      g_string_append_printf (string,
                               "window.%s .window-contents popover > contents { color: %s; background-color: alpha(%s, %s); }\n",
                               self->css_class, titlebar_fg, titlebar_bg, popover_alpha_str);
       g_string_append_printf (string,
