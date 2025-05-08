@@ -83,6 +83,7 @@ ptyxis_container_menu_get_item_attributes (GMenuModel  *model,
   PtyxisContainerMenu *self = PTYXIS_CONTAINER_MENU (model);
   g_autoptr(PtyxisIpcContainer) container = NULL;
   g_autoptr(GIcon) icon = NULL;
+  g_autofree char *label_escaped = NULL;
   const char *icon_name;
   const char *label;
   const char *id;
@@ -103,10 +104,12 @@ ptyxis_container_menu_get_item_attributes (GMenuModel  *model,
   if ((icon_name = ptyxis_ipc_container_get_icon_name (container)))
     icon = g_themed_icon_new (icon_name);
 
+  label_escaped = g_strdelimit (g_strdup (label), "_", ' ');
+
   ht = g_hash_table_new_full (g_str_hash, g_str_equal, g_free, (GDestroyNotify)g_variant_unref);
   g_hash_table_insert (ht, g_strdup (G_MENU_ATTRIBUTE_ACTION), g_variant_ref_sink (g_variant_new_string ("win.new-terminal")));
   g_hash_table_insert (ht, g_strdup (G_MENU_ATTRIBUTE_TARGET), g_variant_ref_sink (g_variant_new ("(ss)", "", id)));
-  g_hash_table_insert (ht, g_strdup (G_MENU_ATTRIBUTE_LABEL), g_variant_ref_sink (g_variant_new_string (label)));
+  g_hash_table_insert (ht, g_strdup (G_MENU_ATTRIBUTE_LABEL), g_variant_ref_sink (g_variant_new_string (label_escaped)));
 
   if (icon != NULL)
     g_hash_table_insert (ht, g_strdup (G_MENU_ATTRIBUTE_ICON), g_icon_serialize (icon));

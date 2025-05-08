@@ -96,7 +96,7 @@ ptyxis_profile_menu_get_item_attributes (GMenuModel  *model,
 
   uuid = self->uuids[position];
   profile = ptyxis_profile_new (uuid);
-  label = ptyxis_profile_dup_label (profile);
+  label = g_strdelimit (ptyxis_profile_dup_label (profile), "_", ' ');
 
   ht = g_hash_table_new_full (g_str_hash, g_str_equal, g_free, (GDestroyNotify)g_variant_unref);
   g_hash_table_insert (ht, g_strdup (G_MENU_ATTRIBUTE_ACTION), g_variant_ref_sink (g_variant_new_string ("win.new-terminal")));
