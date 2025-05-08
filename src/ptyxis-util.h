@@ -57,6 +57,7 @@ GListModel         *ptyxis_parse_shells          (const char *etc_shells);
 const char         *ptyxis_app_name              (void) G_GNUC_CONST;
 GVariant           *ptyxis_variant_new_toast     (const char *title,
                                                   guint       timeout);
+char               *ptyxis_escape_underline      (const char *str);
 
 static inline void
 ptyxis_take_str (char **out_str,

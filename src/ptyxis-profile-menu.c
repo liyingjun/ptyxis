@@ -23,6 +23,7 @@
 
 #include "ptyxis-profile.h"
 #include "ptyxis-profile-menu.h"
+#include "ptyxis-util.h"
 
 struct _PtyxisProfileMenu
 {
@@ -84,6 +85,7 @@ ptyxis_profile_menu_get_item_attributes (GMenuModel  *model,
   PtyxisProfileMenu *self = PTYXIS_PROFILE_MENU (model);
   g_autoptr(PtyxisProfile) profile = NULL;
   g_autofree char *label = NULL;
+  g_autofree char *label_escaped = NULL;
   const char *uuid;
   GHashTable *ht;
 
@@ -96,12 +98,13 @@ ptyxis_profile_menu_get_item_attributes (GMenuModel  *model,
 
   uuid = self->uuids[position];
   profile = ptyxis_profile_new (uuid);
-  label = g_strdelimit (ptyxis_profile_dup_label (profile), "_", ' ');
+  label = ptyxis_profile_dup_label (profile);
+  label_escaped = ptyxis_escape_underline (label);
 
   ht = g_hash_table_new_full (g_str_hash, g_str_equal, g_free, (GDestroyNotify)g_variant_unref);
   g_hash_table_insert (ht, g_strdup (G_MENU_ATTRIBUTE_ACTION), g_variant_ref_sink (g_variant_new_string ("win.new-terminal")));
   g_hash_table_insert (ht, g_strdup (G_MENU_ATTRIBUTE_TARGET), g_variant_ref_sink (g_variant_new ("(ss)", uuid, "")));
-  g_hash_table_insert (ht, g_strdup (G_MENU_ATTRIBUTE_LABEL), g_variant_ref_sink (g_variant_new_string (label)));
+  g_hash_table_insert (ht, g_strdup (G_MENU_ATTRIBUTE_LABEL), g_variant_ref_sink (g_variant_new_string (label_escaped)));
 
   *attributes = ht;
 }

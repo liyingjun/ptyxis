@@ -104,7 +104,7 @@ ptyxis_container_menu_get_item_attributes (GMenuModel  *model,
   if ((icon_name = ptyxis_ipc_container_get_icon_name (container)))
     icon = g_themed_icon_new (icon_name);
 
-  label_escaped = g_strdelimit (g_strdup (label), "_", ' ');
+  label_escaped = ptyxis_escape_underline (label);
 
   ht = g_hash_table_new_full (g_str_hash, g_str_equal, g_free, (GDestroyNotify)g_variant_unref);
   g_hash_table_insert (ht, g_strdup (G_MENU_ATTRIBUTE_ACTION), g_variant_ref_sink (g_variant_new_string ("win.new-terminal")));

@@ -323,3 +323,28 @@ ptyxis_variant_new_toast (const char *title,
 
   return g_variant_builder_end (&b);
 }
+
+char *
+ptyxis_escape_underline (const char *str)
+{
+  GString *gstr;
+
+  if (str == NULL)
+    return NULL;
+
+  gstr = g_string_new (NULL);
+
+  for (const char *c = str;
+       *c != 0;
+       c = g_utf8_next_char (c))
+    {
+      gunichar ch = g_utf8_get_char (c);
+
+      if (ch == '_')
+        g_string_append_c (gstr, '_');
+
+      g_string_append_unichar (gstr, ch);
+    }
+
+  return g_string_free (gstr, FALSE);
+}
