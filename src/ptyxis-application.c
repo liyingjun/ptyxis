@@ -560,8 +560,24 @@ ptyxis_application_command_line (GApplication            *app,
     {
       g_autoptr(PtyxisProfile) profile = ptyxis_application_dup_default_profile (self);
       PtyxisWindow *window = get_current_window (self);
-      PtyxisTab *tab = ptyxis_tab_new (profile);
-      PtyxisTerminal *terminal = ptyxis_tab_get_terminal (tab);
+      PtyxisTerminal *terminal;
+      PtyxisTab *tab;
+
+      /* If the request to create a new-window was not combined with other
+       * actions above, and we restored a session, then we will consider the
+       * request satistfied and not try to add another tab.
+       *
+       * This can happen when `--new-window` is used as a keybinding to ensure
+       * a new window is added whether or not there is an existing instance.
+       */
+      if (window != NULL && did_restore)
+        {
+          gtk_window_present (GTK_WINDOW (window));
+          return EXIT_SUCCESS;
+        }
+
+      tab = ptyxis_tab_new (profile);
+      terminal = ptyxis_tab_get_terminal (tab);
 
       if (window == NULL || !did_restore)
         {
