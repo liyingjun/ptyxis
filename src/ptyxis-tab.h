@@ -75,6 +75,7 @@ const char         *ptyxis_tab_get_title_prefix                   (PtyxisTab    
 void                ptyxis_tab_set_title_prefix                   (PtyxisTab            *self,
                                                                    const char           *title_prefix);
 char               *ptyxis_tab_dup_current_directory_uri          (PtyxisTab            *self);
+char               *ptyxis_tab_dup_previous_working_directory_uri (PtyxisTab            *self);
 void                ptyxis_tab_set_previous_working_directory_uri (PtyxisTab            *self,
                                                                    const char           *previous_working_directory_uri);
 PtyxisZoomLevel     ptyxis_tab_get_zoom                           (PtyxisTab            *self);

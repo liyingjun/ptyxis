@@ -1392,6 +1392,15 @@ ptyxis_tab_set_initial_working_directory_uri (PtyxisTab  *self,
   g_set_str (&self->initial_working_directory_uri, initial_working_directory_uri);
 }
 
+char *
+ptyxis_tab_dup_previous_working_directory_uri (PtyxisTab *self)
+{
+  g_return_val_if_fail (PTYXIS_IS_TAB (self), NULL);
+
+  return g_strdup (self->previous_working_directory_uri);
+}
+
+
 void
 ptyxis_tab_set_previous_working_directory_uri (PtyxisTab  *self,
                                                const char *previous_working_directory_uri)
