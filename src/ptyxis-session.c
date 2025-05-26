@@ -105,6 +105,13 @@ ptyxis_session_save (PtyxisApplication *app)
                   cwd = ptyxis_terminal_dup_current_directory_uri (terminal);
                   zoom = ptyxis_tab_get_zoom (tab);
 
+                  /* If we had an initial directory and we've never got an update,
+                   * it could be that the tab has never spawned to process the
+                   * directory state updates.
+                   */
+                  if (cwd == NULL)
+                    cwd = ptyxis_tab_dup_previous_working_directory_uri (tab);
+
                   G_GNUC_BEGIN_IGNORE_DEPRECATIONS
                   window_title = vte_terminal_get_window_title (VTE_TERMINAL (terminal));
                   G_GNUC_END_IGNORE_DEPRECATIONS
