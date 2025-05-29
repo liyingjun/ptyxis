@@ -113,7 +113,8 @@ ptyxis_session_save (PtyxisApplication *app)
                     cwd = ptyxis_tab_dup_previous_working_directory_uri (tab);
 
                   G_GNUC_BEGIN_IGNORE_DEPRECATIONS
-                  window_title = vte_terminal_get_window_title (VTE_TERMINAL (terminal));
+                  if (!(window_title = vte_terminal_get_window_title (VTE_TERMINAL (terminal))))
+                    window_title = ptyxis_tab_get_initial_title (tab);
                   G_GNUC_END_IGNORE_DEPRECATIONS
 
                   if (container != NULL)

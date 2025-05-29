@@ -1853,6 +1853,14 @@ ptyxis_tab_set_command (PtyxisTab          *self,
   self->command = copy;
 }
 
+const char *
+ptyxis_tab_get_initial_title (PtyxisTab *self)
+{
+  g_return_val_if_fail (PTYXIS_IS_TAB (self), NULL);
+
+  return self->initial_title;
+}
+
 void
 ptyxis_tab_set_initial_title (PtyxisTab  *self,
                               const char *initial_title)

@@ -97,6 +97,7 @@ void                ptyxis_tab_set_container                      (PtyxisTab    
 gboolean            ptyxis_tab_has_foreground_process             (PtyxisTab            *self,
                                                                    GPid                 *pid,
                                                                    char                **cmdline);
+const char         *ptyxis_tab_get_initial_title                  (PtyxisTab            *self);
 void                ptyxis_tab_set_initial_title                  (PtyxisTab            *self,
                                                                    const char           *initial_title);
 void                ptyxis_tab_set_initial_working_directory_uri  (PtyxisTab            *self,
