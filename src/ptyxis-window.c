@@ -569,17 +569,10 @@ static AdwTabPage *
 ptyxis_window_tab_overview_create_tab_cb (PtyxisWindow   *self,
                                           AdwTabOverview *tab_overview)
 {
-  g_autoptr(PtyxisProfile) profile = NULL;
-  PtyxisTab *tab;
-
   g_assert (PTYXIS_IS_WINDOW (self));
   g_assert (ADW_IS_TAB_OVERVIEW (tab_overview));
 
-  profile = ptyxis_window_dup_profile_for_param (self, "default");
-  tab = ptyxis_tab_new (profile);
-
-  ptyxis_window_add_tab (self, tab);
-  ptyxis_window_set_active_tab (self, tab);
+  gtk_widget_activate_action (GTK_WIDGET (tab_overview), "win.new-tab", "(ss)", "", "");
 
   return adw_tab_view_get_selected_page (self->tab_view);
 }
