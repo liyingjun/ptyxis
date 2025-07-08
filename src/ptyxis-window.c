@@ -1629,6 +1629,8 @@ ptyxis_window_dispose (GObject *object)
 
   self->disposed = TRUE;
 
+  g_action_map_remove_action (G_ACTION_MAP (self), "interface-style");
+
   gtk_widget_dispose_template (GTK_WIDGET (self), PTYXIS_TYPE_WINDOW);
 
   g_signal_group_set_target (self->active_tab_signals, NULL);
