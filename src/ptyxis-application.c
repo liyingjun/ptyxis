@@ -33,6 +33,7 @@
 #include "ptyxis-preferences-window.h"
 #include "ptyxis-session.h"
 #include "ptyxis-settings.h"
+#include "ptyxis-terminal-intent.h"
 #include "ptyxis-util.h"
 #include "ptyxis-window.h"
 
@@ -53,6 +54,7 @@ struct _PtyxisApplication
   GHashTable          *exited;
   GVariant            *session;
   GFileMonitor        *xdg_terminals_list_monitor;
+  PtyxisTerminalIntent*xdg_terminal;
   guint                has_restored_session : 1;
   guint                overlay_scrollbars : 1;
   guint                client_is_fallback : 1;
@@ -1041,10 +1043,35 @@ ptyxis_application_shutdown (GApplication *application)
   g_clear_object (&self->shortcuts);
   g_clear_object (&self->settings);
   g_clear_object (&self->client);
+  g_clear_object (&self->xdg_terminal);
   g_clear_pointer (&self->next_title_prefix, g_free);
   g_clear_pointer (&self->exited, g_hash_table_unref);
 
   g_clear_pointer (&self->system_font_name, g_free);
+}
+
+static gboolean
+ptyxis_application_dbus_register (GApplication     *app,
+                                  GDBusConnection  *connection,
+                                  const char       *path,
+                                  GError          **error)
+{
+  PtyxisApplication *self = (PtyxisApplication *)app;
+
+  g_assert (PTYXIS_IS_APPLICATION (self));
+
+  if (!G_APPLICATION_CLASS (ptyxis_application_parent_class)->dbus_register (app, connection, path, error))
+    return FALSE;
+
+  self->xdg_terminal = ptyxis_terminal_intent_new ();
+
+  if (!g_dbus_interface_skeleton_export (G_DBUS_INTERFACE_SKELETON (self->xdg_terminal),
+                                         connection,
+                                         path,
+                                         error))
+    return FALSE;
+
+  return TRUE;
 }
 
 static void
@@ -1099,6 +1126,7 @@ ptyxis_application_class_init (PtyxisApplicationClass *klass)
   app_class->shutdown = ptyxis_application_shutdown;
   app_class->command_line = ptyxis_application_command_line;
   app_class->open = ptyxis_application_open;
+  app_class->dbus_register = ptyxis_application_dbus_register;
 
   properties[PROP_CONTAINERS] =
     g_param_spec_object ("containers", NULL, NULL,
