@@ -13,6 +13,7 @@ GenericName=Terminal
 # Translators: Search terms to find this application. Do NOT translate or localize the semicolons! The list MUST also end with a semicolon!
 Keywords=terminal;prompt;ptyxis;shell;command;commandline;cmd;cli;console;container;podman;toolbox;distrobox;
 Actions=new-window;new-tab;preferences;
+Implements=org.freedesktop.Terminal1
 X-ExecArg=--
 X-TerminalArgTitle=--title
 X-TerminalArgDir=--working-directory
