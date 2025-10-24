@@ -140,6 +140,7 @@ enum {
   N_PROPS
 };
 
+static PtyxisPreferencesWindow *instance;
 static GParamSpec *properties[N_PROPS];
 
 static gboolean
@@ -675,6 +676,43 @@ create_palette_preview (gpointer item,
   return child;
 }
 
+static gboolean
+dispose_in_idle (gpointer data)
+{
+  g_object_run_dispose (data);
+  return G_SOURCE_REMOVE;
+}
+
+static gboolean
+ptyxis_preferences_window_close_request (GtkWindow *window)
+{
+  GtkWindowGroup *group;
+
+  g_assert (PTYXIS_IS_PREFERENCES_WINDOW (window));
+
+  if (instance == PTYXIS_PREFERENCES_WINDOW (window))
+    {
+      instance = NULL;
+
+      /* We use a single window group for the preferences window
+       * so that it can stack appropriately above other windows.
+       * Clear it so that we release the group too.
+       */
+      if ((group = gtk_window_get_group (window)))
+        gtk_window_group_remove_window (group, window);
+
+      /* Dispose in idle to force cleanup. This wasn't seeming to
+       * happen automatically on close-request.
+       */
+      g_idle_add_full (G_PRIORITY_LOW,
+                       dispose_in_idle,
+                       g_object_ref (window),
+                       g_object_unref);
+    }
+
+  return GTK_WINDOW_CLASS (ptyxis_preferences_window_parent_class)->close_request (window);
+}
+
 static void
 ptyxis_preferences_window_constructed (GObject *object)
 {
@@ -992,11 +1030,14 @@ ptyxis_preferences_window_class_init (PtyxisPreferencesWindowClass *klass)
 {
   GObjectClass *object_class = G_OBJECT_CLASS (klass);
   GtkWidgetClass *widget_class = GTK_WIDGET_CLASS (klass);
+  GtkWindowClass *window_class = GTK_WINDOW_CLASS (klass);
 
   object_class->constructed = ptyxis_preferences_window_constructed;
   object_class->dispose = ptyxis_preferences_window_dispose;
   object_class->get_property = ptyxis_preferences_window_get_property;
   object_class->set_property = ptyxis_preferences_window_set_property;
+
+  window_class->close_request = ptyxis_preferences_window_close_request;
 
   properties[PROP_DEFAULT_PALETTE_ID] =
     g_param_spec_string ("default-palette-id", NULL, NULL,
@@ -1164,8 +1205,6 @@ ptyxis_preferences_window_edit_profile (PtyxisPreferencesWindow *self,
 PtyxisPreferencesWindow *
 ptyxis_preferences_window_get_default (void)
 {
-  static PtyxisPreferencesWindow *instance;
-
   if (instance == NULL)
     {
       g_autoptr(GtkWindowGroup) sole_group = gtk_window_group_new ();
@@ -1174,7 +1213,6 @@ ptyxis_preferences_window_get_default (void)
                                "modal", FALSE,
                                NULL);
       gtk_window_group_add_window (sole_group, GTK_WINDOW (instance));
-      g_object_add_weak_pointer (G_OBJECT (instance), (gpointer *)&instance);
     }
 
   return instance;
