@@ -36,7 +36,7 @@ flatpak@aarch64:
     BUNDLE: "org.gnome.Ptyxis.Devel-aarch64.flatpak"
 
 fedora:
-  image: "registry.fedoraproject.org/fedora:41"
+  image: "registry.fedoraproject.org/fedora:42"
   stage: test
   needs: []
   script:
