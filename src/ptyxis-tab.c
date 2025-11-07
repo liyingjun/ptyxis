@@ -1700,7 +1700,7 @@ ptyxis_tab_force_quit (PtyxisTab *self)
   /* In case this was not enough for the process to actually exit, we setup
    * a short timer to send SIGKILL afterwards.
    */
-  g_timeout_add_full (G_PRIORITY_LOW,
+  g_timeout_add_full (G_PRIORITY_HIGH,
                       50,
                       ptyxis_tab_force_quit_in_idle,
                       g_object_ref (self),
