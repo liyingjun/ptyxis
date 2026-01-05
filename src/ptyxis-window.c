@@ -38,6 +38,10 @@
 #include "ptyxis-window.h"
 #include "ptyxis-window-dressing.h"
 
+#ifdef GDK_WINDOWING_X11
+# include <gdk/x11/gdkx.h>
+#endif
+
 struct _PtyxisWindow
 {
   AdwApplicationWindow   parent_instance;
@@ -1045,6 +1049,25 @@ ptyxis_window_toggle_fullscreen (GtkWidget  *widget,
 }
 
 static void
+ptyxis_window_notify_is_active_cb (PtyxisWindow *self,
+                                   GParamSpec   *pspec)
+{
+  g_assert (PTYXIS_IS_WINDOW (self));
+
+  if (gtk_window_is_active (GTK_WINDOW (self)))
+    {
+#ifdef GDK_WINDOWING_X11
+      {
+        GdkSurface *surface = gtk_native_get_surface (GTK_NATIVE (self));
+
+        if (GDK_IS_X11_SURFACE (surface))
+          gdk_x11_surface_set_urgency_hint (surface, FALSE);
+      }
+#endif
+    }
+}
+
+static void
 ptyxis_window_toplevel_state_changed_cb (PtyxisWindow *self,
                                          GParamSpec   *pspec,
                                          GdkToplevel  *toplevel)
@@ -1549,6 +1572,11 @@ ptyxis_window_constructed (GObject *object)
                            self,
                            G_CONNECT_SWAPPED);
   notify_decoration_layout_cb (self, NULL, gtk_settings);
+
+  g_signal_connect (self,
+                    "notify::is-active",
+                    G_CALLBACK (ptyxis_window_notify_is_active_cb),
+                    NULL);
 }
 
 static void
