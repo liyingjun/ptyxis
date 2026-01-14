@@ -156,7 +156,6 @@ Ptyxis uses the Meson build system.
     - libadwaita (version 1.6 or newer, e.g., `libadwaita-1-dev`)
     - JSON-GLib (version 1.6 or newer, e.g., `libjson-glib-dev`)
     - VTE (GTK4 version, 0.79 or newer, e.g., `libvte-2.91-gtk4-dev`)
-    - libportal-gtk4 (on Linux, e.g., `libportal-gtk4-dev`)
 
 2. **Clone the repository:**
 

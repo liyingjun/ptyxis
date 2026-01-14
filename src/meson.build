@@ -89,10 +89,6 @@ ptyxis_deps = [
   cc.find_library('m', required: false),
 ]
 
-if host_machine.system() == 'linux'
-  ptyxis_deps += [dependency('libportal-gtk4')]
-endif
-
 ptyxis_c_args = [
   release_link_args,
   '-DG_LOG_DOMAIN="Ptyxis"',
