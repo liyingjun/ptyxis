@@ -316,7 +316,7 @@ ptyxis_palette_load_face (const char         *path,
   if (!ptyxis_palette_load_color (path, &face->cursor_bg, key_file, scheme, "CursorBackground", NULL))
     ptyxis_palette_load_color (path, &face->cursor_bg, key_file, scheme, "Cursor", NULL);
 
-  ptyxis_palette_load_color (path, &face->cursor_fg, key_file, scheme, "CursorForeround", NULL);
+  ptyxis_palette_load_color (path, &face->cursor_fg, key_file, scheme, "CursorForeground", NULL);
 
   if (FALSE ||
       !ptyxis_palette_load_color (path, &face->foreground, key_file, scheme, "Foreground", error) ||
