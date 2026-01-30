@@ -83,6 +83,7 @@ struct _PtyxisTab
   guint                    has_foreground_process : 1;
   guint                    forced_exit : 1;
   guint                    ignore_osc_title : 1;
+  guint                    disable_dynamic_title : 1;
   guint                    ignore_snapshot : 1;
 
   guint                    inhibit_cookie;
@@ -91,6 +92,7 @@ struct _PtyxisTab
 enum {
   PROP_0,
   PROP_COMMAND_LINE,
+  PROP_DISABLE_DYNAMIC_TITLE,
   PROP_ICON,
   PROP_IGNORE_OSC_TITLE,
   PROP_INDICATOR_ICON,
@@ -909,6 +911,9 @@ ptyxis_tab_constructed (GObject *object)
   g_object_bind_property (settings, "ignore-osc-title",
                           self, "ignore-osc-title",
                           G_BINDING_SYNC_CREATE);
+  g_object_bind_property (settings, "disable-dynamic-title",
+                          self, "disable-dynamic-title",
+                          G_BINDING_SYNC_CREATE);
 
   g_signal_connect_object (settings,
                            "notify::disable-padding",
@@ -1241,6 +1246,10 @@ ptyxis_tab_get_property (GObject    *object,
       g_value_take_object (value, ptyxis_tab_dup_icon (self));
       break;
 
+    case PROP_DISABLE_DYNAMIC_TITLE:
+      g_value_set_boolean (value, self->disable_dynamic_title);
+      break;
+
     case PROP_IGNORE_OSC_TITLE:
       g_value_set_boolean (value, ptyxis_tab_get_ignore_osc_title (self));
       break;
@@ -1308,6 +1317,15 @@ ptyxis_tab_set_property (GObject      *object,
 
   switch (prop_id)
     {
+    case PROP_DISABLE_DYNAMIC_TITLE:
+      if (self->disable_dynamic_title != !!g_value_get_boolean (value))
+        {
+          self->disable_dynamic_title = !!g_value_get_boolean (value);
+          g_object_notify_by_pspec (G_OBJECT (self), properties[PROP_DISABLE_DYNAMIC_TITLE]);
+          g_object_notify_by_pspec (G_OBJECT (self), properties[PROP_TITLE]);
+        }
+      break;
+
     case PROP_IGNORE_OSC_TITLE:
       ptyxis_tab_set_ignore_osc_title (self, g_value_get_boolean (value));
       break;
@@ -1361,6 +1379,13 @@ ptyxis_tab_class_init (PtyxisTabClass *klass)
     g_param_spec_object ("icon", NULL, NULL,
                          G_TYPE_ICON,
                          (G_PARAM_READABLE |
+                          G_PARAM_STATIC_STRINGS));
+
+  properties[PROP_DISABLE_DYNAMIC_TITLE] =
+    g_param_spec_boolean ("disable-dynamic-title", NULL, NULL,
+                         FALSE,
+                         (G_PARAM_READWRITE |
+                          G_PARAM_EXPLICIT_NOTIFY |
                           G_PARAM_STATIC_STRINGS));
 
   properties[PROP_IGNORE_OSC_TITLE] =
@@ -1650,7 +1675,8 @@ ptyxis_tab_dup_title (PtyxisTab *self)
     g_string_append_printf (gstr, " (%s)", _("Exited"));
   else if (self->state == PTYXIS_TAB_STATE_FAILED)
     g_string_append_printf (gstr, " (%s)", _("Failed"));
-  else if (self->has_foreground_process &&
+  else if (!self->disable_dynamic_title &&
+           self->has_foreground_process &&
            !ptyxis_str_empty0 (self->command_line) &&
            !ptyxis_str_empty0 (self->program_name) &&
            !ptyxis_is_shell (self->program_name))

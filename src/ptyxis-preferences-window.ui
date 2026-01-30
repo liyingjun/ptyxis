@@ -425,6 +425,17 @@
         </child>
         <child>
           <object class="AdwPreferencesGroup">
+            <property name="title" translatable="yes">Title</property>
+            <child>
+              <object class="AdwSwitchRow" id="disable_dynamic_title">
+                <property name="title" translatable="yes">Disable Dynamic Title</property>
+                <property name="subtitle" translatable="yes">Do not show running command in tab title</property>
+              </object>
+            </child>
+          </object>
+        </child>
+        <child>
+          <object class="AdwPreferencesGroup">
             <property name="title" translatable="yes">Scrolling</property>
             <child>
               <object class="AdwComboRow" id="scrollbar_policy">
