@@ -1,0 +1,1897 @@
+# Kazakh translation for ptyxis.
+# Copyright (C) 2026 ptyxis's COPYRIGHT HOLDER
+# This file is distributed under the same license as the ptyxis package.
+# Baurzhan Muftakhidinov <baurthefirst@gmail.com>,  2026.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: ptyxis gnome-49\n"
+"Report-Msgid-Bugs-To: https://gitlab.gnome.org/chergert/ptyxis/issues\n"
+"POT-Creation-Date: 2026-01-28 22:52+0000\n"
+"PO-Revision-Date: 2026-02-08 15:27+0500\n"
+"Last-Translator: Baurzhan Muftakhidinov <baurthefirst@gmail.com>\n"
+"Language-Team: Kazakh <kk_KZ@googlegroups.com>\n"
+"Language: kk\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=1; plural=0;\n"
+"X-Generator: Poedit 3.8\n"
+
+#: data/org.gnome.Ptyxis.desktop.in.in:2 data/org.gnome.Ptyxis.metainfo.xml.in.in:6
+msgid "@APP_NAME@"
+msgstr "@APP_NAME@"
+
+#: data/org.gnome.Ptyxis.desktop.in.in:3
+msgid "A container-oriented terminal for GNOME"
+msgstr "GNOME үшін контейнерге бағытталған терминал"
+
+#: data/org.gnome.Ptyxis.desktop.in.in:12 src/ptyxis-preferences-window.ui:655 src/ptyxis-tab.c:1454
+#: src/ptyxis-util.c:318
+msgid "Terminal"
+msgstr "Терминал"
+
+#. Translators: Search terms to find this application. Do NOT translate or
+#. localize the semicolons! The list MUST also end with a semicolon!
+#: data/org.gnome.Ptyxis.desktop.in.in:14
+msgid "terminal;prompt;ptyxis;shell;command;commandline;cmd;cli;console;container;podman;toolbox;distrobox;"
+msgstr ""
+"терминал;промпт;ptyxis;қоршам;команда;командалық жол;cmd;cli;консоль;контейнер;podman;toolbox;distrobox;"
+
+#: data/org.gnome.Ptyxis.desktop.in.in:23 src/org.gnome.Ptyxis.gschema.xml.in:405
+#: src/ptyxis-preferences-window.ui:720
+msgid "New Window"
+msgstr "Жаңа терезе"
+
+#: data/org.gnome.Ptyxis.desktop.in.in:27 src/org.gnome.Ptyxis.gschema.xml.in:399
+#: src/ptyxis-preferences-window.ui:746
+msgid "New Tab"
+msgstr "Жаңа бет"
+
+#: data/org.gnome.Ptyxis.desktop.in.in:31 src/org.gnome.Ptyxis.gschema.xml.in:417
+#: src/ptyxis-preferences-window.ui:921
+msgid "Preferences"
+msgstr "Баптаулар"
+
+#: data/org.gnome.Ptyxis.metainfo.xml.in.in:7
+msgid "Container-oriented terminal"
+msgstr "Контейнерге бағытталған терминал"
+
+#: data/org.gnome.Ptyxis.metainfo.xml.in.in:9
+msgid "Ptyxis is a terminal for GNOME that focuses on ease-of-use in a world of containers."
+msgstr "Ptyxis - бұл контейнерлер әлемінде қолданудың жеңілдігіне бағытталған GNOME-ға арналған терминал."
+
+#: data/org.gnome.Ptyxis.metainfo.xml.in.in:13
+msgid "Features:"
+msgstr "Мүмкіндіктері:"
+
+#: data/org.gnome.Ptyxis.metainfo.xml.in.in:15
+msgid ""
+"Remembers current container when opening a new tab with support for podman, toolbox, distrobox, and more"
+msgstr ""
+"Podman, toolbox, distrobox және т.б. қолдауымен жаңа бетті ашқанда ағымдағы контейнерді есте сақтайды"
+
+#: data/org.gnome.Ptyxis.metainfo.xml.in.in:16
+msgid "Configurable keyboard shortcuts"
+msgstr "Теңшелетін пернетақта жарлықтары"
+
+#: data/org.gnome.Ptyxis.metainfo.xml.in.in:17
+msgid "Modern interface which integrates the palette with the window styling"
+msgstr "Палитраны терезе стилімен біріктіретін заманауи интерфейс"
+
+#: data/org.gnome.Ptyxis.metainfo.xml.in.in:18
+msgid "User-installable color palettes"
+msgstr "Пайдаланушы орната алатын түс палитралары"
+
+#: data/org.gnome.Ptyxis.metainfo.xml.in.in:19
+msgid "Support for preferences profiles with container integration"
+msgstr "Контейнерлермен интеграцияланған баптаулар профильдерін қолдау"
+
+#: data/org.gnome.Ptyxis.metainfo.xml.in.in:20
+msgid "Integrated color palettes with light and dark support"
+msgstr "Ашық және күңгірт режимдерді қолдайтын кірістірілген түс палитралары"
+
+#: data/org.gnome.Ptyxis.metainfo.xml.in.in:21
+msgid "Tabbed interface with tab overviews"
+msgstr "Беттерге шолу мүмкіндігі бар беттік интерфейс"
+
+#: data/org.gnome.Ptyxis.metainfo.xml.in.in:22
+msgid "Efficient foreground process tracking denoting sudo and SSH"
+msgstr "Sudo және SSH белгілейтін алдыңғы қатардағы процестерді тиімді бақылау"
+
+#: data/org.gnome.Ptyxis.metainfo.xml.in.in:23
+msgid "Support for transparent terminal backgrounds"
+msgstr "Терминалдың мөлдір фондарына қолдау көрсету"
+
+#: data/org.gnome.Ptyxis.metainfo.xml.in.in:24
+msgid "Separate process mode for terminal-based applications"
+msgstr "Терминалға негізделген қолданбалар үшін бөлек процесс режимі"
+
+#: data/org.gnome.Ptyxis.metainfo.xml.in.in:25
+msgid "Support for pinned tabs and saved sessions"
+msgstr "Бекітілген беттер мен сақталған сессияларды қолдау"
+
+#: data/org.gnome.Ptyxis.metainfo.xml.in.in:26
+msgid "Terminal tabs are run within separate cgroups"
+msgstr "Терминал беттері бөлек cgroups ішінде орындалады"
+
+#: data/org.gnome.Ptyxis.metainfo.xml.in.in:27
+msgid "Terminal inspector to help when writing terminal-based applications"
+msgstr "Терминалға негізделген қолданбаларды жазу кезінде көмектесетін терминал инспекторы"
+
+#. developer_name tag deprecated with Appstream 1.0
+#: data/org.gnome.Ptyxis.metainfo.xml.in.in:32
+msgid "Christian Hergert"
+msgstr "Christian Hergert"
+
+#: data/org.gnome.Ptyxis.metainfo.xml.in.in:72
+msgid "A column and row size indicator is displayed when resizing the window"
+msgstr "Терезе өлшемін өзгерткен кезде баған мен жол өлшемінің индикаторы көрсетіледі"
+
+#: data/org.gnome.Ptyxis.metainfo.xml.in.in:77
+msgid "Containers are automatically discovered and displayed"
+msgstr "Контейнерлер автоматты түрде анықталады және көрсетіледі"
+
+#: data/org.gnome.Ptyxis.metainfo.xml.in.in:82
+msgid "Many behaviors of the terminal may be tweaked to user preference"
+msgstr "Терминалдың көптеген мінез-құлықтарын пайдаланушы қалауы бойынша баптауға болады"
+
+#: data/org.gnome.Ptyxis.metainfo.xml.in.in:87
+msgid "You may rename a tab by providing a prefix to the title"
+msgstr "Тақырыпқа префикс қосу арқылы беттің атын өзгертуге болады"
+
+#: data/org.gnome.Ptyxis.metainfo.xml.in.in:92
+msgid "Palettes provide an integrated dark mode"
+msgstr "Палитралар кірістірілген күңгірт режимді қамтамасыз етеді"
+
+#: data/org.gnome.Ptyxis.metainfo.xml.in.in:97
+msgid "You can see an overview of your tabs at any time"
+msgstr "Кез келген уақытта беттерге шолуды көруге болады"
+
+#: data/org.gnome.Ptyxis.metainfo.xml.in.in:102
+msgid "Many shortcuts may be remapped to user preference"
+msgstr "Көптеген жарлықтарды пайдаланушы қалауы бойынша қайта тағайындауға болады"
+
+#: data/org.gnome.Ptyxis.metainfo.xml.in.in:107
+msgid "Built-in color palettes provide both dark and light mode variants"
+msgstr "Кірістірілген түс палитралары күңгірт және ашық режим нұсқаларын ұсынады"
+
+#: data/org.gnome.Ptyxis.metainfo.xml.in.in:112
+msgid "Profiles allow for overriding a number of features such as default container"
+msgstr "Профильдер әдепкі контейнер сияқты бірқатар мүмкіндіктерді қайта анықтауға мүмкіндік береді"
+
+#: data/org.gnome.Ptyxis.metainfo.xml.in.in:117
+msgid "The terminal will remind you when you're root on the local system"
+msgstr "Локалды жүйеде root болған кезде терминал сізге ескертеді"
+
+#: data/org.gnome.Ptyxis.metainfo.xml.in.in:122
+msgid "The terminal will remind you when you're on a remote system"
+msgstr "Қашықтағы жүйеде болған кезде терминал сізге ескертеді"
+
+#: src/main.c:142 src/main.c:149 src/main.c:161
+msgid "Error"
+msgstr "Қате"
+
+#: src/main.c:155
+#, c-format
+msgid ""
+"Error: %s already exists.\n"
+"Please remove it first.\n"
+msgstr ""
+"Қате: %s бұрыннан бар.\n"
+"Алдымен оны өшіріңіз.\n"
+
+#: src/org.gnome.Ptyxis.gschema.xml.in:101
+msgid "Default Profile UUID"
+msgstr "Әдепкі профильдің UUID коды"
+
+#: src/org.gnome.Ptyxis.gschema.xml.in:102
+msgid "The UUID of the default profile"
+msgstr "Әдепкі профильдің UUID коды"
+
+#: src/org.gnome.Ptyxis.gschema.xml.in:107
+msgid "UUIDs of all Profiles"
+msgstr "Барлық профильдердің UUID кодтары"
+
+#: src/org.gnome.Ptyxis.gschema.xml.in:108
+msgid "A list of UUID for every profile"
+msgstr "Әр профиль үшін UUID тізімі"
+
+#: src/org.gnome.Ptyxis.gschema.xml.in:113 src/ptyxis-preferences-window.ui:308
+msgid "New Tab Position"
+msgstr "Жаңа беттің орны"
+
+#: src/org.gnome.Ptyxis.gschema.xml.in:114
+msgid "Where to place new tabs"
+msgstr "Жаңа беттерді қайда орналастыру керек"
+
+#: src/org.gnome.Ptyxis.gschema.xml.in:119 src/ptyxis-preferences-window.ui:400
+msgid "Audible Bell"
+msgstr "Дыбыстық сигнал"
+
+#: src/org.gnome.Ptyxis.gschema.xml.in:120
+msgid "If an audible bell should be used"
+msgstr "Дыбыстық сигналды пайдалану керек пе"
+
+#: src/org.gnome.Ptyxis.gschema.xml.in:125
+msgid "Visible Bell"
+msgstr "Визуалды сигнал"
+
+#: src/org.gnome.Ptyxis.gschema.xml.in:126
+msgid "If a visual bell should be used"
+msgstr "Визуалды сигналды пайдалану керек пе"
+
+#: src/org.gnome.Ptyxis.gschema.xml.in:131
+msgid "Visual Process Leader"
+msgstr "Визуалды процесс көшбасшысы"
+
+#: src/org.gnome.Ptyxis.gschema.xml.in:132
+msgid "Display a visual window highlight when process leader is SSH, sudo, or other specialized tooling"
+msgstr ""
+"Процесс көшбасшысы SSH, sudo немесе басқа арнайы құрал болған кезде терезенің визуалды ерекшеленуін "
+"көрсету"
+
+#: src/org.gnome.Ptyxis.gschema.xml.in:137
+msgid "Use System Font"
+msgstr "Жүйелік қаріпті пайдалану"
+
+#: src/org.gnome.Ptyxis.gschema.xml.in:138
+msgid "If the default system monospace font should be used"
+msgstr "Әдепкі жүйелік моноеністі қаріпті пайдалану керек пе"
+
+#: src/org.gnome.Ptyxis.gschema.xml.in:143
+msgid "Font Name"
+msgstr "Қаріп аты"
+
+#: src/org.gnome.Ptyxis.gschema.xml.in:144
+msgid "The font description to use if use-system-font is set to False"
+msgstr "use-system-font параметрі False болса, қолданылатын қаріп сипаттамасы"
+
+#: src/org.gnome.Ptyxis.gschema.xml.in:149 src/ptyxis-preferences-window.ui:235
+msgid "Cursor Shape"
+msgstr "Курсор пішіні"
+
+#: src/org.gnome.Ptyxis.gschema.xml.in:150
+msgid "The default shape of the cursor"
+msgstr "Курсордың әдепкі пішіні"
+
+#: src/org.gnome.Ptyxis.gschema.xml.in:155
+msgid "Cursor Blink Mode"
+msgstr "Курсордың жыпылықтау режимі"
+
+#: src/org.gnome.Ptyxis.gschema.xml.in:156
+msgid "The default blink mode cursor"
+msgstr "Курсордың әдепкі жыпылықтау режимі"
+
+#: src/org.gnome.Ptyxis.gschema.xml.in:161
+msgid "List of punctuation characters that are treated as word characters"
+msgstr "Сөз таңбалары ретінде қарастырылатын тыныс белгілерінің тізімі"
+
+#: src/org.gnome.Ptyxis.gschema.xml.in:162
+msgid ""
+"By default, when doing word-wise selection, most punctuation breaks up word boundaries. This list of "
+"exceptions will instead be treated as part of the word."
+msgstr ""
+"Әдепкі бойынша, сөз бойынша таңдау кезінде тыныс белгілерінің көбі сөз шекараларын бөледі. Бұл "
+"ерекшеліктер тізімі оның орнына сөздің бөлігі ретінде қарастырылады."
+
+#: src/org.gnome.Ptyxis.gschema.xml.in:167
+msgid "Scrollbar Policy"
+msgstr "Айналдыру жолағының саясаты"
+
+#: src/org.gnome.Ptyxis.gschema.xml.in:168
+msgid "If scrollbars should be displayed"
+msgstr "Айналдыру жолақтарын көрсету керек пе"
+
+#: src/org.gnome.Ptyxis.gschema.xml.in:177
+msgid "Text Blink Mode"
+msgstr "Мәтіннің жыпылықтау режимі"
+
+#: src/org.gnome.Ptyxis.gschema.xml.in:178
+msgid "When text blinking is allowed"
+msgstr "Мәтін жыпылықтауына қашан рұқсат етіледі"
+
+#: src/org.gnome.Ptyxis.gschema.xml.in:183
+msgid "Interface Style"
+msgstr "Интерфейс стилі"
+
+#: src/org.gnome.Ptyxis.gschema.xml.in:184
+msgid "If light or dark interface style should be used"
+msgstr "Ашық немесе күңгірт интерфейс стилін пайдалану керек пе"
+
+#: src/org.gnome.Ptyxis.gschema.xml.in:189 src/ptyxis-preferences-window.ui:337
+msgid "Restore Session"
+msgstr "Сессияны қалпына келтіру"
+
+#: src/org.gnome.Ptyxis.gschema.xml.in:190
+msgid "Restore tabs from previous session when starting Ptyxis"
+msgstr "Ptyxis іске қосылғанда алдыңғы сессиядағы беттерді қалпына келтіру"
+
+#: src/org.gnome.Ptyxis.gschema.xml.in:195 src/ptyxis-preferences-window.ui:343
+msgid "Restore Window Size"
+msgstr "Терезе өлшемін қалпына келтіру"
+
+#: src/org.gnome.Ptyxis.gschema.xml.in:196
+msgid "Restore the previous window size when creating new windows"
+msgstr "Жаңа терезелерді жасағанда алдыңғы терезе өлшемін қалпына келтіру"
+
+#: src/org.gnome.Ptyxis.gschema.xml.in:206
+msgid "Default Column Size"
+msgstr "Бағандардың әдепкі өлшемі"
+
+#: src/org.gnome.Ptyxis.gschema.xml.in:207 src/org.gnome.Ptyxis.gschema.xml.in:214
+msgid "Default window size when restore-window-size is not true."
+msgstr "restore-window-size параметрі ақиқат болмағандағы әдепкі терезе өлшемі."
+
+#: src/org.gnome.Ptyxis.gschema.xml.in:213
+msgid "Default Row Size"
+msgstr "Жолдардың әдепкі өлшемі"
+
+#: src/org.gnome.Ptyxis.gschema.xml.in:219
+msgid "Toast on Copy Clipboard"
+msgstr "Алмасу буферіне көшіру кезіндегі хабарлама"
+
+#: src/org.gnome.Ptyxis.gschema.xml.in:220
+msgid "Show the user when text has copied to the clipboard."
+msgstr "Мәтін алмасу буферіне көшірілгенде пайдаланушыға көрсету."
+
+#: src/org.gnome.Ptyxis.gschema.xml.in:225
+msgid "Enable Accessibility"
+msgstr "Қолжетімділікті іске қосу"
+
+#: src/org.gnome.Ptyxis.gschema.xml.in:226
+msgid "Currently experimental feature to send accessibility information to screen readers."
+msgstr ""
+"Экраннан оқу бағдарламаларына қолжетімділік туралы ақпаратты жіберуге арналған эксперименттік функция."
+
+#: src/org.gnome.Ptyxis.gschema.xml.in:231
+msgid "Disable Padding around Terminal Emulator"
+msgstr "Терминал эмуляторының айналасындағы шегіністерді сөндіру"
+
+#: src/org.gnome.Ptyxis.gschema.xml.in:232
+msgid ""
+"Do not pad around the terminal emulator widget. Setting to true may have significant performance impacts."
+msgstr ""
+"Терминал эмуляторының виджеті айналасында шегіністер жасамау. Ақиқат мәніне орнату өнімділікке "
+"айтарлықтай әсер етуі мүмкін."
+
+#: src/org.gnome.Ptyxis.gschema.xml.in:237
+msgid "Prompt when active tab is closed"
+msgstr "Белсенді бет жабылғанда сұрау"
+
+#: src/org.gnome.Ptyxis.gschema.xml.in:238
+msgid "If a tab (or window) is closed with active foreground processes, prompt the user for confirmation."
+msgstr ""
+"Егер бет (немесе терезе) белсенді алдыңғы қатардағы процестермен жабылса, пайдаланушыдан растауды сұрау."
+
+#. Translators: OSC stands for "Operating System Command" and is referencing
+#. in-band escape sequences from the child process to set the title
+#: src/org.gnome.Ptyxis.gschema.xml.in:244
+msgid "Ignore OSC Title"
+msgstr "OSC тақырыбын елемеу"
+
+#: src/org.gnome.Ptyxis.gschema.xml.in:245
+msgid "If OSC title should be ignored in tab titles."
+msgstr "Бет тақырыптарында OSC тақырыбын елемеу керек пе."
+
+#: src/org.gnome.Ptyxis.gschema.xml.in:254
+msgid "Label"
+msgstr "Белгі"
+
+#: src/org.gnome.Ptyxis.gschema.xml.in:255
+msgid "The label for the profile"
+msgstr "Профильге арналған белгі"
+
+#: src/org.gnome.Ptyxis.gschema.xml.in:260
+msgid "Login Shell"
+msgstr "Кіру қоршамы"
+
+#: src/org.gnome.Ptyxis.gschema.xml.in:261
+msgid "Use a login shell"
+msgstr "Кіру қоршамын пайдалану"
+
+#: src/org.gnome.Ptyxis.gschema.xml.in:266 src/ptyxis-preferences-window.ui:468
+#: src/ptyxis-profile-editor.ui:319
+msgid "Limit Scrollback"
+msgstr "Айналдыру тарихын шектеу"
+
+#: src/org.gnome.Ptyxis.gschema.xml.in:267
+msgid "Limit the number of lines to keep for scrollback"
+msgstr "Айналдыру тарихы үшін сақталатын жолдар санын шектеу"
+
+#: src/org.gnome.Ptyxis.gschema.xml.in:273 src/ptyxis-preferences-window.ui:477
+#: src/ptyxis-profile-editor.ui:328
+msgid "Scrollback Lines"
+msgstr "Айналдыру тарихының жолдары"
+
+#: src/org.gnome.Ptyxis.gschema.xml.in:274
+msgid "The number of lines to keep in the scrollback, zero for no scrollback"
+msgstr "Айналдыру тарихында сақталатын жолдар саны, нөл - айналдыру тарихы жоқ"
+
+#: src/org.gnome.Ptyxis.gschema.xml.in:279 src/ptyxis-preferences-window.ui:458
+#: src/ptyxis-profile-editor.ui:309
+msgid "Scroll on Output"
+msgstr "Шығыс кезінде айналдыру"
+
+#: src/org.gnome.Ptyxis.gschema.xml.in:280
+msgid "Scroll to the bottom upon new output"
+msgstr "Жаңа шығыс пайда болғанда төменге айналдыру"
+
+#: src/org.gnome.Ptyxis.gschema.xml.in:285 src/ptyxis-preferences-window.ui:452
+#: src/ptyxis-profile-editor.ui:303
+msgid "Scroll on Keystroke"
+msgstr "Пернені басқанда айналдыру"
+
+#: src/org.gnome.Ptyxis.gschema.xml.in:286
+msgid "Scroll to the bottom upon user keystroke"
+msgstr "Пайдаланушы пернені басқанда төменге айналдыру"
+
+#: src/org.gnome.Ptyxis.gschema.xml.in:291 src/ptyxis-profile-editor.ui:173
+msgid "Use Custom Command"
+msgstr "Реттелетін команданы пайдалану"
+
+#: src/org.gnome.Ptyxis.gschema.xml.in:292
+msgid "If a custom command should be used"
+msgstr "Реттелетін команданы пайдалану керек пе"
+
+#: src/org.gnome.Ptyxis.gschema.xml.in:297
+msgid "Use Proxy"
+msgstr "Проксиді пайдалану"
+
+#: src/org.gnome.Ptyxis.gschema.xml.in:298
+msgid "Apply proxy settings from the host in the container"
+msgstr "Хосттың прокси параметрлерін контейнерде іске асыру"
+
+#: src/org.gnome.Ptyxis.gschema.xml.in:303 src/ptyxis-profile-editor.ui:178
+msgid "Custom Command"
+msgstr "Реттелетін команда"
+
+#: src/org.gnome.Ptyxis.gschema.xml.in:304
+msgid "A custom command for the shell"
+msgstr "Қоршамға арналған реттелетін команда"
+
+#: src/org.gnome.Ptyxis.gschema.xml.in:309 src/ptyxis-profile-editor.ui:197
+msgid "Default Container"
+msgstr "Әдепкі контейнер"
+
+#: src/org.gnome.Ptyxis.gschema.xml.in:310
+msgid "The default container to run the command in"
+msgstr "Команданы орындауға арналған әдепкі контейнер"
+
+#: src/org.gnome.Ptyxis.gschema.xml.in:315 src/ptyxis-profile-editor.ui:206
+msgid "Preserve Container"
+msgstr "Контейнерді сақтау"
+
+#: src/org.gnome.Ptyxis.gschema.xml.in:316
+msgid "Preserve the active container when creating new tabs and windows"
+msgstr "Жаңа беттер мен терезелерді жасағанда белсенді контейнерді сақтау"
+
+#: src/org.gnome.Ptyxis.gschema.xml.in:321 src/ptyxis-preferences-window.ui:537
+#: src/ptyxis-profile-editor.ui:267
+msgid "Exit Action"
+msgstr "Шығу әрекеті"
+
+#: src/org.gnome.Ptyxis.gschema.xml.in:322
+msgid "The action to take when the shell exits"
+msgstr "Қоршам жұмысын аяқтағанда орындалатын әрекет"
+
+#: src/org.gnome.Ptyxis.gschema.xml.in:327
+msgid "Preserve Directory"
+msgstr "Буманы сақтау"
+
+#: src/org.gnome.Ptyxis.gschema.xml.in:328
+msgid "If the directory should be preserved for new terminals"
+msgstr "Жаңа терминалдар үшін буманы сақтау керек пе"
+
+#: src/org.gnome.Ptyxis.gschema.xml.in:333 src/ptyxis-inspector.ui:102 src/ptyxis-preferences-window.ui:40
+#: src/ptyxis-profile-editor.ui:65
+msgid "Palette"
+msgstr "Палитра"
+
+#: src/org.gnome.Ptyxis.gschema.xml.in:334
+msgid "The color palette to use for the profile, by name"
+msgstr "Профиль үшін қолданылатын түс палитрасы (аты бойынша)"
+
+#: src/org.gnome.Ptyxis.gschema.xml.in:340
+msgid "Opacity"
+msgstr "Мөлдірсіздік"
+
+#: src/org.gnome.Ptyxis.gschema.xml.in:341
+msgid "The opacity of the palette background"
+msgstr "Палитра фонының мөлдірсіздігі"
+
+#: src/org.gnome.Ptyxis.gschema.xml.in:346
+msgid "Bold is Bright"
+msgstr "Жуан - ашық"
+
+#: src/org.gnome.Ptyxis.gschema.xml.in:347
+msgid "Setting bold on one of the lower 8 colors in the palette will use bright variant (upper 8 colors)"
+msgstr "Палитрадағы төменгі 8 түстің біріне жуандықты орнату ашық нұсқаны (жоғарғы 8 түс) пайдаланады"
+
+#: src/org.gnome.Ptyxis.gschema.xml.in:353 src/ptyxis-preferences-window.ui:175
+#: src/ptyxis-profile-editor.ui:143
+msgid "Line Spacing"
+msgstr "Жоларалық шегініс"
+
+#: src/org.gnome.Ptyxis.gschema.xml.in:354
+msgid "The terminal’s cell height scale"
+msgstr "Терминал ұяшығы биіктігінің масштабы"
+
+#: src/org.gnome.Ptyxis.gschema.xml.in:359
+msgid "CJK Ambiguous Width"
+msgstr "CJK екіұшты ені"
+
+#: src/org.gnome.Ptyxis.gschema.xml.in:360
+msgid "The size to apply to ambiguous width characters"
+msgstr "Екіұшты ені бар таңбаларға қолданылатын өлшем"
+
+#: src/org.gnome.Ptyxis.gschema.xml.in:365 src/org.gnome.Ptyxis.gschema.xml.in:371
+msgid "Backspace Binding"
+msgstr "Backspace әрекеті"
+
+#: src/org.gnome.Ptyxis.gschema.xml.in:366 src/org.gnome.Ptyxis.gschema.xml.in:372
+msgid "What to send to the PTY when a backspace is entered"
+msgstr "Backspace басылғанда PTY-ге не жіберу керек"
+
+#: src/org.gnome.Ptyxis.gschema.xml.in:377 src/ptyxis-preferences-window.ui:620
+#: src/ptyxis-profile-editor.ui:395
+msgid "Custom Links"
+msgstr "Реттелетін сілтемелер"
+
+#: src/org.gnome.Ptyxis.gschema.xml.in:378
+msgid ""
+"A list of custom hyperlinks, each defined by a regular expression matching the text, and a replacement "
+"pattern"
+msgstr ""
+"Реттелетін гиперсілтемелер тізімі, олардың әрқайсысы мәтінге сәйкес келетін тұрақты тіркеспен және "
+"ауыстыру үлгісімен анықталады"
+
+#: src/org.gnome.Ptyxis.gschema.xml.in:387 src/ptyxis-preferences-window.ui:658
+msgid "Copy to Clipboard"
+msgstr "Алмасу буферіне көшіру"
+
+#: src/org.gnome.Ptyxis.gschema.xml.in:388
+msgid "The shortcut to copy to clipboard"
+msgstr "Алмасу буферіне көшіру жарлығы"
+
+#: src/org.gnome.Ptyxis.gschema.xml.in:393 src/ptyxis-preferences-window.ui:663
+msgid "Paste from Clipboard"
+msgstr "Алмасу буферінен кірістіру"
+
+#: src/org.gnome.Ptyxis.gschema.xml.in:394
+msgid "The shortcut to paste from the clipboard"
+msgstr "Алмасу буферінен кірістіру жарлығы"
+
+#: src/org.gnome.Ptyxis.gschema.xml.in:400
+msgid "The shortcut to create a new tab in the current window"
+msgstr "Ағымдағы терезеде жаңа бет жасау жарлығы"
+
+#: src/org.gnome.Ptyxis.gschema.xml.in:406
+msgid "The shortcut to create a new tab in a new window"
+msgstr "Жаңа терезеде жаңа бет жасау жарлығы"
+
+#: src/org.gnome.Ptyxis.gschema.xml.in:411
+msgid "Tab Overview"
+msgstr "Беттерге шолу"
+
+#: src/org.gnome.Ptyxis.gschema.xml.in:412
+msgid "The shortcut to show the tab overview"
+msgstr "Беттерге шолуды көрсету жарлығы"
+
+#: src/org.gnome.Ptyxis.gschema.xml.in:418
+msgid "The shortcut to show application preferences"
+msgstr "Қолданба баптауларын көрсету жарлығы"
+
+#: src/org.gnome.Ptyxis.gschema.xml.in:423 src/ptyxis-preferences-window.ui:884 src/ptyxis-window.c:1460
+#: src/ptyxis-window.c:1468
+msgid "Zoom Out"
+msgstr "Кішірейту"
+
+#: src/org.gnome.Ptyxis.gschema.xml.in:424
+msgid "The shortcut to zoom out"
+msgstr "Кішірейту жарлығы"
+
+#: src/org.gnome.Ptyxis.gschema.xml.in:429 src/ptyxis-preferences-window.ui:889 src/ptyxis-window.c:1477
+msgid "Reset Zoom"
+msgstr "Масштабты тастау"
+
+#: src/org.gnome.Ptyxis.gschema.xml.in:430
+msgid "The shortcut to reset zoom"
+msgstr "Масштабты тастау жарлығы"
+
+#: src/org.gnome.Ptyxis.gschema.xml.in:435 src/ptyxis-preferences-window.ui:879 src/ptyxis-window.c:1445
+#: src/ptyxis-window.c:1453
+msgid "Zoom In"
+msgstr "Үлкейту"
+
+#: src/org.gnome.Ptyxis.gschema.xml.in:436
+msgid "The shortcut to zoom in"
+msgstr "Үлкейту жарлығы"
+
+#: src/org.gnome.Ptyxis.gschema.xml.in:441 src/ptyxis-preferences-window.ui:899
+msgid "Toggle Fullscreen"
+msgstr "Толық экран режиміне өту"
+
+#: src/org.gnome.Ptyxis.gschema.xml.in:442
+msgid "The shortcut to toggle fullscreen"
+msgstr "Толық экран режиміне өту жарлығы"
+
+#: src/org.gnome.Ptyxis.gschema.xml.in:447
+msgid "Reset Terminal"
+msgstr "Терминалды тастау"
+
+#: src/org.gnome.Ptyxis.gschema.xml.in:448
+msgid "Reset the terminal state for misbehaving clients"
+msgstr "Қате жұмыс істейтін клиенттер үшін терминал күйін тастау"
+
+#: src/org.gnome.Ptyxis.gschema.xml.in:453
+msgid "Reset Terminal and Clear History"
+msgstr "Терминалды тастау және тарихты тазарту"
+
+#: src/org.gnome.Ptyxis.gschema.xml.in:454
+msgid "Reset the terminal state and clear history for misbehaving clients"
+msgstr "Қате жұмыс істейтін клиенттер үшін терминал күйін тастау және тарихты тазарту"
+
+#. Translators: Refers to searching the terminal scrollback
+#: src/org.gnome.Ptyxis.gschema.xml.in:460 src/ptyxis-find-bar.ui:39 src/ptyxis-preferences-window.ui:701
+msgid "Search History"
+msgstr "Тарихтан іздеу"
+
+#: src/org.gnome.Ptyxis.gschema.xml.in:461
+msgid "Shortcut to begin searching the terminal history"
+msgstr "Терминал тарихынан іздеуді бастау жарлығы"
+
+#: src/org.gnome.Ptyxis.gschema.xml.in:466 src/ptyxis-preferences-window.ui:672
+msgid "Select All"
+msgstr "Барлығын таңдау"
+
+#: src/org.gnome.Ptyxis.gschema.xml.in:467
+msgid "Shortcut to select all the entire terminal scrollback"
+msgstr "Терминалдың бүкіл айналдыру тарихын таңдау жарлығы"
+
+#: src/org.gnome.Ptyxis.gschema.xml.in:472
+msgid "Select None"
+msgstr "Таңдауды алып тастау"
+
+#: src/org.gnome.Ptyxis.gschema.xml.in:473
+msgid "Shortcut to clear the terminal selection"
+msgstr "Терминал таңдауын тазарту жарлығы"
+
+#: src/org.gnome.Ptyxis.gschema.xml.in:478
+msgid "Popup Menu"
+msgstr "Қалқымалы мәзір"
+
+#: src/org.gnome.Ptyxis.gschema.xml.in:479
+msgid "Shortcut to show the popup menu for the terminal"
+msgstr "Терминалдың қалқымалы мәзірін көрсету жарлығы"
+
+#: src/org.gnome.Ptyxis.gschema.xml.in:484
+msgid "Primary Menu"
+msgstr "Негізгі мәзір"
+
+#: src/org.gnome.Ptyxis.gschema.xml.in:485
+msgid "Shortcut to show the primary menu for the window"
+msgstr "Терезенің негізгі мәзірін көрсету жарлығы"
+
+#: src/org.gnome.Ptyxis.gschema.xml.in:490
+msgid "Tab Menu"
+msgstr "Бет мәзірі"
+
+#: src/org.gnome.Ptyxis.gschema.xml.in:491
+msgid "Shortcut to show the new tab menu"
+msgstr "Жаңа бет мәзірін көрсету жарлығы"
+
+#. Translators: in this context, "Move" means to switch tabs
+#: src/org.gnome.Ptyxis.gschema.xml.in:497 src/ptyxis-preferences-window.ui:788
+msgid "Move to Previous Tab"
+msgstr "Алдыңғы бетке өту"
+
+#. Translators: in this context, "Move" means to switch tabs
+#: src/org.gnome.Ptyxis.gschema.xml.in:499
+msgid "Shortcut to move to the previous tab"
+msgstr "Алдыңғы бетке өту жарлығы"
+
+#. Translators: in this context, "Move" means to switch tabs
+#: src/org.gnome.Ptyxis.gschema.xml.in:505 src/ptyxis-preferences-window.ui:793
+msgid "Move to Next Tab"
+msgstr "Келесі бетке өту"
+
+#. Translators: in this context, "Move" means to switch tabs
+#: src/org.gnome.Ptyxis.gschema.xml.in:507
+msgid "Shortcut to move to the next tab"
+msgstr "Келесі бетке өту жарлығы"
+
+#: src/org.gnome.Ptyxis.gschema.xml.in:512 src/ptyxis-preferences-window.ui:802
+msgid "Move Tab Left"
+msgstr "Бетті солға жылжыту"
+
+#: src/org.gnome.Ptyxis.gschema.xml.in:513
+msgid "Shortcut to move the current tab to the left one position"
+msgstr "Ағымдағы бетті бір позицияға солға жылжыту жарлығы"
+
+#: src/org.gnome.Ptyxis.gschema.xml.in:518 src/ptyxis-preferences-window.ui:808
+msgid "Move Tab Right"
+msgstr "Бетті оңға жылжыту"
+
+#: src/org.gnome.Ptyxis.gschema.xml.in:519
+msgid "Shortcut to move the current tab to the right one position"
+msgstr "Ағымдағы бетті бір позицияға оңға жылжыту жарлығы"
+
+#: src/org.gnome.Ptyxis.gschema.xml.in:524 src/ptyxis-preferences-window.ui:814
+msgid "Move Tab to New Window"
+msgstr "Бетті жаңа терезеге жылжыту"
+
+#: src/org.gnome.Ptyxis.gschema.xml.in:525
+msgid "Shortcut to move the current tab into a new window"
+msgstr "Ағымдағы бетті жаңа терезеге жылжыту жарлығы"
+
+#: src/org.gnome.Ptyxis.gschema.xml.in:530 src/ptyxis-preferences-window.ui:766
+msgid "Close Tab"
+msgstr "Бетті жабу"
+
+#: src/org.gnome.Ptyxis.gschema.xml.in:531
+msgid "Shortcut to close the current tab"
+msgstr "Ағымдағы бетті жабу жарлығы"
+
+#: src/org.gnome.Ptyxis.gschema.xml.in:536 src/ptyxis-preferences-window.ui:772
+msgid "Close Other Tabs"
+msgstr "Басқа беттерді жабу"
+
+#: src/org.gnome.Ptyxis.gschema.xml.in:537
+msgid "Shortcut to close all tabs in the window but the current one"
+msgstr "Терезедегі ағымдағы беттен басқа барлық беттерді жабу жарлығы"
+
+#: src/org.gnome.Ptyxis.gschema.xml.in:542 src/ptyxis-preferences-window.ui:726
+msgid "Close Window"
+msgstr "Терезені жабу"
+
+#: src/org.gnome.Ptyxis.gschema.xml.in:543
+msgid "Shortcut to close the current window"
+msgstr "Ағымдағы терезені жабу жарлығы"
+
+#: src/org.gnome.Ptyxis.gschema.xml.in:548 src/ptyxis-preferences-window.ui:736 src/ptyxis-terminal.ui:244
+#: src/ptyxis-window.c:1185 src/ptyxis-window.ui:824
+msgid "Set Title"
+msgstr "Атауды орнату"
+
+#: src/org.gnome.Ptyxis.gschema.xml.in:549
+msgid "The shortcut to show set title"
+msgstr "Атауды орнатуды көрсету жарлығы"
+
+#: src/org.gnome.Ptyxis.gschema.xml.in:554
+msgid "Focus Tab 1"
+msgstr "1-бетке фокустау"
+
+#: src/org.gnome.Ptyxis.gschema.xml.in:555
+msgid "Shortcut to focus tab 1"
+msgstr "1-бетке фокустау жарлығы"
+
+#: src/org.gnome.Ptyxis.gschema.xml.in:560
+msgid "Focus Tab 2"
+msgstr "2-бетке фокустау"
+
+#: src/org.gnome.Ptyxis.gschema.xml.in:561
+msgid "Shortcut to focus tab 2"
+msgstr "2-бетке фокустау жарлығы"
+
+#: src/org.gnome.Ptyxis.gschema.xml.in:566
+msgid "Focus Tab 3"
+msgstr "3-бетке фокустау"
+
+#: src/org.gnome.Ptyxis.gschema.xml.in:567
+msgid "Shortcut to focus tab 3"
+msgstr "3-бетке фокустау жарлығы"
+
+#: src/org.gnome.Ptyxis.gschema.xml.in:572
+msgid "Focus Tab 4"
+msgstr "4-бетке фокустау"
+
+#: src/org.gnome.Ptyxis.gschema.xml.in:573
+msgid "Shortcut to focus tab 4"
+msgstr "4-бетке фокустау жарлығы"
+
+#: src/org.gnome.Ptyxis.gschema.xml.in:578
+msgid "Focus Tab 5"
+msgstr "5-бетке фокустау"
+
+#: src/org.gnome.Ptyxis.gschema.xml.in:579
+msgid "Shortcut to focus tab 5"
+msgstr "5-бетке фокустау жарлығы"
+
+#: src/org.gnome.Ptyxis.gschema.xml.in:584
+msgid "Focus Tab 6"
+msgstr "6-бетке фокустау"
+
+#: src/org.gnome.Ptyxis.gschema.xml.in:585
+msgid "Shortcut to focus tab 6"
+msgstr "6-бетке фокустау жарлығы"
+
+#: src/org.gnome.Ptyxis.gschema.xml.in:590
+msgid "Focus Tab 7"
+msgstr "7-бетке фокустау"
+
+#: src/org.gnome.Ptyxis.gschema.xml.in:591
+msgid "Shortcut to focus tab 7"
+msgstr "7-бетке фокустау жарлығы"
+
+#: src/org.gnome.Ptyxis.gschema.xml.in:596
+msgid "Focus Tab 8"
+msgstr "8-бетке фокустау"
+
+#: src/org.gnome.Ptyxis.gschema.xml.in:597
+msgid "Shortcut to focus tab 8"
+msgstr "8-бетке фокустау жарлығы"
+
+#: src/org.gnome.Ptyxis.gschema.xml.in:602
+msgid "Focus Tab 9"
+msgstr "9-бетке фокустау"
+
+#: src/org.gnome.Ptyxis.gschema.xml.in:603
+msgid "Shortcut to focus tab 9"
+msgstr "9-бетке фокустау жарлығы"
+
+#: src/org.gnome.Ptyxis.gschema.xml.in:608
+msgid "Focus Tab 10"
+msgstr "10-бетке фокустау"
+
+#: src/org.gnome.Ptyxis.gschema.xml.in:609
+msgid "Shortcut to focus tab 10"
+msgstr "10-бетке фокустау жарлығы"
+
+#: src/org.gnome.Ptyxis.gschema.xml.in:614 src/ptyxis-preferences-window.ui:778
+msgid "Undo Close Tab"
+msgstr "Бетті жабуды болдырмау"
+
+#: src/org.gnome.Ptyxis.gschema.xml.in:615
+msgid "Undo closing of last tab"
+msgstr "Соңғы бетті жабуды болдырмау"
+
+#: src/ptyxis-application.c:465
+msgid "--tab, --tab-with-profile, or --new-window may not be used together"
+msgstr "--tab, --tab-with-profile немесе --new-window параметрлерін бірге пайдалануға болмайды"
+
+#: src/ptyxis-application.c:511
+#, c-format
+msgid "Cannot parse command: %s"
+msgstr "Команданы талдау мүмкін емес: %s"
+
+#: src/ptyxis-application.c:1147
+msgid "Examples:"
+msgstr "Мысалдар:"
+
+#: src/ptyxis-application.c:1149
+msgid "Show the application preferences"
+msgstr "Қолданба баптауларын көрсету"
+
+#. Used for new tabs/windows/etc when specified
+#: src/ptyxis-application.c:1152
+msgid "Use DIR for --tab, --tab-with-profile, --new-window, or -x"
+msgstr "--tab, --tab-with-profile, --new-window немесе -x үшін БУМАНЫ пайдалану"
+
+#: src/ptyxis-application.c:1152
+msgid "DIR"
+msgstr "БУМА"
+
+#. By default, this implies a new ptyxis instance unless the options
+#. * below are provided to override that.
+#: src/ptyxis-application.c:1157
+msgid "Command to execute in new window"
+msgstr "Жаңа терезеде орындалатын команда"
+
+#. These options all imply we're using a shared Ptyxis instance. We do not
+#. support
+#. * short command options for these to make it easier to sniff them in early
+#. args
+#. * checking from `main.c`.
+#: src/ptyxis-application.c:1163
+msgid "New terminal window"
+msgstr "Жаңа терминал терезесі"
+
+#: src/ptyxis-application.c:1164
+msgid "New terminal tab in active window"
+msgstr "Белсенді терезедегі жаңа терминал беті"
+
+#: src/ptyxis-application.c:1165
+msgid "New terminal tab in active window using the profile UUID"
+msgstr "Профиль UUID-ін пайдаланып, белсенді терезеде жаңа терминал бетін ашу"
+
+#: src/ptyxis-application.c:1165
+msgid "PROFILE_UUID"
+msgstr "PROFILE_UUID"
+
+#. Standalone (single instance mode)
+#: src/ptyxis-application.c:1168
+msgid "Start a new instance, ignoring existing instances"
+msgstr "Бар даналарды елемей, жаңа дананы іске қосу"
+
+#: src/ptyxis-application.c:1170
+msgid "Set title for new tab"
+msgstr "Жаңа бет үшін атауды орнату"
+
+#: src/ptyxis-application.c:1171
+msgid "Maximize a newly created window"
+msgstr "Жаңадан жасалған терезені жаю"
+
+#: src/ptyxis-application.c:1172
+msgid "Fullscreen a newly created window"
+msgstr "Жаңадан жасалған терезені толық экранға шығару"
+
+#. Import a custom .palette file. This works like dragging the file onto
+#. preferences
+#: src/ptyxis-application.c:1175
+msgid "Import a Ptyxis palette file"
+msgstr "Ptyxis палитра файлын импорттау"
+
+#: src/ptyxis-application.c:1175
+msgid "FILE"
+msgstr "ФАЙЛ"
+
+#: src/ptyxis-application.c:1182
+msgid "Run Separate Instance"
+msgstr "Бөлек дананы орындау"
+
+#: src/ptyxis-application.c:1186
+msgid "Open Preferences"
+msgstr "Баптауларды ашу"
+
+#: src/ptyxis-application.c:1190
+msgid "Run Custom Command in New Window"
+msgstr "Жаңа терезеде реттелетін команданы орындау"
+
+#: src/ptyxis-application.c:1195
+msgid "Import a custom palette"
+msgstr "Реттелетін палитраны импорттау"
+
+#: src/ptyxis-application.c:1198
+msgid "[-- COMMAND ARGUMENTS]"
+msgstr "[-- КОМАНДА АРГУМЕНТТЕРІ]"
+
+#: src/ptyxis-application.c:1442
+msgid "translator-credits"
+msgstr "Baurzhan Muftakhidinov <baurthefirst@gmail.com>"
+
+#: src/ptyxis-close-dialog.c:109
+msgid "_Close"
+msgstr "Жа_бу"
+
+#: src/ptyxis-close-dialog.c:109
+msgid "_Close All"
+msgstr "Барлығын жа_бу"
+
+#: src/ptyxis-close-dialog.c:111
+msgid "Close Window?"
+msgstr "Терезені жабу керек пе?"
+
+#: src/ptyxis-close-dialog.c:112
+msgid "Some processes are still running."
+msgstr "Кейбір процестер әлі де орындалуда."
+
+#: src/ptyxis-close-dialog.c:116
+msgid "_Cancel"
+msgstr "Бас _тарту"
+
+#: src/ptyxis-close-dialog.c:142
+#, c-format
+msgid "Process %d"
+msgstr "Процесс %d"
+
+#: src/ptyxis-custom-link-editor.ui:20
+msgid "Edit Custom Link"
+msgstr "Реттелетін сілтемені түзету"
+
+#: src/ptyxis-custom-link-editor.ui:29
+msgid "Custom Link"
+msgstr "Реттелетін сілтеме"
+
+#: src/ptyxis-custom-link-editor.ui:30
+msgid ""
+"A clickable link in the terminal that matches text patterns and opens custom URLs. Uses regex capture "
+"groups to build the final URL (e.g., $1 becomes the first matched group)."
+msgstr ""
+"Терминалдағы мәтін үлгілеріне сәйкес келетін және реттелетін URL адрестерін ашатын шертілетін сілтеме. "
+"Соңғы URL адресін жасау үшін тұрақты тіркестерді ұстау топтарын пайдаланады (мысалы, $1 бірінші сәйкес "
+"келген топқа айналады)."
+
+#: src/ptyxis-custom-link-editor.ui:35
+msgid "Regex Pattern"
+msgstr "Тұрақты тіркес үлгісі"
+
+#: src/ptyxis-custom-link-editor.ui:40
+msgid "Target URL"
+msgstr "Мақсатты URL"
+
+#: src/ptyxis-custom-link-row.c:131
+#, c-format
+msgid "Removed custom link “%s”"
+msgstr "“%s” реттелетін сілтемесі өшірілді"
+
+#: src/ptyxis-custom-link-row.c:133 src/ptyxis-profile-editor.c:185 src/ptyxis-profile-row.c:106
+msgid "Undo"
+msgstr "Болдырмау"
+
+#: src/ptyxis-custom-link-row.ui:26 src/ptyxis-profile-row.ui:33
+msgid "View More"
+msgstr "Көбірек көру"
+
+#: src/ptyxis-custom-link-row.ui:36 src/ptyxis-profile-row.ui:53
+msgid "_Edit…"
+msgstr "Түз_ету…"
+
+#: src/ptyxis-custom-link-row.ui:42 src/ptyxis-profile-row.ui:59
+msgid "_Remove"
+msgstr "Өші_ру"
+
+#: src/ptyxis-find-bar.ui:69
+msgid "Search Up"
+msgstr "Жоғары іздеу"
+
+#: src/ptyxis-find-bar.ui:76
+msgid "Search Down"
+msgstr "Төмен іздеу"
+
+#: src/ptyxis-find-bar.ui:85
+msgid "Search Options"
+msgstr "Іздеу опциялары"
+
+#: src/ptyxis-find-bar.ui:96
+msgid "Match _Case"
+msgstr "Регистрді еск_еру"
+
+#: src/ptyxis-find-bar.ui:102
+msgid "Whole _Words"
+msgstr "Тұтас сөз_дер"
+
+#: src/ptyxis-find-bar.ui:108
+msgid "Use _Regular Expressions"
+msgstr "Тұрақты өрнек_терді пайдалану"
+
+#: src/ptyxis-find-bar.ui:128 src/ptyxis-preferences-window.ui:558 src/ptyxis-profile-editor.ui:288
+msgid "Close"
+msgstr "Жабу"
+
+#: src/ptyxis-find-bar.ui:129
+msgid "Close the search bar"
+msgstr "Іздеу жолағын жабу"
+
+#: src/ptyxis-inspector.c:95 src/ptyxis-inspector.c:357
+msgid "unset"
+msgstr "орнатылмаған"
+
+#: src/ptyxis-inspector.c:116 src/ptyxis-inspector.c:274
+msgid "Row"
+msgstr "Жол"
+
+#: src/ptyxis-inspector.c:116 src/ptyxis-inspector.c:274
+msgid "Column"
+msgstr "Баған"
+
+#. NOTE: If we are in a container that also supports VTE patches
+#. * then it will send shell-precmd via escape sequences. The reality
+#. * is that our foreground is the `toolbox enter` process (until we
+#. * have better patches in VTE) but we show "Shell" instead.
+#. *
+#. * This is fine for now, but I'd like it to be better and actually
+#. * show the proper `tcgetpgrp()` foreground.
+#: src/ptyxis-inspector.c:177 src/ptyxis-inspector.c:197 src/ptyxis-preferences-window.ui:494
+#: src/ptyxis-profile-editor.ui:170
+msgid "Shell"
+msgstr "Қоршам"
+
+#: src/ptyxis-inspector.c:276
+msgid "untracked"
+msgstr "бақыланбайтын"
+
+#: src/ptyxis-inspector.ui:4
+msgid "Inspector"
+msgstr "Бақылаушы"
+
+#: src/ptyxis-inspector.ui:7
+msgid "Process"
+msgstr "Процесс"
+
+#: src/ptyxis-inspector.ui:13
+msgid "Foreground Process"
+msgstr "Алдыңғы көріністегі процесс"
+
+#: src/ptyxis-inspector.ui:33
+msgid "Window Title"
+msgstr "Терезе атауы"
+
+#: src/ptyxis-inspector.ui:45
+msgid "Current Directory"
+msgstr "Ағымдағы бума"
+
+#: src/ptyxis-inspector.ui:53
+msgid "Current File"
+msgstr "Ағымдағы файл"
+
+#: src/ptyxis-inspector.ui:63
+msgid "Container"
+msgstr "Контейнер"
+
+#: src/ptyxis-inspector.ui:66
+msgid "Runtime"
+msgstr "Орындалу ортасы"
+
+#: src/ptyxis-inspector.ui:74 src/ptyxis-inspector.ui:228 src/ptyxis-profile-editor.ui:36
+msgid "Name"
+msgstr "Атауы"
+
+#: src/ptyxis-inspector.ui:86 src/ptyxis-preferences-window.ui:36
+msgid "Appearance"
+msgstr "Сыртқы түрі"
+
+#: src/ptyxis-inspector.ui:92
+msgid "Grid Size"
+msgstr "Тор өлшемі"
+
+#: src/ptyxis-inspector.ui:105
+msgid "Colors"
+msgstr "Түстер"
+
+#: src/ptyxis-inspector.ui:225 src/ptyxis-preferences-window.ui:130
+msgid "Font"
+msgstr "Қаріп"
+
+#: src/ptyxis-inspector.ui:233
+msgid "Cell Size"
+msgstr "Ұяшық өлшемі"
+
+#: src/ptyxis-inspector.ui:242
+msgid "Input"
+msgstr "Енгізу"
+
+#: src/ptyxis-inspector.ui:246 src/ptyxis-preferences-window.ui:232
+msgid "Cursor"
+msgstr "Курсор"
+
+#: src/ptyxis-inspector.ui:249 src/ptyxis-inspector.ui:262
+msgid "Position"
+msgstr "Орны"
+
+#: src/ptyxis-inspector.ui:259
+msgid "Mouse"
+msgstr "Тышқан"
+
+#: src/ptyxis-inspector.ui:270
+msgid "Hyperlink"
+msgstr "Гиперсілтеме"
+
+#: src/ptyxis-menu-row.c:166 src/ptyxis-profile-editor.c:216 src/ptyxis-window.c:1694
+msgid "My Computer"
+msgstr "Менің компьютерім"
+
+#: src/ptyxis-palette-preview.ui:32
+msgid "The quick brown fox jumps over the lazy dog"
+msgstr "Жирен түлкі жалқау иттің үстінен секіріп өтті"
+
+#: src/ptyxis-preferences-window.c:274
+msgid "Select Font"
+msgstr "Қаріпті таңдау"
+
+#: src/ptyxis-preferences-window.c:349
+msgid "Show Fewer Palettes"
+msgstr "Азырақ палитраларды көрсету"
+
+#: src/ptyxis-preferences-window.c:354 src/ptyxis-preferences-window.ui:46
+msgid "Show All Palettes"
+msgstr "Барлық палитраны көрсету"
+
+#: src/ptyxis-preferences-window.c:379
+msgid "Add Profile"
+msgstr "Профильді қосу"
+
+#: src/ptyxis-preferences-window.c:481 src/ptyxis-profile-editor.c:269
+msgid "Add Link"
+msgstr "Сілтемені қосу"
+
+#: src/ptyxis-preferences-window.ui:72 src/ptyxis-profile-editor.ui:74
+msgid "Transparency"
+msgstr "Мөлдірлілік"
+
+#: src/ptyxis-preferences-window.ui:73 src/ptyxis-profile-editor.ui:75
+msgid "Reduces the opacity of the background window"
+msgstr "Фондық терезенің мөлдірсіздігін азайтады"
+
+#: src/ptyxis-preferences-window.ui:134
+msgid "Use System _Font"
+msgstr "Жүйелік қарі_пті пайдалану"
+
+#: src/ptyxis-preferences-window.ui:146
+msgid "Custom Font"
+msgstr "Пайдаланушылық қаріп"
+
+#: src/ptyxis-preferences-window.ui:193
+msgid "Blinking Text"
+msgstr "Жыпылықтайтын мәтін"
+
+#: src/ptyxis-preferences-window.ui:202 src/ptyxis-preferences-window.ui:426
+#: src/ptyxis-preferences-window.ui:515 src/ptyxis-profile-editor.ui:216 src/ptyxis-profile-editor.ui:245
+msgid "Never"
+msgstr "Ешқашан"
+
+#: src/ptyxis-preferences-window.ui:208
+msgid "Focused"
+msgstr "Фокусталған"
+
+#: src/ptyxis-preferences-window.ui:214
+msgid "Unfocused"
+msgstr "Фокусталмаған"
+
+#: src/ptyxis-preferences-window.ui:220 src/ptyxis-preferences-window.ui:438
+#: src/ptyxis-preferences-window.ui:527 src/ptyxis-profile-editor.ui:222 src/ptyxis-profile-editor.ui:257
+msgid "Always"
+msgstr "Әрқашан"
+
+#: src/ptyxis-preferences-window.ui:244
+msgid "Block"
+msgstr "Блок"
+
+#: src/ptyxis-preferences-window.ui:250
+msgid "I-Beam"
+msgstr "I-тәрізді"
+
+#: src/ptyxis-preferences-window.ui:256
+msgid "Underline"
+msgstr "Асты сызылған"
+
+#: src/ptyxis-preferences-window.ui:266
+msgid "Cursor Blinking"
+msgstr "Курсордың жыпылықтауы"
+
+#: src/ptyxis-preferences-window.ui:275 src/ptyxis-preferences-window.ui:432
+msgid "Follow System"
+msgstr "Жүйеге ілесу"
+
+#: src/ptyxis-preferences-window.ui:281
+msgid "Enabled"
+msgstr "Іске қосылған"
+
+#: src/ptyxis-preferences-window.ui:287
+msgid "Disabled"
+msgstr "Сөндірілген"
+
+#: src/ptyxis-preferences-window.ui:301
+msgid "Behavior"
+msgstr "Мінез-құлығы"
+
+#: src/ptyxis-preferences-window.ui:305
+msgid "Interface"
+msgstr "Интерфейс"
+
+#: src/ptyxis-preferences-window.ui:317
+msgid "Next"
+msgstr "Келесі"
+
+#: src/ptyxis-preferences-window.ui:323
+msgid "Last"
+msgstr "Соңғы"
+
+#: src/ptyxis-preferences-window.ui:338
+msgid "Attempt to restore previous tabs when Ptyxis starts"
+msgstr "Ptyxis іске қосылғанда алдыңғы беттерді қалпына келтіруге тырысу"
+
+#: src/ptyxis-preferences-window.ui:344
+msgid "Restore the previous window size when creating a new window"
+msgstr "Жаңа терезе жасағанда алдыңғы терезе өлшемін қалпына келтіру"
+
+#: src/ptyxis-preferences-window.ui:354
+msgid "Columns"
+msgstr "Бағандар"
+
+#: src/ptyxis-preferences-window.ui:368
+msgid "Rows"
+msgstr "Жолдар"
+
+#: src/ptyxis-preferences-window.ui:386
+msgid "Accessibility"
+msgstr "Қолжетімділік"
+
+#: src/ptyxis-preferences-window.ui:389
+msgid "Allow Screen Readers"
+msgstr "Экраннан оқу бағдарламаларына рұқсат беру"
+
+#: src/ptyxis-preferences-window.ui:390
+msgid "Permit screen readers such as Orca to read terminal content and typed text"
+msgstr "Orca сияқты экраннан оқу бағдарламаларына терминал мазмұнын және терілген мәтінді оқуға рұқсат беру"
+
+#: src/ptyxis-preferences-window.ui:397
+msgid "Bell"
+msgstr "Сигнал"
+
+#: src/ptyxis-preferences-window.ui:401
+msgid "Emit an audible bell when requested by active tab"
+msgstr "Белсенді бет сұрағанда дыбыстық сигнал беру"
+
+#: src/ptyxis-preferences-window.ui:406
+msgid "Visual Bell"
+msgstr "Визуалды сигнал"
+
+#: src/ptyxis-preferences-window.ui:407
+msgid "Emit a visual bell when requested by active tab"
+msgstr "Белсенді бет сұрағанда визуалды сигнал беру"
+
+#: src/ptyxis-preferences-window.ui:414 src/ptyxis-profile-editor.ui:300
+msgid "Scrolling"
+msgstr "Айналдыру"
+
+#: src/ptyxis-preferences-window.ui:417
+msgid "Use Scrollbars"
+msgstr "Айналдыру жолақтарын пайдалану"
+
+#: src/ptyxis-preferences-window.ui:453 src/ptyxis-profile-editor.ui:304
+msgid "Scroll to the bottom upon input keystroke"
+msgstr "Пернені басқанда төменге айналдыру"
+
+#: src/ptyxis-preferences-window.ui:459 src/ptyxis-profile-editor.ui:310
+msgid "Scroll to the bottom when new content is available"
+msgstr "Жаңа мазмұн пайда болғанда төменге айналдыру"
+
+#: src/ptyxis-preferences-window.ui:469 src/ptyxis-profile-editor.ui:320
+msgid "Restrict the number of lines saved for scrollback"
+msgstr "Айналдыру тарихы үшін сақталған жолдар санын шектеу"
+
+#: src/ptyxis-preferences-window.ui:478 src/ptyxis-profile-editor.ui:329
+msgid "The number of lines to keep for scrollback"
+msgstr "Айналдыру тарихы үшін сақталатын жолдар саны"
+
+#: src/ptyxis-preferences-window.ui:497 src/ptyxis-profile-editor.ui:188
+msgid "Use Login Shell"
+msgstr "Кіру қоршамын пайдалану"
+
+#: src/ptyxis-preferences-window.ui:506 src/ptyxis-profile-editor.ui:236
+msgid "Preserve Working Directory"
+msgstr "Жұмыс бумасын сақтау"
+
+#: src/ptyxis-preferences-window.ui:521 src/ptyxis-profile-editor.ui:251
+msgid "Safe"
+msgstr "Қауіпсіз"
+
+#: src/ptyxis-preferences-window.ui:546 src/ptyxis-profile-editor.ui:276
+msgid "No Action"
+msgstr "Әрекетсіз"
+
+#: src/ptyxis-preferences-window.ui:552 src/ptyxis-profile-editor.ui:282
+msgid "Restart"
+msgstr "Қайта іске қосу"
+
+#: src/ptyxis-preferences-window.ui:570 src/ptyxis-profile-editor.ui:345
+msgid "Compatibility"
+msgstr "Үйлесімділік"
+
+#: src/ptyxis-preferences-window.ui:573 src/ptyxis-profile-editor.ui:348
+msgid "Backspace Key"
+msgstr "Backspace пернесі"
+
+#: src/ptyxis-preferences-window.ui:574 src/ptyxis-profile-editor.ui:349
+msgid "Sequence to send for Backspace key"
+msgstr "Backspace пернесі үшін жіберілетін тізбек"
+
+#: src/ptyxis-preferences-window.ui:583 src/ptyxis-profile-editor.ui:358
+msgid "Delete Key"
+msgstr "Delete пернесі"
+
+#: src/ptyxis-preferences-window.ui:584 src/ptyxis-profile-editor.ui:359
+msgid "Sequence to send for Delete key"
+msgstr "Delete пернесі үшін жіберілетін тізбек"
+
+#: src/ptyxis-preferences-window.ui:593 src/ptyxis-profile-editor.ui:368
+msgid "Ambiguous-width Characters"
+msgstr "Екіұшты енді таңбалар"
+
+#: src/ptyxis-preferences-window.ui:602 src/ptyxis-profile-editor.ui:377
+msgid "Narrow"
+msgstr "Тар"
+
+#: src/ptyxis-preferences-window.ui:608 src/ptyxis-profile-editor.ui:383
+msgid "Wide"
+msgstr "Кең"
+
+#: src/ptyxis-preferences-window.ui:641
+msgid "Set as Default Terminal"
+msgstr "Әдепкі терминал ретінде орнату"
+
+#: src/ptyxis-preferences-window.ui:651
+msgid "Shortcuts"
+msgstr "Жарлықтар"
+
+#: src/ptyxis-preferences-window.ui:677
+msgid "Clear Selection"
+msgstr "Таңдауды тазарту"
+
+#: src/ptyxis-preferences-window.ui:686 src/ptyxis-terminal.ui:230
+msgid "Reset"
+msgstr "Тастау"
+
+#: src/ptyxis-preferences-window.ui:691 src/ptyxis-terminal.ui:236
+msgid "Reset and Clear"
+msgstr "Тастау және тазарту"
+
+#: src/ptyxis-preferences-window.ui:710
+msgid "Show Context Menu"
+msgstr "Контекстік мәзірді көрсету"
+
+#: src/ptyxis-preferences-window.ui:717
+msgid "Windows"
+msgstr "Терезелер"
+
+#: src/ptyxis-preferences-window.ui:721
+msgid "Open a new tab in a new window"
+msgstr "Жаңа бетті жаңа терезеде ашу"
+
+#: src/ptyxis-preferences-window.ui:727
+msgid "Close the current window"
+msgstr "Ағымдағы терезені жабу"
+
+#: src/ptyxis-preferences-window.ui:743
+msgid "Tabs"
+msgstr "Беттер"
+
+#: src/ptyxis-preferences-window.ui:747
+msgid "Open a new tab in the current window"
+msgstr "Жаңа бетті ағымдағы терезеде ашу"
+
+#: src/ptyxis-preferences-window.ui:756
+msgid "View Tab Overview"
+msgstr "Беттерге шолуды көру"
+
+#: src/ptyxis-preferences-window.ui:757
+msgid "Show an overview of all tabs within the window"
+msgstr "Терезедегі барлық беттерге шолуды көрсету"
+
+#: src/ptyxis-preferences-window.ui:767
+msgid "Close the current tab"
+msgstr "Ағымдағы бетті жабу"
+
+#: src/ptyxis-preferences-window.ui:773
+msgid "Close all tabs except the active tab"
+msgstr "Белсенді беттен басқа барлық беттерді жабу"
+
+#: src/ptyxis-preferences-window.ui:779
+msgid "Undo closing the last tab"
+msgstr "Соңғы бетті жабуды болдырмау"
+
+#: src/ptyxis-preferences-window.ui:803
+msgid "Move the tab one position to the left"
+msgstr "Бетті бір позицияға солға жылжыту"
+
+#: src/ptyxis-preferences-window.ui:809
+msgid "Move the tab one position to the right"
+msgstr "Бетті бір позицияға оңға жылжыту"
+
+#: src/ptyxis-preferences-window.ui:815
+msgid "Detach the current tab and move it to a new window"
+msgstr "Ағымдағы бетті бөліп, оны жаңа терезеге жылжыту"
+
+#: src/ptyxis-preferences-window.ui:824
+msgid "Switch to Tab 1"
+msgstr "1-бетке ауысу"
+
+#: src/ptyxis-preferences-window.ui:829
+msgid "Switch to Tab 2"
+msgstr "2-бетке ауысу"
+
+#: src/ptyxis-preferences-window.ui:834
+msgid "Switch to Tab 3"
+msgstr "3-бетке ауысу"
+
+#: src/ptyxis-preferences-window.ui:839
+msgid "Switch to Tab 4"
+msgstr "4-бетке ауысу"
+
+#: src/ptyxis-preferences-window.ui:844
+msgid "Switch to Tab 5"
+msgstr "5-бетке ауысу"
+
+#: src/ptyxis-preferences-window.ui:849
+msgid "Switch to Tab 6"
+msgstr "6-бетке ауысу"
+
+#: src/ptyxis-preferences-window.ui:854
+msgid "Switch to Tab 7"
+msgstr "7-бетке ауысу"
+
+#: src/ptyxis-preferences-window.ui:859
+msgid "Switch to Tab 8"
+msgstr "8-бетке ауысу"
+
+#: src/ptyxis-preferences-window.ui:864
+msgid "Switch to Tab 9"
+msgstr "9-бетке ауысу"
+
+#: src/ptyxis-preferences-window.ui:869
+msgid "Switch to Tab 10"
+msgstr "10-бетке ауысу"
+
+#: src/ptyxis-preferences-window.ui:876
+msgid "Zoom"
+msgstr "Масштаб"
+
+#: src/ptyxis-preferences-window.ui:896
+msgid "Application"
+msgstr "Қолданба"
+
+#: src/ptyxis-preferences-window.ui:900
+msgid "Toggle in and out of fullscreen"
+msgstr "Толық экран режиміне өту/шығу"
+
+#: src/ptyxis-preferences-window.ui:909
+msgid "Show Primary Menu"
+msgstr "Негізгі мәзірді көрсету"
+
+#: src/ptyxis-preferences-window.ui:910
+msgid "Displays the primary menu for the terminal window"
+msgstr "Терминал терезесі үшін негізгі мәзірді көрсетеді"
+
+#: src/ptyxis-preferences-window.ui:915
+msgid "Show New Tab Menu"
+msgstr "Жаңа бет мәзірін көрсету"
+
+#: src/ptyxis-preferences-window.ui:916
+msgid "Displays the new tab menu for the terminal window"
+msgstr "Терминал терезесі үшін жаңа бет мәзірін көрсетеді"
+
+#: src/ptyxis-preferences-window.ui:922
+msgid "Show this preferences window"
+msgstr "Осы баптаулар терезесін көрсету"
+
+#: src/ptyxis-preferences-window.ui:931 src/ptyxis-preferences-window.ui:935 src/ptyxis-window.c:1668
+#: src/ptyxis-window.c:1830
+msgid "Profiles"
+msgstr "Профильдер"
+
+#: src/ptyxis-preferences-window.ui:954 src/ptyxis-profile-editor.ui:428
+msgid "Automatic"
+msgstr "Автоматты"
+
+#: src/ptyxis-preferences-window.ui:960 src/ptyxis-profile-editor.ui:434
+msgid "Control-H"
+msgstr "Control-H"
+
+#: src/ptyxis-preferences-window.ui:966 src/ptyxis-profile-editor.ui:440
+msgid "ASCII DEL"
+msgstr "ASCII DEL"
+
+#: src/ptyxis-preferences-window.ui:972 src/ptyxis-profile-editor.ui:446
+msgid "Escape Sequence"
+msgstr "Escape тізбегі"
+
+#: src/ptyxis-preferences-window.ui:978 src/ptyxis-profile-editor.ui:452
+msgid "TTY Erase"
+msgstr "TTY Erase"
+
+#: src/ptyxis-profile.c:711
+msgid "Untitled Profile"
+msgstr "Атаусыз профиль"
+
+#: src/ptyxis-profile-editor.c:154 src/ptyxis-terminal.c:440 src/ptyxis-terminal.c:472
+msgid "Copied to clipboard"
+msgstr "Алмасу буферіне көшірілді"
+
+#: src/ptyxis-profile-editor.c:183 src/ptyxis-profile-row.c:104
+#, c-format
+msgid "Removed profile “%s”"
+msgstr "“%s” профилі өшірілді"
+
+#: src/ptyxis-profile-editor.ui:22 src/ptyxis-tab.c:401 src/ptyxis-tab.c:458
+msgid "Edit Profile"
+msgstr "Профильді түзету"
+
+#: src/ptyxis-profile-editor.ui:31
+msgid "Profile"
+msgstr "Профиль"
+
+#: src/ptyxis-profile-editor.ui:41
+msgid "Identifier"
+msgstr "Идентификатор"
+
+#: src/ptyxis-profile-editor.ui:50
+msgid "Copy"
+msgstr "Көшіру"
+
+#: src/ptyxis-profile-editor.ui:62
+msgid "Color"
+msgstr "Түс"
+
+#: src/ptyxis-profile-editor.ui:134
+msgid "Use Bright Colors for Bold"
+msgstr "Жуан қаріп үшін ашық түстерді пайдалану"
+
+#: src/ptyxis-profile-editor.ui:159
+msgid "Network"
+msgstr "Желі"
+
+#: src/ptyxis-profile-editor.ui:162
+msgid "Proxy"
+msgstr "Прокси"
+
+#: src/ptyxis-profile-editor.ui:163
+msgid "Applies the network proxy settings to the container environment"
+msgstr "Желілік прокси параметрлерін контейнер ортасында іске асырады"
+
+#: src/ptyxis-profile-editor.ui:198
+msgid "The default container to use with this profile"
+msgstr "Осы профильмен қолданылатын әдепкі контейнер"
+
+#: src/ptyxis-profile-editor.ui:207
+msgid "Preserve the current container when opening new tabs and windows"
+msgstr "Жаңа беттер мен терезелерді ашқанда ағымдағы контейнерді сақтау"
+
+#: src/ptyxis-profile-editor.ui:413
+msgid "Remove Profile"
+msgstr "Профильді өшіру"
+
+#: src/ptyxis-profile-row.ui:43
+msgid "_Make Default"
+msgstr "Әдепкі қы_лу"
+
+#: src/ptyxis-profile-row.ui:49
+msgid "_Duplicate…"
+msgstr "Көшірмесін жа_сау…"
+
+#. Translators: <b>%s</b> is used to show the provided text in bold
+#: src/ptyxis-shortcut-accel-dialog.c:455
+#, c-format
+msgid "Enter new shortcut to change <b>%s</b>."
+msgstr "<b>%s</b> өзгерту үшін жаңа жарлықты енгізіңіз."
+
+#. do not use underline as it prevents alt+c as an accelerator
+#: src/ptyxis-shortcut-accel-dialog.ui:42
+msgid "Cancel"
+msgstr "Бас тарту"
+
+#. do not use underline as it prevents alt+s as an accelerator
+#: src/ptyxis-shortcut-accel-dialog.ui:49
+msgid "Set"
+msgstr "Орнату"
+
+#: src/ptyxis-shortcut-accel-dialog.ui:89
+msgid "Press Escape to cancel or Backspace to disable."
+msgstr "Бас тарту үшін Escape, сөндіру үшін Backspace пернесін басыңыз."
+
+#: src/ptyxis-shortcut-row.c:75
+msgid "Set Shortcut"
+msgstr "Жарлықты орнату"
+
+#: src/ptyxis-shortcut-row.ui:33
+msgid "disabled"
+msgstr "сөндірілген"
+
+#: src/ptyxis-tab.c:309
+#, c-format
+msgid "Process Exited from Signal %d"
+msgstr "Процесс %d сигналынан жұмысын аяқтады"
+
+#: src/ptyxis-tab.c:312 src/ptyxis-tab.c:335
+msgid "_Restart"
+msgstr "Қайта іске қо_су"
+
+#. Always prepare the banner even if we don't show it because we may
+#. * display it again if the tab is removed from the parking lot and
+#. * restored into the window.
+#: src/ptyxis-tab.c:334
+msgid "Process Exited"
+msgstr "Процесс жұмысын аяқтады"
+
+#: src/ptyxis-tab.c:400
+msgid "Failed to launch terminal"
+msgstr "Терминалды іске қосу сәтсіз аяқталды"
+
+#: src/ptyxis-tab.c:456
+#, c-format
+msgid "Cannot locate container “%s”"
+msgstr "“%s” контейнерін табу мүмкін емес"
+
+#: src/ptyxis-tab.c:480
+msgid "Failed to create pseudo terminal device"
+msgstr "Псевдотерминал құрылғысын жасау мүмкін болмады"
+
+#: src/ptyxis-tab.c:1457
+msgid "Exited"
+msgstr "Шықты"
+
+#: src/ptyxis-tab.c:1459
+msgid "Failed"
+msgstr "Сәтсіз аяқталды"
+
+#: src/ptyxis-tab.c:2041
+msgid "Failed to open link"
+msgstr "Сілтемені ашу сәтсіз аяқталды"
+
+#: src/ptyxis-tab-notify.h:89
+msgid "Command completed"
+msgstr "Команда аяқталды"
+
+#: src/ptyxis-terminal.ui:170
+msgid "Search…"
+msgstr "Іздеу…"
+
+#: src/ptyxis-terminal.ui:176
+msgid "_Open Link"
+msgstr "Сілтемені а_шу"
+
+#: src/ptyxis-terminal.ui:184
+msgid "_Copy"
+msgstr "Кө_шіру"
+
+#: src/ptyxis-terminal.ui:185
+msgid "Copy selection from terminal to clipboard"
+msgstr "Терминалдан таңдалғанды алмасу буферіне көшіру"
+
+#: src/ptyxis-terminal.ui:189
+msgid "Copy as _HTML"
+msgstr "_HTML ретінде көшіру"
+
+#: src/ptyxis-terminal.ui:190
+msgid "Copy selection from terminal to clipboard with HTML formatting"
+msgstr "Терминалдан таңдалғанды HTML пішімінде алмасу буферіне көшіру"
+
+#: src/ptyxis-terminal.ui:195
+msgid "_Copy Link"
+msgstr "Сілтемені көші_ру"
+
+#: src/ptyxis-terminal.ui:201
+msgid "_Paste"
+msgstr "Кіріс_тіру"
+
+#: src/ptyxis-terminal.ui:202
+msgid "Paste from clipboard into the terminal"
+msgstr "Алмасу буферінен терминалға кірістіру"
+
+#: src/ptyxis-terminal.ui:209
+msgid "Select _All"
+msgstr "Барлығын таң_дау"
+
+#: src/ptyxis-terminal.ui:210
+msgid "Selection all text from terminal including scrollback"
+msgstr "Терминалдағы барлық мәтінді, соның ішінде айналдыру тарихын таңдау"
+
+#: src/ptyxis-terminal.ui:216
+msgid "Select _None"
+msgstr "Таңдауды алып тас_тау"
+
+#: src/ptyxis-terminal.ui:223
+msgid "Read-Only"
+msgstr "Тек оқу үшін"
+
+#: src/ptyxis-terminal.ui:251 src/ptyxis-window.ui:388 src/ptyxis-window.ui:770
+msgid "Leave Fullscreen"
+msgstr "Толық экраннан шығу"
+
+#: src/ptyxis-terminal.ui:257
+msgid "_Inspect Terminal"
+msgstr "Терминалды текс_еру"
+
+#: src/ptyxis-theme-selector.ui:21
+msgid "Follow System Style"
+msgstr "Жүйелік стильге ілесу"
+
+#: src/ptyxis-theme-selector.ui:23
+msgid "Follow system style"
+msgstr "Жүйелік стильге ілесу"
+
+#: src/ptyxis-theme-selector.ui:37
+msgid "Light Style"
+msgstr "Ашық стиль"
+
+#: src/ptyxis-theme-selector.ui:39
+msgid "Light style"
+msgstr "Ашық стиль"
+
+#: src/ptyxis-theme-selector.ui:54
+msgid "Dark Style"
+msgstr "Күңгірт стиль"
+
+#: src/ptyxis-theme-selector.ui:56
+msgid "Dark style"
+msgstr "Күңгірт стиль"
+
+#: src/ptyxis-title-dialog.ui:36
+msgid "Title"
+msgstr "Атауы"
+
+#: src/ptyxis-title-dialog.ui:42
+msgid "Include Process Title"
+msgstr "Процесс атауын қосу"
+
+#: src/ptyxis-title-dialog.ui:43
+msgid "Append title from Shell application"
+msgstr "Қоршам қолданбасынан атауды қосу"
+
+#. translators: Builder Terminal means this is a terminal bundled with GNOME
+#. Builder
+#: src/ptyxis-util.c:316
+msgid "Builder Terminal"
+msgstr "Құрастырушы терминалы"
+
+#: src/ptyxis-util.c:320
+msgid "Ptyxis"
+msgstr "Ptyxis"
+
+#: src/ptyxis-window.c:1456
+msgid "Zoom in"
+msgstr "Үлкейту"
+
+#: src/ptyxis-window.c:1471
+msgid "Zoom out"
+msgstr "Кішірейту"
+
+#: src/ptyxis-window.c:1662 src/ptyxis-window.c:1834
+msgid "Containers"
+msgstr "Контейнерлер"
+
+#: src/ptyxis-window.ui:403
+msgid "New Terminal"
+msgstr "Жаңа терминал"
+
+#: src/ptyxis-window.ui:416
+msgid "Show Profiles and Containers"
+msgstr "Профильдерді және контейнерлерді көрсету"
+
+#: src/ptyxis-window.ui:436
+msgid "Filter…"
+msgstr "Сүзгілеу…"
+
+#: src/ptyxis-window.ui:589
+msgid "No Matching Results"
+msgstr "Сәйкес нәтижелер жоқ"
+
+#: src/ptyxis-window.ui:631
+msgid "Main Menu"
+msgstr "Басты мәзір"
+
+#: src/ptyxis-window.ui:639 src/ptyxis-window.ui:756
+msgid "Show Open Tabs"
+msgstr "Ашық беттерді көрсету"
+
+#: src/ptyxis-window.ui:740
+msgid "New _Tab"
+msgstr "Жаңа б_ет"
+
+#: src/ptyxis-window.ui:747
+msgid "New _Window"
+msgstr "Жаңа тере_зе"
+
+#: src/ptyxis-window.ui:764
+msgid "Fullscreen"
+msgstr "Толық экран"
+
+#: src/ptyxis-window.ui:778
+msgid "_Preferences"
+msgstr "Ба_птаулар"
+
+#: src/ptyxis-window.ui:782
+msgid "_Keyboard Shortcuts"
+msgstr "Пернетақта жарлықта_ры"
+
+#: src/ptyxis-window.ui:786
+msgid "_About"
+msgstr "Осы тур_алы"
+
+#: src/ptyxis-window.ui:795
+msgid "Move _Left"
+msgstr "Со_лға жылжыту"
+
+#: src/ptyxis-window.ui:800
+msgid "Move _Right"
+msgstr "_Оңға жылжыту"
+
+#: src/ptyxis-window.ui:805
+msgid "Move to New _Window"
+msgstr "Жаңа терез_еге жылжыту"
+
+#: src/ptyxis-window.ui:811
+msgid "_Pin Tab"
+msgstr "Бетті бекі_ту"
+
+#: src/ptyxis-window.ui:816
+msgid "Un_pin Tab"
+msgstr "Бетті боса_ту"
+
+#: src/ptyxis-window.ui:831
+msgid "Close _Other Tabs"
+msgstr "Б_асқа беттерді жабу"
+
+#: src/ptyxis-window.ui:836
+msgid "_Close Tab"
+msgstr "Бетті жа_бу"
