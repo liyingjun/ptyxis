@@ -1,0 +1,1869 @@
+# Hungarian translation for ptyxis.
+# Copyright (C) 2025, 2026 Free Software Foundation, Inc.
+# This file is distributed under the same license as the ptyxis package.
+#
+# grx005 <hunorjani17 at gmail dot com>, 2025.
+# Balázs Úr <ur.balazs at fsf dot hu>, 2025, 2026.
+msgid ""
+msgstr ""
+"Project-Id-Version: ptyxis gnome-48\n"
+"Report-Msgid-Bugs-To: https://gitlab.gnome.org/chergert/ptyxis/issues\n"
+"POT-Creation-Date: 2026-01-28 22:52+0000\n"
+"PO-Revision-Date: 2026-02-22 09:46+0100\n"
+"Last-Translator: Balázs Úr <ur.balazs at fsf dot hu>\n"
+"Language-Team: Hungarian <openscope at fsf dot hu>\n"
+"Language: hu\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+"X-Generator: Lokalize 25.08.1\n"
+
+#: data/org.gnome.Ptyxis.desktop.in.in:2
+#: data/org.gnome.Ptyxis.metainfo.xml.in.in:6
+msgid "@APP_NAME@"
+msgstr "@APP_NAME@"
+
+#: data/org.gnome.Ptyxis.desktop.in.in:3
+msgid "A container-oriented terminal for GNOME"
+msgstr "Egy konténerorientált terminál a GNOME-hoz"
+
+#: data/org.gnome.Ptyxis.desktop.in.in:12 src/ptyxis-preferences-window.ui:651
+#: src/ptyxis-tab.c:1440 src/ptyxis-util.c:312
+msgid "Terminal"
+msgstr "Terminál"
+
+#. Translators: Search terms to find this application. Do NOT translate or localize the semicolons! The list MUST also end with a semicolon!
+#: data/org.gnome.Ptyxis.desktop.in.in:14
+msgid ""
+"terminal;prompt;ptyxis;shell;command;commandline;cmd;cli;console;container;pod"
+"man;toolbox;distrobox;"
+msgstr ""
+"terminál;bekérés;ptyxis;parancsértelmező;parancs;parancssor;cmd;cli;konzol;kon"
+"téner;podman;eszköztár;distrobox;"
+
+#: data/org.gnome.Ptyxis.desktop.in.in:20
+#: src/org.gnome.Ptyxis.gschema.xml.in:398 src/ptyxis-preferences-window.ui:716
+msgid "New Window"
+msgstr "Új ablak"
+
+#: data/org.gnome.Ptyxis.desktop.in.in:24
+#: src/org.gnome.Ptyxis.gschema.xml.in:392 src/ptyxis-preferences-window.ui:742
+msgid "New Tab"
+msgstr "Új lap"
+
+#: data/org.gnome.Ptyxis.desktop.in.in:28
+#: src/org.gnome.Ptyxis.gschema.xml.in:410 src/ptyxis-preferences-window.ui:917
+msgid "Preferences"
+msgstr "Beállítások"
+
+#: data/org.gnome.Ptyxis.metainfo.xml.in.in:7
+msgid "Container-oriented terminal"
+msgstr "Konténerorientált terminál"
+
+#: data/org.gnome.Ptyxis.metainfo.xml.in.in:9
+msgid ""
+"Ptyxis is a terminal for GNOME that focuses on ease-of-use in a world of "
+"containers."
+msgstr ""
+"A Ptyxis egy terminál GNOME-hoz, amely a könnyű használhatóságra "
+"összpontosít a konténerek világában."
+
+#: data/org.gnome.Ptyxis.metainfo.xml.in.in:13
+msgid "Features:"
+msgstr "Funkciók:"
+
+#: data/org.gnome.Ptyxis.metainfo.xml.in.in:15
+msgid ""
+"Remembers current container when opening a new tab with support for podman, "
+"toolbox, distrobox, and more"
+msgstr ""
+"Megjegyzi a jelenlegi konténert új lap megnyitásakor podman, toolbox, "
+"distrobox és egyebek támogatásával"
+
+#: data/org.gnome.Ptyxis.metainfo.xml.in.in:16
+msgid "Configurable keyboard shortcuts"
+msgstr "Beállítható gyorsbillentyűk"
+
+#: data/org.gnome.Ptyxis.metainfo.xml.in.in:17
+msgid "Modern interface which integrates the palette with the window styling"
+msgstr "Modern felület, amely integrálja a palettát az ablak stílusával"
+
+#: data/org.gnome.Ptyxis.metainfo.xml.in.in:18
+msgid "User-installable color palettes"
+msgstr "Felhasználó által telepíthető színpaletták"
+
+#: data/org.gnome.Ptyxis.metainfo.xml.in.in:19
+msgid "Support for preferences profiles with container integration"
+msgstr "Beállítási profilok támogatása konténerintegrációval"
+
+#: data/org.gnome.Ptyxis.metainfo.xml.in.in:20
+msgid "Integrated color palettes with light and dark support"
+msgstr "Beépített színpaletták világos és sötét mód támogatással"
+
+#: data/org.gnome.Ptyxis.metainfo.xml.in.in:21
+msgid "Tabbed interface with tab overviews"
+msgstr "Lapozható felület lapáttekintésekkel"
+
+#: data/org.gnome.Ptyxis.metainfo.xml.in.in:22
+msgid "Efficient foreground process tracking denoting sudo and SSH"
+msgstr "Hatékony előtérifolyamat-követés sudo és SSH megjelöléssel"
+
+#: data/org.gnome.Ptyxis.metainfo.xml.in.in:23
+msgid "Support for transparent terminal backgrounds"
+msgstr "Átlátszó terminálhátterek támogatása"
+
+#: data/org.gnome.Ptyxis.metainfo.xml.in.in:24
+msgid "Separate process mode for terminal-based applications"
+msgstr "Különálló folyamatmód terminálalapú alkalmazásokhoz"
+
+#: data/org.gnome.Ptyxis.metainfo.xml.in.in:25
+msgid "Support for pinned tabs and saved sessions"
+msgstr "Kitűzött lapok és mentett munkamenetek támogatása"
+
+#: data/org.gnome.Ptyxis.metainfo.xml.in.in:26
+msgid "Terminal tabs are run within separate cgroups"
+msgstr "A terminállapok különálló cgroupokban futnak"
+
+#: data/org.gnome.Ptyxis.metainfo.xml.in.in:27
+msgid "Terminal inspector to help when writing terminal-based applications"
+msgstr "Terminálvizsgáló, hogy segítsen terminálalapú alkalmazások írásakor"
+
+#. developer_name tag deprecated with Appstream 1.0
+#: data/org.gnome.Ptyxis.metainfo.xml.in.in:32
+msgid "Christian Hergert"
+msgstr "Christian Hergert"
+
+#: data/org.gnome.Ptyxis.metainfo.xml.in.in:92
+msgid "A column and row size indicator is displayed when resizing the window"
+msgstr "Oszlop- és sorméretjelző jelenik meg az ablak átméretezésekor"
+
+#: data/org.gnome.Ptyxis.metainfo.xml.in.in:97
+msgid "Containers are automatically discovered and displayed"
+msgstr "A konténerek automatikus felfedezésre és megjelenítésre kerülnek"
+
+#: data/org.gnome.Ptyxis.metainfo.xml.in.in:102
+msgid "Many behaviors of the terminal may be tweaked to user preference"
+msgstr ""
+"A terminál számos viselkedése a felhasználói beállítások szerint "
+"finomhangolható"
+
+#: data/org.gnome.Ptyxis.metainfo.xml.in.in:107
+msgid "You may rename a tab by providing a prefix to the title"
+msgstr "Átnevezhet egy lapot a címhez való előtag megadásával"
+
+#: data/org.gnome.Ptyxis.metainfo.xml.in.in:112
+msgid "Palettes provide an integrated dark mode"
+msgstr "A paletták integrált sötét módot biztosítanak"
+
+#: data/org.gnome.Ptyxis.metainfo.xml.in.in:117
+msgid "You can see an overview of your tabs at any time"
+msgstr "Bármikor megnézheti a lapjai áttekintését"
+
+#: data/org.gnome.Ptyxis.metainfo.xml.in.in:122
+msgid "Many shortcuts may be remapped to user preference"
+msgstr "Számos gyorsbillentyű átállítható a felhasználói beállítások szerint"
+
+#: data/org.gnome.Ptyxis.metainfo.xml.in.in:127
+msgid "Built-in color palettes provide both dark and light mode variants"
+msgstr ""
+"A beépített színpaletták sötét és világos módú változatokat is biztosítanak"
+
+#: data/org.gnome.Ptyxis.metainfo.xml.in.in:132
+msgid ""
+"Profiles allow for overriding a number of features such as default container"
+msgstr ""
+"A profilok lehetővé teszik számos funkció felülbírálását, például az "
+"alapértelmezett konténert"
+
+#: data/org.gnome.Ptyxis.metainfo.xml.in.in:137
+msgid "The terminal will remind you when you're root on the local system"
+msgstr "A terminál emlékeztetni fogja, ha Ön rendszergazda a helyi rendszeren"
+
+#: data/org.gnome.Ptyxis.metainfo.xml.in.in:142
+msgid "The terminal will remind you when you're on a remote system"
+msgstr "A terminál emlékeztetni fogja, ha távoli rendszeren van"
+
+#: src/org.gnome.Ptyxis.gschema.xml.in:101
+msgid "Default Profile UUID"
+msgstr "Alapértelmezett profil UUID-ja"
+
+#: src/org.gnome.Ptyxis.gschema.xml.in:102
+msgid "The UUID of the default profile"
+msgstr "Az alapértelmezett profil UUID-ja"
+
+#: src/org.gnome.Ptyxis.gschema.xml.in:107
+msgid "UUIDs of all Profiles"
+msgstr "Az összes profil UUID-ja"
+
+#: src/org.gnome.Ptyxis.gschema.xml.in:108
+msgid "A list of UUID for every profile"
+msgstr "Az UUID-k listája minden profilhoz"
+
+#: src/org.gnome.Ptyxis.gschema.xml.in:113 src/ptyxis-preferences-window.ui:317
+msgid "New Tab Position"
+msgstr "Új lap helyzete"
+
+#: src/org.gnome.Ptyxis.gschema.xml.in:114
+msgid "Where to place new tabs"
+msgstr "Hol legyenek elhelyezve az új lapok"
+
+#: src/org.gnome.Ptyxis.gschema.xml.in:119 src/ptyxis-preferences-window.ui:409
+msgid "Audible Bell"
+msgstr "Hallható csengő"
+
+#: src/org.gnome.Ptyxis.gschema.xml.in:120
+msgid "If an audible bell should be used"
+msgstr "Ha hallható csengőt kell használni"
+
+#: src/org.gnome.Ptyxis.gschema.xml.in:125
+msgid "Visible Bell"
+msgstr "Látható csengő"
+
+#: src/org.gnome.Ptyxis.gschema.xml.in:126
+msgid "If a visual bell should be used"
+msgstr "Ha látható csengőt kell használni"
+
+#: src/org.gnome.Ptyxis.gschema.xml.in:131
+msgid "Visual Process Leader"
+msgstr "Látható folyamatvezető"
+
+#: src/org.gnome.Ptyxis.gschema.xml.in:132
+msgid ""
+"Display a visual window highlight when process leader is SSH, sudo, or other "
+"specialized tooling"
+msgstr ""
+"Látható ablakkijelölés megjelenítése, ha a folyamatvezető SSH, sudo vagy más "
+"speciális eszköz"
+
+#: src/org.gnome.Ptyxis.gschema.xml.in:137
+msgid "Use System Font"
+msgstr "Rendszer betűkészletének használata"
+
+#: src/org.gnome.Ptyxis.gschema.xml.in:138
+msgid "If the default system monospace font should be used"
+msgstr ""
+"Ha a rendszer alapértelmezett, rögzített szélességű betűkészletét kell "
+"használni"
+
+#: src/org.gnome.Ptyxis.gschema.xml.in:143
+msgid "Font Name"
+msgstr "Betűkészlet neve"
+
+#: src/org.gnome.Ptyxis.gschema.xml.in:144
+msgid "The font description to use if use-system-font is set to False"
+msgstr ""
+"A használandó betűkészlet leírása, ha a „use-system-font” hamisra van állítva"
+
+#: src/org.gnome.Ptyxis.gschema.xml.in:149 src/ptyxis-preferences-window.ui:244
+msgid "Cursor Shape"
+msgstr "Kurzor alakja"
+
+#: src/org.gnome.Ptyxis.gschema.xml.in:150
+msgid "The default shape of the cursor"
+msgstr "A kurzor alapértelmezett alakja"
+
+#: src/org.gnome.Ptyxis.gschema.xml.in:155
+msgid "Cursor Blink Mode"
+msgstr "Kurzor villogásának módja"
+
+#: src/org.gnome.Ptyxis.gschema.xml.in:156
+msgid "The default blink mode cursor"
+msgstr "Az alapértelmezett villogási mód kurzor"
+
+#: src/org.gnome.Ptyxis.gschema.xml.in:161
+msgid "List of punctuation characters that are treated as word characters"
+msgstr ""
+"Központozási karakterek listája, amelyek szókarakterekként legyenek kezelve"
+
+#: src/org.gnome.Ptyxis.gschema.xml.in:162
+msgid ""
+"By default, when doing word-wise selection, most punctuation breaks up word "
+"boundaries. This list of exceptions will instead be treated as part of the "
+"word."
+msgstr ""
+"Alapértelmezetten a szavankénti kijelöléskor a legtöbb írásjel megszakítja a "
+"szóhatárokat. Ez a kivétellista viszont a szó részének lesz tekintve."
+
+#: src/org.gnome.Ptyxis.gschema.xml.in:167
+msgid "Scrollbar Policy"
+msgstr "Görgetősáv irányelve"
+
+#: src/org.gnome.Ptyxis.gschema.xml.in:168
+msgid "If scrollbars should be displayed"
+msgstr "Ha a görgetősávokat meg kell jeleníteni"
+
+#: src/org.gnome.Ptyxis.gschema.xml.in:177
+msgid "Text Blink Mode"
+msgstr "Szöveg villogásának módja"
+
+#: src/org.gnome.Ptyxis.gschema.xml.in:178
+msgid "When text blinking is allowed"
+msgstr "Ha a szöveg villogása engedélyezve van"
+
+#: src/org.gnome.Ptyxis.gschema.xml.in:183
+msgid "Interface Style"
+msgstr "Felület stílusa"
+
+#: src/org.gnome.Ptyxis.gschema.xml.in:184
+msgid "If light or dark interface style should be used"
+msgstr "Ha világos vagy sötét felületstílust kell használni"
+
+#: src/org.gnome.Ptyxis.gschema.xml.in:189 src/ptyxis-preferences-window.ui:346
+msgid "Restore Session"
+msgstr "Munkamenet helyreállítása"
+
+#: src/org.gnome.Ptyxis.gschema.xml.in:190
+msgid "Restore tabs from previous session when starting Ptyxis"
+msgstr "Lapok helyreállítása az előző munkamenetből a Ptyxis indításakor"
+
+#: src/org.gnome.Ptyxis.gschema.xml.in:195 src/ptyxis-preferences-window.ui:352
+msgid "Restore Window Size"
+msgstr "Ablakméret helyreállítása"
+
+#: src/org.gnome.Ptyxis.gschema.xml.in:196
+msgid "Restore the previous window size when creating new windows"
+msgstr "Az előző ablakméret helyreállítása új ablakok létrehozásakor"
+
+#: src/org.gnome.Ptyxis.gschema.xml.in:206
+msgid "Default Column Size"
+msgstr "Alapértelmezett oszlopméret"
+
+#: src/org.gnome.Ptyxis.gschema.xml.in:207
+#: src/org.gnome.Ptyxis.gschema.xml.in:214
+msgid "Default window size when restore-window-size is not true."
+msgstr "Alapértelmezett ablakméret, ha a „restore-window-size” nem igaz."
+
+#: src/org.gnome.Ptyxis.gschema.xml.in:213
+msgid "Default Row Size"
+msgstr "Alapértelmezett sorméret"
+
+#: src/org.gnome.Ptyxis.gschema.xml.in:219
+msgid "Toast on Copy Clipboard"
+msgstr "Beúszó értesítés a vágólap másolásakor"
+
+#: src/org.gnome.Ptyxis.gschema.xml.in:220
+msgid "Show the user when text has copied to the clipboard."
+msgstr "Megjelenítés a felhasználónak, ha szöveg lett másolva a vágólapra."
+
+#: src/org.gnome.Ptyxis.gschema.xml.in:225
+msgid "Enable Accessibility"
+msgstr "Akadálymentesítés engedélyezése"
+
+#: src/org.gnome.Ptyxis.gschema.xml.in:226
+msgid ""
+"Currently experimental feature to send accessibility information to screen "
+"readers."
+msgstr ""
+"Jelenleg kísérleti funkció, amely akadálymentesítési információkat küld a "
+"képernyőolvasóknak."
+
+#: src/org.gnome.Ptyxis.gschema.xml.in:231
+msgid "Disable Padding around Terminal Emulator"
+msgstr "Terminálemulátor körüli kitöltés letiltása"
+
+#: src/org.gnome.Ptyxis.gschema.xml.in:232
+msgid ""
+"Do not pad around the terminal emulator widget. Setting to true may have "
+"significant performance impacts."
+msgstr ""
+"Ne legyen kitöltés a terminálemulátor felületi eleme körül. Igazra állítva "
+"jelentős teljesítményhatása lehet."
+
+#: src/org.gnome.Ptyxis.gschema.xml.in:237
+msgid "Prompt when active tab is closed"
+msgstr "Kérdezzen az aktív lap bezárásakor"
+
+#: src/org.gnome.Ptyxis.gschema.xml.in:238
+msgid ""
+"If a tab (or window) is closed with active foreground processes, prompt the "
+"user for confirmation."
+msgstr ""
+"Ha egy aktív előtéri folyamatokkal rendelkező lapot (vagy ablakot) bezárnak, "
+"kérjen megerősítést a felhasználótól."
+
+#: src/org.gnome.Ptyxis.gschema.xml.in:243
+msgid "Ignore OSC Title"
+msgstr "OSC-cím figyelmen kívül hagyása"
+
+#: src/org.gnome.Ptyxis.gschema.xml.in:244
+msgid "If OSC title should be ignored in tab titles."
+msgstr "Ha az OSC-címet figyelmen kívül kell hagyni a lapcímekben."
+
+#: src/org.gnome.Ptyxis.gschema.xml.in:253
+msgid "Label"
+msgstr "Címke"
+
+#: src/org.gnome.Ptyxis.gschema.xml.in:254
+msgid "The label for the profile"
+msgstr "A profil címkéje"
+
+#: src/org.gnome.Ptyxis.gschema.xml.in:259
+msgid "Login Shell"
+msgstr "Bejelentkezési parancsértelmező"
+
+#: src/org.gnome.Ptyxis.gschema.xml.in:260
+msgid "Use a login shell"
+msgstr "Bejelentkezési parancsértelmező használata"
+
+#: src/org.gnome.Ptyxis.gschema.xml.in:265 src/ptyxis-preferences-window.ui:477
+#: src/ptyxis-profile-editor.ui:319
+msgid "Limit Scrollback"
+msgstr "Visszagörgetés korlátozása"
+
+#: src/org.gnome.Ptyxis.gschema.xml.in:266
+msgid "Limit the number of lines to keep for scrollback"
+msgstr "A visszagörgetéshez megtartott sorok számának korlátozása"
+
+#: src/org.gnome.Ptyxis.gschema.xml.in:272 src/ptyxis-preferences-window.ui:486
+#: src/ptyxis-profile-editor.ui:328
+msgid "Scrollback Lines"
+msgstr "Visszagörgetési sorok"
+
+#: src/org.gnome.Ptyxis.gschema.xml.in:273
+msgid "The number of lines to keep in the scrollback, zero for no scrollback"
+msgstr ""
+"A visszagörgetéshez megtartott sorok száma, nulla esetén nincs visszagörgetés"
+
+#: src/org.gnome.Ptyxis.gschema.xml.in:278 src/ptyxis-preferences-window.ui:467
+#: src/ptyxis-profile-editor.ui:309
+msgid "Scroll on Output"
+msgstr "Görgetés kimenet esetén"
+
+#: src/org.gnome.Ptyxis.gschema.xml.in:279
+msgid "Scroll to the bottom upon new output"
+msgstr "Görgetés alulra új kimenet írásakor"
+
+#: src/org.gnome.Ptyxis.gschema.xml.in:284 src/ptyxis-preferences-window.ui:461
+#: src/ptyxis-profile-editor.ui:303
+msgid "Scroll on Keystroke"
+msgstr "Görgetés billentyűleütéskor"
+
+#: src/org.gnome.Ptyxis.gschema.xml.in:285
+msgid "Scroll to the bottom upon user keystroke"
+msgstr "Görgetés alulra felhasználói billentyűleütéskor"
+
+#: src/org.gnome.Ptyxis.gschema.xml.in:290 src/ptyxis-profile-editor.ui:173
+msgid "Use Custom Command"
+msgstr "Egyéni parancs használata"
+
+#: src/org.gnome.Ptyxis.gschema.xml.in:291
+msgid "If a custom command should be used"
+msgstr "Ha egyéni parancsot kell használni"
+
+#: src/org.gnome.Ptyxis.gschema.xml.in:296
+msgid "Use Proxy"
+msgstr "Proxy használata"
+
+#: src/org.gnome.Ptyxis.gschema.xml.in:297
+msgid "Apply proxy settings from the host in the container"
+msgstr "A géptől származó proxybeállítások alkalmazása a konténerben"
+
+#: src/org.gnome.Ptyxis.gschema.xml.in:302 src/ptyxis-profile-editor.ui:178
+msgid "Custom Command"
+msgstr "Egyéni parancs"
+
+#: src/org.gnome.Ptyxis.gschema.xml.in:303
+msgid "A custom command for the shell"
+msgstr "Egyéni parancs a parancsértelmezőhöz"
+
+#: src/org.gnome.Ptyxis.gschema.xml.in:308 src/ptyxis-profile-editor.ui:197
+msgid "Default Container"
+msgstr "Alapértelmezett konténer"
+
+#: src/org.gnome.Ptyxis.gschema.xml.in:309
+msgid "The default container to run the command in"
+msgstr "Az alapértelmezett konténer a parancs futtatásához"
+
+#: src/org.gnome.Ptyxis.gschema.xml.in:314 src/ptyxis-profile-editor.ui:206
+msgid "Preserve Container"
+msgstr "Konténer megőrzése"
+
+#: src/org.gnome.Ptyxis.gschema.xml.in:315
+msgid "Preserve the active container when creating new tabs and windows"
+msgstr "Az aktív konténer megőrzése új lapok vagy ablakok létrehozásakor"
+
+#: src/org.gnome.Ptyxis.gschema.xml.in:320 src/ptyxis-preferences-window.ui:546
+#: src/ptyxis-profile-editor.ui:267
+msgid "Exit Action"
+msgstr "Kilépési művelet"
+
+#: src/org.gnome.Ptyxis.gschema.xml.in:321
+msgid "The action to take when the shell exits"
+msgstr "A parancsértelmező kilépésekor végrehajtandó művelet"
+
+#: src/org.gnome.Ptyxis.gschema.xml.in:326
+msgid "Preserve Directory"
+msgstr "Könyvtár megőrzése"
+
+#: src/org.gnome.Ptyxis.gschema.xml.in:327
+msgid "If the directory should be preserved for new terminals"
+msgstr "Ha a könyvtárat meg kell őrizni az új termináloknál"
+
+#: src/org.gnome.Ptyxis.gschema.xml.in:332 src/ptyxis-inspector.ui:102
+#: src/ptyxis-preferences-window.ui:40 src/ptyxis-profile-editor.ui:65
+msgid "Palette"
+msgstr "Paletta"
+
+#: src/org.gnome.Ptyxis.gschema.xml.in:333
+msgid "The color palette to use for the profile, by name"
+msgstr "A profilhoz használandó színpaletta, név szerint"
+
+#: src/org.gnome.Ptyxis.gschema.xml.in:339
+msgid "Opacity"
+msgstr "Átlátszatlanság"
+
+#: src/org.gnome.Ptyxis.gschema.xml.in:340
+msgid "The opacity of the palette background"
+msgstr "A paletta hátterének átlátszatlansága"
+
+#: src/org.gnome.Ptyxis.gschema.xml.in:345
+msgid "Bold is Bright"
+msgstr "A félkövér világos"
+
+#: src/org.gnome.Ptyxis.gschema.xml.in:346
+msgid ""
+"Setting bold on one of the lower 8 colors in the palette will use bright "
+"variant (upper 8 colors)"
+msgstr ""
+"A palettán lévő alsó 8 szín egyikének félkövérre állítása világos változatot "
+"fog használni (felső 8 szín)"
+
+#: src/org.gnome.Ptyxis.gschema.xml.in:352 src/ptyxis-preferences-window.ui:175
+#: src/ptyxis-profile-editor.ui:143
+msgid "Line Spacing"
+msgstr "Sorköz"
+
+#: src/org.gnome.Ptyxis.gschema.xml.in:353
+msgid "The terminal’s cell height scale"
+msgstr "A terminál cellamagasságának méretezése"
+
+#: src/org.gnome.Ptyxis.gschema.xml.in:358
+msgid "CJK Ambiguous Width"
+msgstr "CJK kétértelmű szélesség"
+
+#: src/org.gnome.Ptyxis.gschema.xml.in:359
+msgid "The size to apply to ambiguous width characters"
+msgstr "Az alkalmazandó méret a kétértelmű szélességű karaktereknél"
+
+#: src/org.gnome.Ptyxis.gschema.xml.in:364
+#: src/org.gnome.Ptyxis.gschema.xml.in:370
+msgid "Backspace Binding"
+msgstr "Visszatörlés kötése"
+
+#: src/org.gnome.Ptyxis.gschema.xml.in:365
+#: src/org.gnome.Ptyxis.gschema.xml.in:371
+msgid "What to send to the PTY when a backspace is entered"
+msgstr "Mi legyen elküldve a PTY-nak egy visszatörlés billentyű megnyomásakor"
+
+#: src/org.gnome.Ptyxis.gschema.xml.in:380 src/ptyxis-preferences-window.ui:654
+msgid "Copy to Clipboard"
+msgstr "Másolás a vágólapra"
+
+#: src/org.gnome.Ptyxis.gschema.xml.in:381
+msgid "The shortcut to copy to clipboard"
+msgstr "A gyorsbillentyű a vágólapra másoláshoz"
+
+#: src/org.gnome.Ptyxis.gschema.xml.in:386 src/ptyxis-preferences-window.ui:659
+msgid "Paste from Clipboard"
+msgstr "Beillesztés a vágólapról"
+
+#: src/org.gnome.Ptyxis.gschema.xml.in:387
+msgid "The shortcut to paste from the clipboard"
+msgstr "A gyorsbillentyű a vágólapról való beillesztéshez"
+
+#: src/org.gnome.Ptyxis.gschema.xml.in:393
+msgid "The shortcut to create a new tab in the current window"
+msgstr "A gyorsbillentyű új lap létrehozásához a jelenlegi ablakban"
+
+#: src/org.gnome.Ptyxis.gschema.xml.in:399
+msgid "The shortcut to create a new tab in a new window"
+msgstr "A gyorsbillentyű új lap létrehozásához egy új ablakban"
+
+#: src/org.gnome.Ptyxis.gschema.xml.in:404
+msgid "Tab Overview"
+msgstr "Lapáttekintés"
+
+#: src/org.gnome.Ptyxis.gschema.xml.in:405
+msgid "The shortcut to show the tab overview"
+msgstr "A gyorsbillentyű a lapáttekintés megjelenítéséhez"
+
+#: src/org.gnome.Ptyxis.gschema.xml.in:411
+msgid "The shortcut to show application preferences"
+msgstr "A gyorsbillentyű az alkalmazás beállításainak megjelenítéséhez"
+
+#: src/org.gnome.Ptyxis.gschema.xml.in:416 src/ptyxis-preferences-window.ui:880
+#: src/ptyxis-window.c:1442 src/ptyxis-window.c:1450
+msgid "Zoom Out"
+msgstr "Kicsinyítés"
+
+#: src/org.gnome.Ptyxis.gschema.xml.in:417
+msgid "The shortcut to zoom out"
+msgstr "A gyorsbillentyű a kicsinyítéshez"
+
+#: src/org.gnome.Ptyxis.gschema.xml.in:422 src/ptyxis-preferences-window.ui:885
+#: src/ptyxis-window.c:1459
+msgid "Reset Zoom"
+msgstr "Nagyítás visszaállítása"
+
+#: src/org.gnome.Ptyxis.gschema.xml.in:423
+msgid "The shortcut to reset zoom"
+msgstr "A gyorsbillentyű a nagyítás visszaállításához"
+
+#: src/org.gnome.Ptyxis.gschema.xml.in:428 src/ptyxis-preferences-window.ui:875
+#: src/ptyxis-window.c:1427 src/ptyxis-window.c:1435
+msgid "Zoom In"
+msgstr "Nagyítás"
+
+#: src/org.gnome.Ptyxis.gschema.xml.in:429
+msgid "The shortcut to zoom in"
+msgstr "A gyorsbillentyű a nagyításhoz"
+
+#: src/org.gnome.Ptyxis.gschema.xml.in:434 src/ptyxis-preferences-window.ui:895
+msgid "Toggle Fullscreen"
+msgstr "Teljes képernyő be- és kikapcsolása"
+
+#: src/org.gnome.Ptyxis.gschema.xml.in:435
+msgid "The shortcut to toggle fullscreen"
+msgstr "A gyorsbillentyű a teljes képernyő be- és kikapcsolásához"
+
+#: src/org.gnome.Ptyxis.gschema.xml.in:440
+msgid "Reset Terminal"
+msgstr "Terminál visszaállítása"
+
+#: src/org.gnome.Ptyxis.gschema.xml.in:441
+msgid "Reset the terminal state for misbehaving clients"
+msgstr "A terminál állapotának visszaállítása a rosszul viselkedő ügyfeleknél"
+
+#: src/org.gnome.Ptyxis.gschema.xml.in:446
+msgid "Reset Terminal and Clear History"
+msgstr "Terminál visszaállítása és előzmények törlése"
+
+#: src/org.gnome.Ptyxis.gschema.xml.in:447
+msgid "Reset the terminal state and clear history for misbehaving clients"
+msgstr ""
+"A terminál állapotának visszaállítása és az előzmények törlése a rosszul "
+"viselkedő ügyfeleknél"
+
+#. Translators: Refers to searching the terminal scrollback
+#: src/org.gnome.Ptyxis.gschema.xml.in:453 src/ptyxis-find-bar.ui:39
+#: src/ptyxis-preferences-window.ui:697
+msgid "Search History"
+msgstr "Keresési előzmények"
+
+#: src/org.gnome.Ptyxis.gschema.xml.in:454
+msgid "Shortcut to begin searching the terminal history"
+msgstr "Gyorsbillentyű a terminál előzményeinek kereséséhez"
+
+#: src/org.gnome.Ptyxis.gschema.xml.in:459 src/ptyxis-preferences-window.ui:668
+msgid "Select All"
+msgstr "Összes kijelölése"
+
+#: src/org.gnome.Ptyxis.gschema.xml.in:460
+msgid "Shortcut to select all the entire terminal scrollback"
+msgstr "Gyorsbillentyű az egész terminál-visszagörgetés kijelöléséhez"
+
+#: src/org.gnome.Ptyxis.gschema.xml.in:465
+msgid "Select None"
+msgstr "Kijelölés törlése"
+
+#: src/org.gnome.Ptyxis.gschema.xml.in:466
+msgid "Shortcut to clear the terminal selection"
+msgstr "Gyorsbillentyű a terminál kijelölésének törléséhez"
+
+#: src/org.gnome.Ptyxis.gschema.xml.in:471
+msgid "Popup Menu"
+msgstr "Felugró menü"
+
+#: src/org.gnome.Ptyxis.gschema.xml.in:472
+msgid "Shortcut to show the popup menu for the terminal"
+msgstr "Gyorsbillentyű a terminál felugró menüjének megjelenítéséhez"
+
+#: src/org.gnome.Ptyxis.gschema.xml.in:477
+msgid "Primary Menu"
+msgstr "Elsődleges menü"
+
+#: src/org.gnome.Ptyxis.gschema.xml.in:478
+msgid "Shortcut to show the primary menu for the window"
+msgstr "Gyorsbillentyű az ablak elsődleges menüjének megjelenítéséhez"
+
+#: src/org.gnome.Ptyxis.gschema.xml.in:483
+msgid "Tab Menu"
+msgstr "Lapmenü"
+
+#: src/org.gnome.Ptyxis.gschema.xml.in:484
+msgid "Shortcut to show the new tab menu"
+msgstr "Gyorsbillentyű az új lap menüjének megjelenítéséhez"
+
+#: src/org.gnome.Ptyxis.gschema.xml.in:489 src/ptyxis-preferences-window.ui:784
+msgid "Move to Previous Tab"
+msgstr "Áthelyezés az előző lapra"
+
+#: src/org.gnome.Ptyxis.gschema.xml.in:490
+msgid "Shortcut to move to the previous tab"
+msgstr "Gyorsbillentyű az előző lapra való áthelyezéshez"
+
+#: src/org.gnome.Ptyxis.gschema.xml.in:495 src/ptyxis-preferences-window.ui:789
+msgid "Move to Next Tab"
+msgstr "Áthelyezés a következő lapra"
+
+#: src/org.gnome.Ptyxis.gschema.xml.in:496
+msgid "Shortcut to move to the next tab"
+msgstr "Gyorsbillentyű a következő lapra való áthelyezéshez"
+
+#: src/org.gnome.Ptyxis.gschema.xml.in:501 src/ptyxis-preferences-window.ui:798
+msgid "Move Tab Left"
+msgstr "Lap mozgatása balra"
+
+#: src/org.gnome.Ptyxis.gschema.xml.in:502
+msgid "Shortcut to move the current tab to the left one position"
+msgstr "Gyorsbillentyű a jelenlegi lap egy pozícióval balra mozgatásához"
+
+#: src/org.gnome.Ptyxis.gschema.xml.in:507 src/ptyxis-preferences-window.ui:804
+msgid "Move Tab Right"
+msgstr "Lap mozgatása jobbra"
+
+#: src/org.gnome.Ptyxis.gschema.xml.in:508
+msgid "Shortcut to move the current tab to the right one position"
+msgstr "Gyorsbillentyű a jelenlegi lap egy pozícióval jobbra mozgatásához"
+
+#: src/org.gnome.Ptyxis.gschema.xml.in:513 src/ptyxis-preferences-window.ui:810
+msgid "Move Tab to New Window"
+msgstr "Lap áthelyezése új ablakba"
+
+#: src/org.gnome.Ptyxis.gschema.xml.in:514
+msgid "Shortcut to move the current tab into a new window"
+msgstr "Gyorsbillentyű a jelenlegi lap új ablakba való áthelyezéséhez"
+
+#: src/org.gnome.Ptyxis.gschema.xml.in:519 src/ptyxis-preferences-window.ui:762
+msgid "Close Tab"
+msgstr "Lap bezárása"
+
+#: src/org.gnome.Ptyxis.gschema.xml.in:520
+msgid "Shortcut to close the current tab"
+msgstr "Gyorsbillentyű a jelenlegi lap bezárásához"
+
+#: src/org.gnome.Ptyxis.gschema.xml.in:525 src/ptyxis-preferences-window.ui:768
+msgid "Close Other Tabs"
+msgstr "Egyéb lapok bezárása"
+
+#: src/org.gnome.Ptyxis.gschema.xml.in:526
+msgid "Shortcut to close all tabs in the window but the current one"
+msgstr ""
+"Gyorsbillentyű az ablakban lévő összes lap bezárásához, kivéve a jelenlegit"
+
+#: src/org.gnome.Ptyxis.gschema.xml.in:531 src/ptyxis-preferences-window.ui:722
+msgid "Close Window"
+msgstr "Ablak bezárása"
+
+#: src/org.gnome.Ptyxis.gschema.xml.in:532
+msgid "Shortcut to close the current window"
+msgstr "Gyorsbillentyű a jelenlegi ablak bezárásához"
+
+#: src/org.gnome.Ptyxis.gschema.xml.in:537 src/ptyxis-preferences-window.ui:732
+#: src/ptyxis-terminal.ui:244 src/ptyxis-window.c:1167 src/ptyxis-window.ui:602
+msgid "Set Title"
+msgstr "Cím beállítása"
+
+#: src/org.gnome.Ptyxis.gschema.xml.in:538
+msgid "The shortcut to show set title"
+msgstr "A gyorsbillentyű a beállított cím megjelenítéséhez"
+
+#: src/org.gnome.Ptyxis.gschema.xml.in:543
+msgid "Focus Tab 1"
+msgstr "1. lap fókuszálása"
+
+#: src/org.gnome.Ptyxis.gschema.xml.in:544
+msgid "Shortcut to focus tab 1"
+msgstr "Gyorsbillentyű az 1. lapra való fókuszáláshoz"
+
+#: src/org.gnome.Ptyxis.gschema.xml.in:549
+msgid "Focus Tab 2"
+msgstr "2. lap fókuszálása"
+
+#: src/org.gnome.Ptyxis.gschema.xml.in:550
+msgid "Shortcut to focus tab 2"
+msgstr "Gyorsbillentyű a 2. lapra való fókuszáláshoz"
+
+#: src/org.gnome.Ptyxis.gschema.xml.in:555
+msgid "Focus Tab 3"
+msgstr "3. lap fókuszálása"
+
+#: src/org.gnome.Ptyxis.gschema.xml.in:556
+msgid "Shortcut to focus tab 3"
+msgstr "Gyorsbillentyű a 3. lapra való fókuszáláshoz"
+
+#: src/org.gnome.Ptyxis.gschema.xml.in:561
+msgid "Focus Tab 4"
+msgstr "4. lap fókuszálása"
+
+#: src/org.gnome.Ptyxis.gschema.xml.in:562
+msgid "Shortcut to focus tab 4"
+msgstr "Gyorsbillentyű a 4. lapra való fókuszáláshoz"
+
+#: src/org.gnome.Ptyxis.gschema.xml.in:567
+msgid "Focus Tab 5"
+msgstr "5. lap fókuszálása"
+
+#: src/org.gnome.Ptyxis.gschema.xml.in:568
+msgid "Shortcut to focus tab 5"
+msgstr "Gyorsbillentyű az 5. lapra való fókuszáláshoz"
+
+#: src/org.gnome.Ptyxis.gschema.xml.in:573
+msgid "Focus Tab 6"
+msgstr "6. lap fókuszálása"
+
+#: src/org.gnome.Ptyxis.gschema.xml.in:574
+msgid "Shortcut to focus tab 6"
+msgstr "Gyorsbillentyű a 6. lapra való fókuszáláshoz"
+
+#: src/org.gnome.Ptyxis.gschema.xml.in:579
+msgid "Focus Tab 7"
+msgstr "7. lap fókuszálása"
+
+#: src/org.gnome.Ptyxis.gschema.xml.in:580
+msgid "Shortcut to focus tab 7"
+msgstr "Gyorsbillentyű a 7. lapra való fókuszáláshoz"
+
+#: src/org.gnome.Ptyxis.gschema.xml.in:585
+msgid "Focus Tab 8"
+msgstr "8. lap fókuszálása"
+
+#: src/org.gnome.Ptyxis.gschema.xml.in:586
+msgid "Shortcut to focus tab 8"
+msgstr "Gyorsbillentyű a 8. lapra való fókuszáláshoz"
+
+#: src/org.gnome.Ptyxis.gschema.xml.in:591
+msgid "Focus Tab 9"
+msgstr "9. lap fókuszálása"
+
+#: src/org.gnome.Ptyxis.gschema.xml.in:592
+msgid "Shortcut to focus tab 9"
+msgstr "Gyorsbillentyű a 9. lapra való fókuszáláshoz"
+
+#: src/org.gnome.Ptyxis.gschema.xml.in:597
+msgid "Focus Tab 10"
+msgstr "10. lap fókuszálása"
+
+#: src/org.gnome.Ptyxis.gschema.xml.in:598
+msgid "Shortcut to focus tab 10"
+msgstr "Gyorsbillentyű a 10. lapra való fókuszáláshoz"
+
+#: src/org.gnome.Ptyxis.gschema.xml.in:603 src/ptyxis-preferences-window.ui:774
+msgid "Undo Close Tab"
+msgstr "Lap bezárásának visszavonása"
+
+#: src/org.gnome.Ptyxis.gschema.xml.in:604
+msgid "Undo closing of last tab"
+msgstr "Az utolsó lap bezárásának visszavonása"
+
+#: src/ptyxis-application.c:450
+msgid "--tab, --tab-with-profile, or --new-window may not be used together"
+msgstr ""
+"A --tab, --tab-with-profile vagy --new-window kapcsoló nem használható együtt"
+
+#: src/ptyxis-application.c:496
+#, c-format
+msgid "Cannot parse command: %s"
+msgstr "Nem lehet feldolgozni a parancsot: %s"
+
+#: src/ptyxis-application.c:1125
+msgid "Examples:"
+msgstr "Példák:"
+
+#: src/ptyxis-application.c:1127
+msgid "Show the application preferences"
+msgstr "Az alkalmazás beállításainak megjelenítése"
+
+#. Used for new tabs/windows/etc when specified
+#: src/ptyxis-application.c:1130
+msgid "Use DIR for --tab, --tab-with-profile, --new-window, or -x"
+msgstr ""
+"KÖNYVTÁR használata a --tab, --tab-with-profile, --new-window vagy -x "
+"kapcsolóhoz"
+
+#: src/ptyxis-application.c:1130
+msgid "DIR"
+msgstr "KÖNYVTÁR"
+
+#. By default, this implies a new ptyxis instance unless the options
+#. * below are provided to override that.
+#.
+#: src/ptyxis-application.c:1135
+msgid "Command to execute in new window"
+msgstr "Új ablakban végrehajtandó parancs"
+
+#. These options all imply we're using a shared Ptyxis instance. We do not support
+#. * short command options for these to make it easier to sniff them in early args
+#. * checking from `main.c`.
+#.
+#: src/ptyxis-application.c:1141
+msgid "New terminal window"
+msgstr "Új terminálablak"
+
+#: src/ptyxis-application.c:1142
+msgid "New terminal tab in active window"
+msgstr "Új terminállap az aktív ablakban"
+
+#: src/ptyxis-application.c:1143
+msgid "New terminal tab in active window using the profile UUID"
+msgstr "Új terminállap az aktív ablakban a profil UUID-jának használatával"
+
+#: src/ptyxis-application.c:1143
+msgid "PROFILE_UUID"
+msgstr "PROFIL_UUID"
+
+#: src/ptyxis-application.c:1145
+msgid "Set title for new tab"
+msgstr "Új lap címének beállítása"
+
+#: src/ptyxis-application.c:1146
+msgid "Maximize a newly created window"
+msgstr "Újonnan létrehozott ablak maximalizálása"
+
+#: src/ptyxis-application.c:1153
+msgid "Run Separate Instance"
+msgstr "Különálló példány futtatása"
+
+#: src/ptyxis-application.c:1157
+msgid "Open Preferences"
+msgstr "Beállítások megnyitása"
+
+#: src/ptyxis-application.c:1161
+msgid "Run Custom Command in New Window"
+msgstr "Egyéni parancs futtatása új ablakban"
+
+#: src/ptyxis-application.c:1165
+msgid "[-- COMMAND ARGUMENTS]"
+msgstr "[-- PARANCS ARGUMENTUMOK]"
+
+#: src/ptyxis-application.c:1403
+msgid "translator-credits"
+msgstr ""
+"GRX005 <hunorjani17 at gmail dot com>, 2025.\n"
+"Úr Balázs <ur dot balazs at fsf dot hu>, 2025."
+
+#: src/ptyxis-close-dialog.c:109
+msgid "_Close"
+msgstr "_Bezárás"
+
+#: src/ptyxis-close-dialog.c:109
+msgid "_Close All"
+msgstr "Összes _bezárása"
+
+#: src/ptyxis-close-dialog.c:111
+msgid "Close Window?"
+msgstr "Bezárja az ablakot?"
+
+#: src/ptyxis-close-dialog.c:112
+msgid "Some processes are still running."
+msgstr "Néhány folyamat még fut."
+
+#: src/ptyxis-close-dialog.c:116
+msgid "_Cancel"
+msgstr "_Mégse"
+
+#: src/ptyxis-close-dialog.c:142
+#, c-format
+msgid "Process %d"
+msgstr "%d. folyamat"
+
+#: src/ptyxis-container-menu.c:102
+msgid "Unknown Container"
+msgstr "Ismeretlen konténer"
+
+#: src/ptyxis-find-bar.ui:69
+msgid "Search Up"
+msgstr "Keresés felfelé"
+
+#: src/ptyxis-find-bar.ui:76
+msgid "Search Down"
+msgstr "Keresés lefelé"
+
+#: src/ptyxis-find-bar.ui:85
+msgid "Search Options"
+msgstr "Keresési beállítások"
+
+#: src/ptyxis-find-bar.ui:96
+msgid "Match _Case"
+msgstr "_Kis- és nagybetűk megkülönböztetése"
+
+#: src/ptyxis-find-bar.ui:102
+msgid "Whole _Words"
+msgstr "Teljes _szavak"
+
+#: src/ptyxis-find-bar.ui:108
+msgid "Use _Regular Expressions"
+msgstr "_Reguláris kifejezések használata"
+
+#: src/ptyxis-find-bar.ui:128 src/ptyxis-preferences-window.ui:567
+#: src/ptyxis-profile-editor.ui:288
+msgid "Close"
+msgstr "Bezárás"
+
+#: src/ptyxis-find-bar.ui:129
+msgid "Close the search bar"
+msgstr "A keresési sáv bezárása"
+
+#: src/ptyxis-inspector.c:95 src/ptyxis-inspector.c:357
+msgid "unset"
+msgstr "visszaállítás"
+
+#: src/ptyxis-inspector.c:116 src/ptyxis-inspector.c:274
+msgid "Row"
+msgstr "Sor"
+
+#: src/ptyxis-inspector.c:116 src/ptyxis-inspector.c:274
+msgid "Column"
+msgstr "Oszlop"
+
+#. NOTE: If we are in a container that also supports VTE patches
+#. * then it will send shell-precmd via escape sequences. The reality
+#. * is that our foreground is the `toolbox enter` process (until we
+#. * have better patches in VTE) but we show "Shell" instead.
+#. *
+#. * This is fine for now, but I'd like it to be better and actually
+#. * show the proper `tcgetpgrp()` foreground.
+#.
+#: src/ptyxis-inspector.c:177 src/ptyxis-inspector.c:197
+#: src/ptyxis-preferences-window.ui:503 src/ptyxis-profile-editor.ui:170
+msgid "Shell"
+msgstr "Parancsértelmező"
+
+#: src/ptyxis-inspector.c:276
+msgid "untracked"
+msgstr "nem követett"
+
+#: src/ptyxis-inspector.ui:4
+msgid "Inspector"
+msgstr "Vizsgáló"
+
+#: src/ptyxis-inspector.ui:7
+msgid "Process"
+msgstr "Folyamat"
+
+#: src/ptyxis-inspector.ui:13
+msgid "Foreground Process"
+msgstr "Előtéri folyamat"
+
+#: src/ptyxis-inspector.ui:33
+msgid "Window Title"
+msgstr "Ablak címe"
+
+#: src/ptyxis-inspector.ui:45
+msgid "Current Directory"
+msgstr "Jelenlegi könyvtár"
+
+#: src/ptyxis-inspector.ui:53
+msgid "Current File"
+msgstr "Jelenlegi fájl"
+
+#: src/ptyxis-inspector.ui:63
+msgid "Container"
+msgstr "Konténer"
+
+#: src/ptyxis-inspector.ui:66
+msgid "Runtime"
+msgstr "Futtatókörnyezet"
+
+#: src/ptyxis-inspector.ui:74 src/ptyxis-inspector.ui:228
+#: src/ptyxis-profile-editor.ui:36
+msgid "Name"
+msgstr "Név"
+
+#: src/ptyxis-inspector.ui:86 src/ptyxis-preferences-window.ui:36
+msgid "Appearance"
+msgstr "Megjelenés"
+
+#: src/ptyxis-inspector.ui:92
+msgid "Grid Size"
+msgstr "Rácsméret"
+
+#: src/ptyxis-inspector.ui:105
+msgid "Colors"
+msgstr "Színek"
+
+#: src/ptyxis-inspector.ui:225 src/ptyxis-preferences-window.ui:130
+msgid "Font"
+msgstr "Betűkészlet"
+
+#: src/ptyxis-inspector.ui:233
+msgid "Cell Size"
+msgstr "Cellaméret"
+
+#: src/ptyxis-inspector.ui:242
+msgid "Input"
+msgstr "Bemenet"
+
+#: src/ptyxis-inspector.ui:246 src/ptyxis-preferences-window.ui:241
+msgid "Cursor"
+msgstr "Kurzor"
+
+#: src/ptyxis-inspector.ui:249 src/ptyxis-inspector.ui:262
+msgid "Position"
+msgstr "Pozíció"
+
+#: src/ptyxis-inspector.ui:259
+msgid "Mouse"
+msgstr "Egér"
+
+#: src/ptyxis-inspector.ui:270
+msgid "Hyperlink"
+msgstr "Hiperhivatkozás"
+
+#: src/ptyxis-palette-preview.ui:12
+msgid "The quick brown fox jumps over the lazy dog"
+msgstr ""
+"Jó foxim és don Quijote húszwattos lámpánál ülve egy pár bűvös cipőt készít"
+
+#: src/ptyxis-preferences-window.c:270
+msgid "Select Font"
+msgstr "Betűkészlet kiválasztása"
+
+#: src/ptyxis-preferences-window.c:345
+msgid "Show Fewer Palettes"
+msgstr "Kevesebb paletta megjelenítése"
+
+#: src/ptyxis-preferences-window.c:350 src/ptyxis-preferences-window.ui:46
+msgid "Show All Palettes"
+msgstr "Összes paletta megjelenítése"
+
+#: src/ptyxis-preferences-window.ui:72 src/ptyxis-profile-editor.ui:74
+msgid "Transparency"
+msgstr "Átlátszóság"
+
+#: src/ptyxis-preferences-window.ui:73 src/ptyxis-profile-editor.ui:75
+msgid "Reduces the opacity of the background window"
+msgstr "Csökkenti a háttérablak átlátszatlanságát"
+
+#: src/ptyxis-preferences-window.ui:134
+msgid "Use System _Font"
+msgstr "Rendszer _betűkészletének használata"
+
+#: src/ptyxis-preferences-window.ui:146
+msgid "Custom Font"
+msgstr "Egyéni betűkészlet"
+
+#: src/ptyxis-preferences-window.ui:193 src/ptyxis-profile-editor.ui:134
+msgid "Use Bright Colors for Bold"
+msgstr "Világos színek használata a félkövérhez"
+
+#: src/ptyxis-preferences-window.ui:202
+msgid "Blinking Text"
+msgstr "Villogó szöveg"
+
+#: src/ptyxis-preferences-window.ui:211 src/ptyxis-preferences-window.ui:435
+#: src/ptyxis-preferences-window.ui:524 src/ptyxis-profile-editor.ui:216
+#: src/ptyxis-profile-editor.ui:245
+msgid "Never"
+msgstr "Soha"
+
+#: src/ptyxis-preferences-window.ui:217
+msgid "Focused"
+msgstr "Fókuszált"
+
+#: src/ptyxis-preferences-window.ui:223
+msgid "Unfocused"
+msgstr "Nem fókuszált"
+
+#: src/ptyxis-preferences-window.ui:229 src/ptyxis-preferences-window.ui:447
+#: src/ptyxis-preferences-window.ui:536 src/ptyxis-profile-editor.ui:222
+#: src/ptyxis-profile-editor.ui:257
+msgid "Always"
+msgstr "Mindig"
+
+#: src/ptyxis-preferences-window.ui:253
+msgid "Block"
+msgstr "Blokk"
+
+#: src/ptyxis-preferences-window.ui:259
+msgid "I-Beam"
+msgstr "Szövegkurzor"
+
+#: src/ptyxis-preferences-window.ui:265
+msgid "Underline"
+msgstr "Aláhúzás"
+
+#: src/ptyxis-preferences-window.ui:275
+msgid "Cursor Blinking"
+msgstr "Kurzor villogása"
+
+#: src/ptyxis-preferences-window.ui:284 src/ptyxis-preferences-window.ui:441
+msgid "Follow System"
+msgstr "Rendszer követése"
+
+#: src/ptyxis-preferences-window.ui:290
+msgid "Enabled"
+msgstr "Engedélyezve"
+
+#: src/ptyxis-preferences-window.ui:296
+msgid "Disabled"
+msgstr "Letiltva"
+
+#: src/ptyxis-preferences-window.ui:310
+msgid "Behavior"
+msgstr "Viselkedés"
+
+#: src/ptyxis-preferences-window.ui:314
+msgid "Interface"
+msgstr "Felület"
+
+#: src/ptyxis-preferences-window.ui:326
+msgid "Next"
+msgstr "Következő"
+
+#: src/ptyxis-preferences-window.ui:332
+msgid "Last"
+msgstr "Utolsó"
+
+#: src/ptyxis-preferences-window.ui:347
+msgid "Attempt to restore previous tabs when Ptyxis starts"
+msgstr "Előző lapok helyreállításának kísérlete a Ptyxis indításakor"
+
+#: src/ptyxis-preferences-window.ui:353
+msgid "Restore the previous window size when creating a new window"
+msgstr "Előző ablakméret helyreállítása új ablak létrehozásakor"
+
+#: src/ptyxis-preferences-window.ui:363
+msgid "Columns"
+msgstr "Oszlopok"
+
+#: src/ptyxis-preferences-window.ui:377
+msgid "Rows"
+msgstr "Sorok"
+
+#: src/ptyxis-preferences-window.ui:395
+msgid "Accessibility"
+msgstr "Akadálymentesítés"
+
+#: src/ptyxis-preferences-window.ui:398
+msgid "Allow Screen Readers"
+msgstr "Képernyőolvasók engedélyezése"
+
+#: src/ptyxis-preferences-window.ui:399
+msgid ""
+"Permit screen readers such as Orca to read terminal content and typed text"
+msgstr ""
+"Engedélyezés az Orca és hasonló képernyőolvasóknak, hogy felolvassák a "
+"terminál tartalmát és a begépelt szöveget"
+
+#: src/ptyxis-preferences-window.ui:406
+msgid "Bell"
+msgstr "Csengő"
+
+#: src/ptyxis-preferences-window.ui:410
+msgid "Emit an audible bell when requested by active tab"
+msgstr "Hallható csengőhang kiadása az aktív lap kérésére"
+
+#: src/ptyxis-preferences-window.ui:415
+msgid "Visual Bell"
+msgstr "Látható csengő"
+
+#: src/ptyxis-preferences-window.ui:416
+msgid "Emit a visual bell when requested by active tab"
+msgstr "Látható csengő megjelenítése az aktív lap kérésére"
+
+#: src/ptyxis-preferences-window.ui:423 src/ptyxis-profile-editor.ui:300
+msgid "Scrolling"
+msgstr "Görgetés"
+
+#: src/ptyxis-preferences-window.ui:426
+msgid "Use Scrollbars"
+msgstr "Görgetősávok használata"
+
+#: src/ptyxis-preferences-window.ui:462 src/ptyxis-profile-editor.ui:304
+msgid "Scroll to the bottom upon input keystroke"
+msgstr "Görgetés alulra beviteli billentyűleütéskor"
+
+#: src/ptyxis-preferences-window.ui:468 src/ptyxis-profile-editor.ui:310
+msgid "Scroll to the bottom when new content is available"
+msgstr "Görgetés alulra, ha új tartalom érhető el"
+
+#: src/ptyxis-preferences-window.ui:478 src/ptyxis-profile-editor.ui:320
+msgid "Restrict the number of lines saved for scrollback"
+msgstr "Visszagörgetéshez mentett sorok számának korlátozása"
+
+#: src/ptyxis-preferences-window.ui:487 src/ptyxis-profile-editor.ui:329
+msgid "The number of lines to keep for scrollback"
+msgstr "A visszagörgetéshez megtartott sorok száma"
+
+#: src/ptyxis-preferences-window.ui:506 src/ptyxis-profile-editor.ui:188
+msgid "Use Login Shell"
+msgstr "Bejelentkezési parancsértelmező használata"
+
+#: src/ptyxis-preferences-window.ui:515 src/ptyxis-profile-editor.ui:236
+msgid "Preserve Working Directory"
+msgstr "Munkakönyvtár megőrzése"
+
+#: src/ptyxis-preferences-window.ui:530 src/ptyxis-profile-editor.ui:251
+msgid "Safe"
+msgstr "Biztonságos"
+
+#: src/ptyxis-preferences-window.ui:555 src/ptyxis-profile-editor.ui:276
+msgid "No Action"
+msgstr "Nincs művelet"
+
+#: src/ptyxis-preferences-window.ui:561 src/ptyxis-profile-editor.ui:282
+msgid "Restart"
+msgstr "Újraindítás"
+
+#: src/ptyxis-preferences-window.ui:579 src/ptyxis-profile-editor.ui:345
+msgid "Compatibility"
+msgstr "Kompatibilitás"
+
+#: src/ptyxis-preferences-window.ui:582 src/ptyxis-profile-editor.ui:348
+msgid "Backspace Key"
+msgstr "Visszatörlés billentyű"
+
+#: src/ptyxis-preferences-window.ui:583 src/ptyxis-profile-editor.ui:349
+msgid "Sequence to send for Backspace key"
+msgstr "Visszatörlés billentyűnél küldendő sorozat"
+
+#: src/ptyxis-preferences-window.ui:592 src/ptyxis-profile-editor.ui:358
+msgid "Delete Key"
+msgstr "Delete billentyű"
+
+#: src/ptyxis-preferences-window.ui:593 src/ptyxis-profile-editor.ui:359
+msgid "Sequence to send for Delete key"
+msgstr "Delete billentyűnél küldendő sorozat"
+
+#: src/ptyxis-preferences-window.ui:602 src/ptyxis-profile-editor.ui:368
+msgid "Ambiguous-width Characters"
+msgstr "Kétértelmű szélességű karakterek"
+
+#: src/ptyxis-preferences-window.ui:611 src/ptyxis-profile-editor.ui:377
+msgid "Narrow"
+msgstr "Keskeny"
+
+#: src/ptyxis-preferences-window.ui:617 src/ptyxis-profile-editor.ui:383
+msgid "Wide"
+msgstr "Széles"
+
+#: src/ptyxis-preferences-window.ui:637
+msgid "Set as Default Terminal"
+msgstr "Beállítás alapértelmezett terminálként"
+
+#: src/ptyxis-preferences-window.ui:647
+msgid "Shortcuts"
+msgstr "Gyorsbillentyűk"
+
+#: src/ptyxis-preferences-window.ui:673
+msgid "Clear Selection"
+msgstr "Kijelölés törlése"
+
+#: src/ptyxis-preferences-window.ui:682 src/ptyxis-terminal.ui:230
+msgid "Reset"
+msgstr "Visszaállítás"
+
+#: src/ptyxis-preferences-window.ui:687 src/ptyxis-terminal.ui:236
+msgid "Reset and Clear"
+msgstr "Visszaállítás és törlés"
+
+#: src/ptyxis-preferences-window.ui:706
+msgid "Show Context Menu"
+msgstr "Helyi menü megjelenítése"
+
+#: src/ptyxis-preferences-window.ui:713
+msgid "Windows"
+msgstr "Ablakok"
+
+#: src/ptyxis-preferences-window.ui:717
+msgid "Open a new tab in a new window"
+msgstr "Új lap megnyitása új ablakban"
+
+#: src/ptyxis-preferences-window.ui:723
+msgid "Close the current window"
+msgstr "A jelenlegi ablak bezárása"
+
+#: src/ptyxis-preferences-window.ui:739
+msgid "Tabs"
+msgstr "Lapok"
+
+#: src/ptyxis-preferences-window.ui:743
+msgid "Open a new tab in the current window"
+msgstr "Új lap megnyitása a jelenlegi ablakban"
+
+#: src/ptyxis-preferences-window.ui:752
+msgid "View Tab Overview"
+msgstr "Lapáttekintés megjelenítése"
+
+#: src/ptyxis-preferences-window.ui:753
+msgid "Show an overview of all tabs within the window"
+msgstr "Az ablakon belüli összes lap áttekintésének megjelenítése"
+
+#: src/ptyxis-preferences-window.ui:763
+msgid "Close the current tab"
+msgstr "A jelenlegi lap bezárása"
+
+#: src/ptyxis-preferences-window.ui:769
+msgid "Close all tabs except the active tab"
+msgstr "Az összes lap bezárása, kivéve az aktív lapot"
+
+#: src/ptyxis-preferences-window.ui:775
+msgid "Undo closing the last tab"
+msgstr "Az utolsó lap bezárásának visszavonása"
+
+#: src/ptyxis-preferences-window.ui:799
+msgid "Move the tab one position to the left"
+msgstr "A lap mozgatása egy pozícióval balra"
+
+#: src/ptyxis-preferences-window.ui:805
+msgid "Move the tab one position to the right"
+msgstr "A lap mozgatása egy pozícióval jobbra"
+
+#: src/ptyxis-preferences-window.ui:811
+msgid "Detach the current tab and move it to a new window"
+msgstr "A jelenlegi lap leválasztása és áthelyezése új ablakba"
+
+#: src/ptyxis-preferences-window.ui:820
+msgid "Switch to Tab 1"
+msgstr "Váltás az 1. lapra"
+
+#: src/ptyxis-preferences-window.ui:825
+msgid "Switch to Tab 2"
+msgstr "Váltás a 2. lapra"
+
+#: src/ptyxis-preferences-window.ui:830
+msgid "Switch to Tab 3"
+msgstr "Váltás a 3. lapra"
+
+#: src/ptyxis-preferences-window.ui:835
+msgid "Switch to Tab 4"
+msgstr "Váltás a 4. lapra"
+
+#: src/ptyxis-preferences-window.ui:840
+msgid "Switch to Tab 5"
+msgstr "Váltás az 5. lapra"
+
+#: src/ptyxis-preferences-window.ui:845
+msgid "Switch to Tab 6"
+msgstr "Váltás a 6. lapra"
+
+#: src/ptyxis-preferences-window.ui:850
+msgid "Switch to Tab 7"
+msgstr "Váltás a 7. lapra"
+
+#: src/ptyxis-preferences-window.ui:855
+msgid "Switch to Tab 8"
+msgstr "Váltás a 8. lapra"
+
+#: src/ptyxis-preferences-window.ui:860
+msgid "Switch to Tab 9"
+msgstr "Váltás a 9. lapra"
+
+#: src/ptyxis-preferences-window.ui:865
+msgid "Switch to Tab 10"
+msgstr "Váltás a 10. lapra"
+
+#: src/ptyxis-preferences-window.ui:872
+msgid "Zoom"
+msgstr "Nagyítás"
+
+#: src/ptyxis-preferences-window.ui:892
+msgid "Application"
+msgstr "Alkalmazás"
+
+#: src/ptyxis-preferences-window.ui:896
+msgid "Toggle in and out of fullscreen"
+msgstr "Teljes képernyő be- és kikapcsolása"
+
+#: src/ptyxis-preferences-window.ui:905
+msgid "Show Primary Menu"
+msgstr "Elsődleges menü megjelenítése"
+
+#: src/ptyxis-preferences-window.ui:906
+msgid "Displays the primary menu for the terminal window"
+msgstr "Megjeleníti a terminálablak elsődleges menüjét"
+
+#: src/ptyxis-preferences-window.ui:911
+msgid "Show New Tab Menu"
+msgstr "Új lap menüjének megjelenítése"
+
+#: src/ptyxis-preferences-window.ui:912
+msgid "Displays the new tab menu for the terminal window"
+msgstr "Megjeleníti a terminálablak új lapjának menüjét"
+
+#: src/ptyxis-preferences-window.ui:918
+msgid "Show this preferences window"
+msgstr "Ezen beállítási ablak megjelenítése"
+
+#: src/ptyxis-preferences-window.ui:927 src/ptyxis-preferences-window.ui:931
+#: src/ptyxis-window.c:1565
+msgid "Profiles"
+msgstr "Profilok"
+
+#: src/ptyxis-preferences-window.ui:938
+msgid "_Add Profile"
+msgstr "Profil _hozzáadása"
+
+#: src/ptyxis-preferences-window.ui:965 src/ptyxis-profile-editor.ui:415
+msgid "Automatic"
+msgstr "Automatikus"
+
+#: src/ptyxis-preferences-window.ui:971 src/ptyxis-profile-editor.ui:421
+msgid "Control-H"
+msgstr "Control-H"
+
+#: src/ptyxis-preferences-window.ui:977 src/ptyxis-profile-editor.ui:427
+msgid "ASCII DEL"
+msgstr "ASCII DEL"
+
+#: src/ptyxis-preferences-window.ui:983 src/ptyxis-profile-editor.ui:433
+msgid "Escape Sequence"
+msgstr "Elfedési sorozat"
+
+#: src/ptyxis-preferences-window.ui:989 src/ptyxis-profile-editor.ui:439
+msgid "TTY Erase"
+msgstr "TTY törlés"
+
+#: src/ptyxis-profile.c:577
+msgid "Untitled Profile"
+msgstr "Névtelen profil"
+
+#: src/ptyxis-profile-editor.c:149 src/ptyxis-terminal.c:423
+#: src/ptyxis-terminal.c:455
+msgid "Copied to clipboard"
+msgstr "Vágólapra másolva"
+
+#: src/ptyxis-profile-editor.c:178 src/ptyxis-profile-row.c:104
+#, c-format
+msgid "Removed profile “%s”"
+msgstr "A(z) „%s” profil eltávolítva"
+
+#: src/ptyxis-profile-editor.c:180 src/ptyxis-profile-row.c:106
+msgid "Undo"
+msgstr "Visszavonás"
+
+#: src/ptyxis-profile-editor.c:211
+msgid "My Computer"
+msgstr "Saját számítógép"
+
+#: src/ptyxis-profile-editor.ui:22 src/ptyxis-tab.c:393 src/ptyxis-tab.c:450
+msgid "Edit Profile"
+msgstr "Profil szerkesztése"
+
+#: src/ptyxis-profile-editor.ui:31
+msgid "Profile"
+msgstr "Profil"
+
+#: src/ptyxis-profile-editor.ui:41
+msgid "Identifier"
+msgstr "Azonosító"
+
+#: src/ptyxis-profile-editor.ui:50
+msgid "Copy"
+msgstr "Másolás"
+
+#: src/ptyxis-profile-editor.ui:62
+msgid "Color"
+msgstr "Szín"
+
+#: src/ptyxis-profile-editor.ui:159
+msgid "Network"
+msgstr "Hálózat"
+
+#: src/ptyxis-profile-editor.ui:162
+msgid "Proxy"
+msgstr "Proxy"
+
+#: src/ptyxis-profile-editor.ui:163
+msgid "Applies the network proxy settings to the container environment"
+msgstr "A hálózati proxybeállítások alkalmazása a konténer környezetére"
+
+#: src/ptyxis-profile-editor.ui:198
+msgid "The default container to use with this profile"
+msgstr "Az ezzel a profillal használandó alapértelmezett konténer"
+
+#: src/ptyxis-profile-editor.ui:207
+msgid "Preserve the current container when opening new tabs and windows"
+msgstr "A jelenlegi konténer megőrzése új lapok ablak és ablakok megnyitásakor"
+
+#: src/ptyxis-profile-editor.ui:400
+msgid "Remove Profile"
+msgstr "Profil eltávolítása"
+
+#: src/ptyxis-profile-row.ui:33
+msgid "View More"
+msgstr "Több megtekintése"
+
+#: src/ptyxis-profile-row.ui:43
+msgid "_Make Default"
+msgstr "_Alapértelmezetté tétel"
+
+#: src/ptyxis-profile-row.ui:49
+msgid "_Duplicate…"
+msgstr "_Kettőzés…"
+
+#: src/ptyxis-profile-row.ui:53
+msgid "_Edit…"
+msgstr "_Szerkesztés…"
+
+#: src/ptyxis-profile-row.ui:59
+msgid "_Remove"
+msgstr "_Eltávolítás"
+
+#. Translators: <b>%s</b> is used to show the provided text in bold
+#: src/ptyxis-shortcut-accel-dialog.c:455
+#, c-format
+msgid "Enter new shortcut to change <b>%s</b>."
+msgstr "Új gyorsbillentyű megadása a(z) <b>%s</b> megváltoztatásához."
+
+#. do not use underline as it prevents alt+c as an accelerator
+#: src/ptyxis-shortcut-accel-dialog.ui:42
+msgid "Cancel"
+msgstr "Mégse"
+
+#. do not use underline as it prevents alt+s as an accelerator
+#: src/ptyxis-shortcut-accel-dialog.ui:49
+msgid "Set"
+msgstr "Beállítás"
+
+#: src/ptyxis-shortcut-accel-dialog.ui:89
+msgid "Press Escape to cancel or Backspace to disable."
+msgstr ""
+"Nyomja meg az Escape billentyűt a megszakításhoz, vagy a visszatörlést a "
+"letiltáshoz."
+
+#: src/ptyxis-shortcut-row.c:74
+msgid "Set Shortcut"
+msgstr "Gyorsbillentyű beállítása"
+
+#: src/ptyxis-shortcut-row.c:194
+msgid "disabled"
+msgstr "letiltva"
+
+#: src/ptyxis-tab.c:303
+#, c-format
+msgid "Process Exited from Signal %d"
+msgstr "A folyamat kilépett a(z) %d. szignálból"
+
+#: src/ptyxis-tab.c:306 src/ptyxis-tab.c:329
+msgid "_Restart"
+msgstr "Új_raindítás"
+
+#. Always prepare the banner even if we don't show it because we may
+#. * display it again if the tab is removed from the parking lot and
+#. * restored into the window.
+#.
+#: src/ptyxis-tab.c:328
+msgid "Process Exited"
+msgstr "A folyamat kilépett"
+
+#: src/ptyxis-tab.c:392
+msgid "Failed to launch terminal"
+msgstr "Nem sikerült elindítani a terminált"
+
+#: src/ptyxis-tab.c:448
+#, c-format
+msgid "Cannot locate container “%s”"
+msgstr "Nem található a(z) „%s” konténer"
+
+#: src/ptyxis-tab.c:472
+msgid "Failed to create pseudo terminal device"
+msgstr "Nem sikerült létrehozni az áltermináleszközt"
+
+#: src/ptyxis-tab.c:1443
+msgid "Exited"
+msgstr "Kilépett"
+
+#: src/ptyxis-tab.c:1445
+msgid "Failed"
+msgstr "Sikertelen"
+
+#: src/ptyxis-tab.c:2027
+msgid "Failed to open link"
+msgstr "Nem sikerült megnyitni a hivatkozást"
+
+#: src/ptyxis-tab-notify.h:89
+msgid "Command completed"
+msgstr "Parancs befejezve"
+
+#: src/ptyxis-terminal.ui:170
+msgid "Search…"
+msgstr "Keresés…"
+
+#: src/ptyxis-terminal.ui:176
+msgid "_Open Link"
+msgstr "Hivatk_ozás megnyitása"
+
+#: src/ptyxis-terminal.ui:184
+msgid "_Copy"
+msgstr "_Másolás"
+
+#: src/ptyxis-terminal.ui:185
+msgid "Copy selection from terminal to clipboard"
+msgstr "Kijelölés másolása a terminálból a vágólapra"
+
+#: src/ptyxis-terminal.ui:189
+msgid "Copy as _HTML"
+msgstr "Másolás _HTML-ként"
+
+#: src/ptyxis-terminal.ui:190
+msgid "Copy selection from terminal to clipboard with HTML formatting"
+msgstr "Kijelölés másolása a terminálból a vágólapra HTML formázással"
+
+#: src/ptyxis-terminal.ui:195
+msgid "_Copy Link"
+msgstr "Hi_vatkozás másolása"
+
+#: src/ptyxis-terminal.ui:201
+msgid "_Paste"
+msgstr "_Beillesztés"
+
+#: src/ptyxis-terminal.ui:202
+msgid "Paste from clipboard into the terminal"
+msgstr "Beillesztés a vágólapról a terminálba"
+
+#: src/ptyxis-terminal.ui:209
+msgid "Select _All"
+msgstr "Öss_zes kijelölése"
+
+#: src/ptyxis-terminal.ui:210
+msgid "Selection all text from terminal including scrollback"
+msgstr ""
+"Az összes szöveg kijelölése a terminálból, beleértve visszagörgetést is"
+
+#: src/ptyxis-terminal.ui:216
+msgid "Select _None"
+msgstr "Kijelölés _megszüntetése"
+
+#: src/ptyxis-terminal.ui:223
+msgid "Read-Only"
+msgstr "Csak olvasható"
+
+#: src/ptyxis-terminal.ui:251 src/ptyxis-window.ui:385 src/ptyxis-window.ui:548
+msgid "Leave Fullscreen"
+msgstr "Teljes képernyő elhagyása"
+
+#: src/ptyxis-terminal.ui:257
+msgid "_Inspect Terminal"
+msgstr "Terminál v_izsgálata"
+
+#: src/ptyxis-theme-selector.ui:21
+msgid "Follow System Style"
+msgstr "Rendszer stílusának követése"
+
+#: src/ptyxis-theme-selector.ui:23
+msgid "Follow system style"
+msgstr "Rendszer stílusának követése"
+
+#: src/ptyxis-theme-selector.ui:37
+msgid "Light Style"
+msgstr "Világos stílus"
+
+#: src/ptyxis-theme-selector.ui:39
+msgid "Light style"
+msgstr "Világos stílus"
+
+#: src/ptyxis-theme-selector.ui:54
+msgid "Dark Style"
+msgstr "Sötét stílus"
+
+#: src/ptyxis-theme-selector.ui:56
+msgid "Dark style"
+msgstr "Sötét stílus"
+
+#: src/ptyxis-title-dialog.ui:36
+msgid "Title"
+msgstr "Cím"
+
+#: src/ptyxis-title-dialog.ui:42
+msgid "Include Process Title"
+msgstr "Folyamat címének felvétele"
+
+#: src/ptyxis-title-dialog.ui:43
+msgid "Append title from Shell application"
+msgstr "Cím hozzáfűzése a parancsértelmező alkalmazásból"
+
+#. translators: Builder Terminal means this is a terminal bundled with GNOME Builder
+#: src/ptyxis-util.c:310
+msgid "Builder Terminal"
+msgstr "Építő terminálja"
+
+#: src/ptyxis-util.c:314
+msgid "Ptyxis"
+msgstr "Ptyxis"
+
+#: src/ptyxis-window.c:1438
+msgid "Zoom in"
+msgstr "Nagyítás"
+
+#: src/ptyxis-window.c:1453
+msgid "Zoom out"
+msgstr "Kicsinyítés"
+
+#: src/ptyxis-window.c:1568
+msgid "Containers"
+msgstr "Konténerek"
+
+#: src/ptyxis-window.ui:400
+msgid "New Terminal"
+msgstr "Új terminál"
+
+#: src/ptyxis-window.ui:413
+msgid "Show Profiles and Containers"
+msgstr "Profilok és konténerek megjelenítése"
+
+#: src/ptyxis-window.ui:440
+msgid "Main Menu"
+msgstr "Főmenü"
+
+#: src/ptyxis-window.ui:448 src/ptyxis-window.ui:534
+msgid "Show Open Tabs"
+msgstr "Nyitott lapok megjelenítése"
+
+#: src/ptyxis-window.ui:518
+msgid "New _Tab"
+msgstr "Új _lap"
+
+#: src/ptyxis-window.ui:525
+msgid "New _Window"
+msgstr "Új _ablak"
+
+#: src/ptyxis-window.ui:542
+msgid "Fullscreen"
+msgstr "Teljes képernyő"
+
+#: src/ptyxis-window.ui:556
+msgid "_Preferences"
+msgstr "_Beállítások"
+
+#: src/ptyxis-window.ui:560
+msgid "_Keyboard Shortcuts"
+msgstr "_Gyorsbillentyűk"
+
+#: src/ptyxis-window.ui:564
+msgid "_About"
+msgstr "_Névjegy"
+
+#: src/ptyxis-window.ui:573
+msgid "Move _Left"
+msgstr "Mozgatás _balra"
+
+#: src/ptyxis-window.ui:578
+msgid "Move _Right"
+msgstr "Mozgatás _jobbra"
+
+#: src/ptyxis-window.ui:583
+msgid "Move to New _Window"
+msgstr "Áthelyezés új _ablakba"
+
+#: src/ptyxis-window.ui:589
+msgid "_Pin Tab"
+msgstr "Lap _kitűzése"
+
+#: src/ptyxis-window.ui:594
+msgid "Un_pin Tab"
+msgstr "Lap kitűzésének _megszüntetése"
+
+#: src/ptyxis-window.ui:609
+msgid "Close _Other Tabs"
+msgstr "_Egyéb lapok bezárása"
+
+#: src/ptyxis-window.ui:614
+msgid "_Close Tab"
+msgstr "Lap be_zárása"
+
+#: src/ptyxis-window.ui:621
+msgid "_My Computer"
+msgstr "_Saját számítógép"
