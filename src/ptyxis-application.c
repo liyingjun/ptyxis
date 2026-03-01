@@ -1457,9 +1457,28 @@ ptyxis_application_new_window_action (GSimpleAction *action,
 {
   PtyxisApplication *self = user_data;
   PtyxisWindow *window;
+  gboolean has_windows = FALSE;
 
   g_assert (!action || G_IS_SIMPLE_ACTION (action));
   g_assert (PTYXIS_IS_APPLICATION (self));
+
+  for (const GList *windows = gtk_application_get_windows (GTK_APPLICATION (self));
+       windows != NULL;
+       windows = windows->next)
+    {
+      if (PTYXIS_IS_WINDOW (windows->data))
+        {
+          has_windows = TRUE;
+          break;
+        }
+    }
+
+  /* If no windows exist yet, attempt to restore the previous session before
+   * opening a blank window. GNOME Shell sends ActivateAction("new-window")
+   * rather than Activate() when launching Ptyxis from the dock, which
+   * bypasses the activate() vfunc where session restore normally occurs. */
+  if (!has_windows && ptyxis_application_restore (self))
+    return;
 
   window = ptyxis_window_new ();
   gtk_application_add_window (GTK_APPLICATION (self), GTK_WINDOW (window));
