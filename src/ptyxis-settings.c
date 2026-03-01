@@ -1126,6 +1126,25 @@ ptyxis_settings_set_toast_on_copy_clipboard (PtyxisSettings *self,
                           toast_on_copy_clipboard);
 }
 
+gboolean
+ptyxis_settings_get_copy_on_select (PtyxisSettings *self)
+{
+  g_return_val_if_fail (PTYXIS_IS_SETTINGS (self), FALSE);
+
+  return g_settings_get_boolean (self->settings, PTYXIS_SETTING_KEY_COPY_ON_SELECT);
+}
+
+void
+ptyxis_settings_set_copy_on_select (PtyxisSettings *self,
+                                   gboolean        copy_on_input)
+{
+  g_return_if_fail (PTYXIS_IS_SETTINGS (self));
+
+  g_settings_set_boolean (self->settings,
+                          PTYXIS_SETTING_KEY_COPY_ON_SELECT,
+                          copy_on_input);
+}
+
 void
 ptyxis_settings_set_disable_padding (PtyxisSettings *self,
                                      gboolean        disable_padding)

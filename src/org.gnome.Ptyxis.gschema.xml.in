@@ -220,6 +220,12 @@
       <description>Show the user when text has copied to the clipboard.</description>
     </key>
 
+    <key name="copy-on-select" type="b">
+      <default>false</default>
+      <summary>Copy on selection</summary>
+      <description>Automatically copy the selection to the clipboard.</description>
+    </key>
+
     <key name="enable-a11y" type="b">
       <default>false</default>
       <summary>Enable Accessibility</summary>

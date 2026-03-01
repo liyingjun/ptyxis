@@ -22,6 +22,7 @@
  */
 
 #include "config.h"
+#include "ptyxis-settings.h"
 
 #define PCRE2_CODE_UNIT_WIDTH 0
 #include <pcre2.h>
@@ -1189,9 +1190,32 @@ ptyxis_terminal_char_size_changed (VteTerminal *terminal,
 }
 
 static void
+ptyxis_primary_selection_changed (PtyxisTerminal *self,
+                    GdkClipboard   *primary)
+{
+  PtyxisSettings *settings;
+  gboolean copy_on_select;
+
+  g_assert (PTYXIS_IS_TERMINAL (self));
+  g_assert (GDK_IS_CLIPBOARD (primary));
+
+  settings = ptyxis_application_get_settings (PTYXIS_APPLICATION_DEFAULT);
+  copy_on_select = ptyxis_settings_get_copy_on_select(settings);
+
+  if (copy_on_select && gdk_clipboard_is_local (primary)) {
+    VteTerminal *vte = VTE_TERMINAL (self);
+    if (vte_terminal_get_has_selection (vte)) {
+        vte_terminal_copy_clipboard_format (vte, VTE_FORMAT_TEXT);
+    }
+  }
+}
+
+static void
 ptyxis_terminal_constructed (GObject *object)
 {
   PtyxisTerminal *self = (PtyxisTerminal *)object;
+  GdkDisplay *display = gtk_widget_get_display (GTK_WIDGET (self));
+  GdkClipboard *primary = gdk_display_get_primary_clipboard (display);
 
   g_assert (PTYXIS_IS_TERMINAL (self));
 
@@ -1206,6 +1230,11 @@ ptyxis_terminal_constructed (GObject *object)
   g_signal_connect_object (adw_style_manager_get_default (),
                            "notify::dark",
                            G_CALLBACK (ptyxis_terminal_update_colors),
+                           self,
+                           G_CONNECT_SWAPPED);
+  g_signal_connect_object (primary,
+                           "changed",
+                           G_CALLBACK (ptyxis_primary_selection_changed),
                            self,
                            G_CONNECT_SWAPPED);
 
