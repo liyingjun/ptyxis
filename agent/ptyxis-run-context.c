@@ -1143,6 +1143,8 @@ ptyxis_run_context_push_scope_cb (PtyxisRunContext    *self,
       ptyxis_run_context_append_argv (self, "--collect");
       ptyxis_run_context_append_argv (self, "--quiet");
       ptyxis_run_context_append_argv (self, "--same-dir");
+      ptyxis_run_context_append_argv (self, "--property=ManagedOOMMemoryPressure=kill");
+      ptyxis_run_context_append_argv (self, "--property=ManagedOOMSwap=kill");
       ptyxis_run_context_append_formatted (self, "--unit=ptyxis-spawn-%s.scope", uuid);
     }
 
