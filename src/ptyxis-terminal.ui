@@ -123,6 +123,14 @@
       </object>
     </child>
     <child>
+      <object class="GtkEventControllerMotion" id="motion_controller">
+        <signal name="enter" handler="ptyxis_terminal_motion_enter_cb" swapped="1" object="PtyxisTerminal"/>
+        <signal name="leave" handler="ptyxis_terminal_motion_leave_cb" swapped="1" object="PtyxisTerminal"/>
+        <signal name="motion" handler="ptyxis_terminal_motion_cb" swapped="1" object="PtyxisTerminal"/>
+        <property name="propagation-phase">capture</property>
+      </object>
+    </child>
+    <child>
       <object class="GtkDropTargetAsync" id="drop_target">
         <signal name="drop" handler="ptyxis_terminal_drop_target_drop" swapped="1" object="PtyxisTerminal"/>
         <signal name="drag-enter" handler="ptyxis_terminal_drop_target_drag_enter" swapped="1" object="PtyxisTerminal"/>
@@ -135,6 +143,25 @@
         <property name="menu-model">terminal_menu</property>
       </object>
     </property>
+    <child>
+      <object class="GtkRevealer" id="hover_uri_revealer">
+        <property name="transition-type">crossfade</property>
+        <property name="reveal-child">false</property>
+        <style>
+          <class name="hover-uri"/>
+        </style>
+        <property name="halign">start</property>
+        <property name="valign">end</property>
+        <child>
+          <object class="GtkLabel" id="hover_uri_label">
+            <property name="ellipsize">end</property>
+            <property name="max-width-chars">60</property>
+            <property name="single-line-mode">true</property>
+            <property name="xalign">0</property>
+          </object>
+        </child>
+      </object>
+    </child>
     <child>
       <object class="GtkRevealer" id="size_revealer">
         <property name="transition-type">crossfade</property>

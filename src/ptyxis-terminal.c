@@ -64,6 +64,8 @@ struct _PtyxisTerminal
   GMenu              *terminal_menu;
   GtkWidget          *drop_highlight;
   GtkDropTargetAsync *drop_target;
+  GtkLabel           *hover_uri_label;
+  GtkRevealer        *hover_uri_revealer;
   GtkRevealer        *size_revealer;
   GtkLabel           *size_label;
 
@@ -75,6 +77,8 @@ struct _PtyxisTerminal
 
   guint               cell_height;
   guint               cell_width;
+  double              pointer_y;
+  guint               pointer_in_widget : 1;
 };
 
 enum {
@@ -458,6 +462,27 @@ ptyxis_terminal_selection_changed (VteTerminal *terminal)
 }
 
 static void
+ptyxis_terminal_update_hover_uri (PtyxisTerminal *self)
+{
+  g_autofree char *uri = NULL;
+
+  g_assert (PTYXIS_IS_TERMINAL (self));
+
+  g_object_get (self,
+                "hyperlink-hover-uri", &uri,
+                NULL);
+
+  if (!ptyxis_str_empty0 (uri))
+    {
+      gtk_label_set_label (self->hover_uri_label, uri);
+      gtk_revealer_set_reveal_child (self->hover_uri_revealer, TRUE);
+      gtk_widget_queue_allocate (GTK_WIDGET (self));
+    }
+  else
+    gtk_revealer_set_reveal_child (self->hover_uri_revealer, FALSE);
+}
+
+static void
 copy_link_address_action (GtkWidget  *widget,
                           const char *action_name,
                           GVariant   *param)
@@ -489,6 +514,47 @@ open_link_action (GtkWidget  *widget,
   tab = PTYXIS_TAB (gtk_widget_get_ancestor (widget, PTYXIS_TYPE_TAB));
 
   ptyxis_tab_open_uri (tab, self->url);
+}
+
+static void
+ptyxis_terminal_motion_cb (PtyxisTerminal           *self,
+                           double                    x,
+                           double                    y,
+                           GtkEventControllerMotion *motion)
+{
+  g_assert (PTYXIS_IS_TERMINAL (self));
+  g_assert (GTK_IS_EVENT_CONTROLLER_MOTION (motion));
+
+  self->pointer_in_widget = TRUE;
+  self->pointer_y = y;
+
+  if (gtk_revealer_get_reveal_child (self->hover_uri_revealer))
+    gtk_widget_queue_allocate (GTK_WIDGET (self));
+}
+
+static void
+ptyxis_terminal_motion_enter_cb (PtyxisTerminal           *self,
+                                 double                    x,
+                                 double                    y,
+                                 GtkEventControllerMotion *motion)
+{
+  g_assert (PTYXIS_IS_TERMINAL (self));
+  g_assert (GTK_IS_EVENT_CONTROLLER_MOTION (motion));
+
+  ptyxis_terminal_motion_cb (self, x, y, motion);
+}
+
+static void
+ptyxis_terminal_motion_leave_cb (PtyxisTerminal           *self,
+                                 GtkEventControllerMotion *motion)
+{
+  g_assert (PTYXIS_IS_TERMINAL (self));
+  g_assert (GTK_IS_EVENT_CONTROLLER_MOTION (motion));
+
+  self->pointer_in_widget = FALSE;
+
+  if (gtk_revealer_get_reveal_child (self->hover_uri_revealer))
+    gtk_widget_queue_allocate (GTK_WIDGET (self));
 }
 
 typedef struct {
@@ -919,6 +985,8 @@ ptyxis_terminal_measure (GtkWidget      *widget,
   PtyxisTerminal *self = PTYXIS_TERMINAL (widget);
   int min_revealer;
   int nat_revealer;
+  int min_hover_revealer;
+  int nat_hover_revealer;
 
   GTK_WIDGET_CLASS (ptyxis_terminal_parent_class)->measure (widget,
                                                             orientation,
@@ -931,9 +999,12 @@ ptyxis_terminal_measure (GtkWidget      *widget,
   gtk_widget_measure (GTK_WIDGET (self->size_revealer),
                       orientation, for_size,
                       &min_revealer, &nat_revealer, NULL, NULL);
+  gtk_widget_measure (GTK_WIDGET (self->hover_uri_revealer),
+                      orientation, for_size,
+                      &min_hover_revealer, &nat_hover_revealer, NULL, NULL);
 
-  *minimum = MAX (*minimum, min_revealer);
-  *natural = MAX (*natural, nat_revealer);
+  *minimum = MAX (*minimum, MAX (min_revealer, min_hover_revealer));
+  *natural = MAX (*natural, MAX (nat_revealer, nat_hover_revealer));
 }
 
 static gboolean
@@ -955,10 +1026,12 @@ ptyxis_terminal_size_allocate (GtkWidget *widget,
 {
   PtyxisTerminal *self = PTYXIS_TERMINAL (widget);
   GtkRequisition min;
-  GtkAllocation revealer_alloc, dnd_alloc;
+  GtkRequisition nat;
+  GtkAllocation revealer_alloc, hover_uri_alloc, dnd_alloc;
   GtkBorder padding, margin;
   GtkRoot *root;
   gboolean emit_size_changed = FALSE;
+  gboolean hover_uri_needs_top = FALSE;
   int column_count;
   int row_count;
 
@@ -1015,6 +1088,24 @@ ptyxis_terminal_size_allocate (GtkWidget *widget,
   revealer_alloc.width = min.width;
   revealer_alloc.height = min.height;
   gtk_widget_size_allocate (GTK_WIDGET (self->size_revealer), &revealer_alloc, -1);
+
+  gtk_widget_get_preferred_size (GTK_WIDGET (self->hover_uri_revealer), &min, &nat);
+  hover_uri_alloc.x = -padding.left;
+  hover_uri_alloc.width = MIN (nat.width, width + padding.left + padding.right);
+  hover_uri_alloc.height = min.height;
+
+  if (self->pointer_in_widget)
+    {
+      int bottom_y = height + padding.bottom + margin.bottom - hover_uri_alloc.height;
+
+      hover_uri_needs_top = self->pointer_y >= bottom_y &&
+                            self->pointer_y <= bottom_y + hover_uri_alloc.height;
+    }
+
+  hover_uri_alloc.y = hover_uri_needs_top ?
+                      -padding.top + margin.top :
+                      height + padding.bottom + margin.bottom - hover_uri_alloc.height;
+  gtk_widget_size_allocate (GTK_WIDGET (self->hover_uri_revealer), &hover_uri_alloc, -1);
 
   gtk_widget_get_preferred_size (GTK_WIDGET (self->drop_highlight), &min, NULL);
   dnd_alloc.x = -padding.left + 1;
@@ -1137,6 +1228,7 @@ ptyxis_terminal_snapshot (GtkWidget   *widget,
   gtk_snapshot_pop (snapshot);
 
   gtk_widget_snapshot_child (widget, GTK_WIDGET (self->size_revealer), snapshot);
+  gtk_widget_snapshot_child (widget, GTK_WIDGET (self->hover_uri_revealer), snapshot);
   gtk_widget_snapshot_child (widget, GTK_WIDGET (self->drop_highlight), snapshot);
 }
 
@@ -1173,6 +1265,16 @@ notify_property_changed (PtyxisTerminal *self,
                          GParamSpec     *property)
 {
   g_object_notify_by_pspec (G_OBJECT (self), property);
+}
+
+static void
+ptyxis_terminal_notify_hyperlink_hover_uri_cb (PtyxisTerminal *self,
+                                               GParamSpec     *pspec)
+{
+  g_assert (PTYXIS_IS_TERMINAL (self));
+  g_assert (G_IS_PARAM_SPEC (pspec));
+
+  ptyxis_terminal_update_hover_uri (self);
 }
 
 static void
@@ -1382,6 +1484,8 @@ ptyxis_terminal_class_init (PtyxisTerminalClass *klass)
 
   gtk_widget_class_bind_template_child (widget_class, PtyxisTerminal, drop_highlight);
   gtk_widget_class_bind_template_child (widget_class, PtyxisTerminal, drop_target);
+  gtk_widget_class_bind_template_child (widget_class, PtyxisTerminal, hover_uri_label);
+  gtk_widget_class_bind_template_child (widget_class, PtyxisTerminal, hover_uri_revealer);
   gtk_widget_class_bind_template_child (widget_class, PtyxisTerminal, popover);
   gtk_widget_class_bind_template_child (widget_class, PtyxisTerminal, size_label);
   gtk_widget_class_bind_template_child (widget_class, PtyxisTerminal, size_revealer);
@@ -1392,6 +1496,9 @@ ptyxis_terminal_class_init (PtyxisTerminalClass *klass)
   gtk_widget_class_bind_template_callback (widget_class, ptyxis_terminal_drop_target_drag_enter);
   gtk_widget_class_bind_template_callback (widget_class, ptyxis_terminal_drop_target_drag_leave);
   gtk_widget_class_bind_template_callback (widget_class, ptyxis_terminal_drop_target_drop);
+  gtk_widget_class_bind_template_callback (widget_class, ptyxis_terminal_motion_cb);
+  gtk_widget_class_bind_template_callback (widget_class, ptyxis_terminal_motion_enter_cb);
+  gtk_widget_class_bind_template_callback (widget_class, ptyxis_terminal_motion_leave_cb);
 
   gtk_widget_class_install_action (widget_class, "clipboard.copy", NULL, copy_clipboard_action);
   gtk_widget_class_install_action (widget_class, "clipboard.copy-as-html", NULL, copy_clipboard_action);
@@ -1474,8 +1581,14 @@ ptyxis_terminal_init (PtyxisTerminal *self)
                            G_CALLBACK (ptyxis_terminal_update_clipboard_actions),
                            self,
                            G_CONNECT_SWAPPED);
+  g_signal_connect_object (self,
+                           "notify::hyperlink-hover-uri",
+                           G_CALLBACK (ptyxis_terminal_notify_hyperlink_hover_uri_cb),
+                           self,
+                           G_CONNECT_SWAPPED);
 
   ptyxis_terminal_update_clipboard_actions (self);
+  ptyxis_terminal_update_hover_uri (self);
 }
 
 PtyxisPalette *
