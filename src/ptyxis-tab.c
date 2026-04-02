@@ -657,6 +657,15 @@ ptyxis_tab_map (GtkWidget *widget)
     ptyxis_tab_respawn (self);
 }
 
+void
+ptyxis_tab_start (PtyxisTab *self)
+{
+  g_return_if_fail (PTYXIS_IS_TAB (self));
+
+  if (self->state == PTYXIS_TAB_STATE_INITIAL)
+    ptyxis_tab_respawn (self);
+}
+
 static void
 ptyxis_tab_notify_contains_focus_cb (PtyxisTab               *self,
                                      GParamSpec              *pspec,

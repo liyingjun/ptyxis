@@ -406,10 +406,13 @@ open_tab_for_command (PtyxisApplication *self,
     {
       g_autofree char *sh_arg = g_strdup_printf ("%s; exec $SHELL", command);
       const char *wrapper_argv[] = { "sh", "-c", sh_arg, NULL };
+      PtyxisTab *tab;
 
-      return ptyxis_window_add_tab_for_command (window, NULL,
-                                                (const char * const *)wrapper_argv,
-                                                cwd_uri);
+      tab = ptyxis_window_add_tab_for_command (window, NULL,
+                                               (const char * const *)wrapper_argv,
+                                               cwd_uri);
+      ptyxis_tab_start (tab);
+      return tab;
     }
   else
     {
