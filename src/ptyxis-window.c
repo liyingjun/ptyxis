@@ -934,6 +934,19 @@ ptyxis_window_set_tab_pinned (PtyxisWindow *self,
     adw_tab_view_set_page_pinned (self->tab_view, tab_page, pinned);
 }
 
+void
+ptyxis_window_show_tab_bar (PtyxisWindow *self)
+{
+  g_return_if_fail (PTYXIS_IS_WINDOW (self));
+
+  if (self->single_terminal_mode)
+    return;
+
+  gtk_widget_set_visible (GTK_WIDGET (self->tab_bar), TRUE);
+  gtk_widget_add_css_class (GTK_WIDGET (self), "has-tab-bar");
+  gtk_window_set_default_size (GTK_WINDOW (self), -1, -1);
+}
+
 static void
 ptyxis_window_page_previous_action (GtkWidget  *widget,
                                     const char *action_name,
@@ -1670,6 +1683,7 @@ ptyxis_window_constructed (GObject *object)
                     "notify::is-active",
                     G_CALLBACK (ptyxis_window_notify_is_active_cb),
                     NULL);
+
 }
 
 static void

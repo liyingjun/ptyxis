@@ -540,6 +540,12 @@ ptyxis_application_command_line (GApplication            *app,
           ptyxis_window_set_tab_pinned (window, tab, TRUE);
         }
 
+      /* Pinned tabs are only meaningful with a visible tab bar.  If we opened
+       * with a single pinned tab the normal n_pages > 1 rule would hide it, so
+       * force it visible here.  Subsequent tab opens/closes use the normal rule,
+       * so reducing back to one tab will hide the bar again as expected. */
+      ptyxis_window_show_tab_bar (window);
+
       if (tab_commands == NULL && !new_window && new_tab_with_profile == NULL &&
           !g_variant_dict_contains (dict, "execute"))
         {

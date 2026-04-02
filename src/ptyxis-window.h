@@ -59,5 +59,6 @@ gboolean       ptyxis_window_is_animating        (PtyxisWindow       *self);
 void           ptyxis_window_set_tab_pinned      (PtyxisWindow       *self,
                                                   PtyxisTab          *tab,
                                                   gboolean            pinned);
+void           ptyxis_window_show_tab_bar        (PtyxisWindow       *self);
 
 G_END_DECLS
