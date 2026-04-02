@@ -658,6 +658,10 @@ ptyxis_application_command_line (GApplication            *app,
       if (last_tab != NULL)
         ptyxis_window_set_active_tab (window, last_tab);
 
+      /* When opened from the command line the user explicitly requested a tab,
+       * so make the tab bar visible even if there is only one tab. */
+      ptyxis_window_show_tab_bar (window);
+
       gtk_window_present (GTK_WINDOW (window));
     }
   else if (new_tab_with_profile)
