@@ -404,6 +404,7 @@ ptyxis_application_command_line (GApplication            *app,
   g_autofree char *cwd_uri = NULL;
   g_autofree char *title = NULL;
   g_auto(GStrv) argv = NULL;
+  g_auto(GStrv) pin_commands = NULL;
   GVariantDict *dict;
   const char *cwd;
   gboolean new_tab = FALSE;
@@ -454,6 +455,9 @@ ptyxis_application_command_line (GApplication            *app,
   if (!g_variant_dict_lookup (dict, "title", "s", &title))
     title = NULL;
 
+  if (!g_variant_dict_lookup (dict, "pin", "^as", &pin_commands))
+    pin_commands = NULL;
+
   if (new_tab && new_window)
     {
       g_application_command_line_printerr (cmdline,
@@ -491,6 +495,55 @@ ptyxis_application_command_line (GApplication            *app,
    */
   if (!is_standalone (self))
     did_restore = ptyxis_application_restore (self);
+
+  if (pin_commands != NULL && pin_commands[0] != NULL)
+    {
+      PtyxisWindow *window = get_current_window (self);
+
+      if (window == NULL)
+        window = ptyxis_window_new_empty ();
+
+      for (guint i = 0; pin_commands[i] != NULL; i++)
+        {
+          PtyxisTab *tab;
+
+          if (pin_commands[i][0] != '\0')
+            {
+              g_autoptr(GError) pin_error = NULL;
+              g_auto(GStrv) pin_argv = NULL;
+              int pin_argc;
+
+              if (!g_shell_parse_argv (pin_commands[i], &pin_argc, &pin_argv, &pin_error))
+                {
+                  g_application_command_line_printerr (cmdline,
+                                                       _("Cannot parse --pin command: %s"),
+                                                       pin_error->message);
+                  return EXIT_FAILURE;
+                }
+
+              tab = ptyxis_window_add_tab_for_command (window, NULL,
+                                                       (const char * const *)pin_argv,
+                                                       cwd_uri);
+            }
+          else
+            {
+              g_autoptr(PtyxisProfile) profile = ptyxis_application_dup_default_profile (self);
+
+              tab = ptyxis_tab_new (profile);
+              ptyxis_tab_set_initial_working_directory_uri (tab, cwd_uri);
+              ptyxis_window_add_tab (window, tab);
+            }
+
+          ptyxis_window_set_tab_pinned (window, tab, TRUE);
+        }
+
+      if (!new_tab && !new_window && new_tab_with_profile == NULL &&
+          !g_variant_dict_contains (dict, "execute"))
+        {
+          gtk_window_present (GTK_WINDOW (window));
+          return EXIT_SUCCESS;
+        }
+    }
 
   if (g_variant_dict_contains (dict, "preferences"))
     {
@@ -1156,6 +1209,7 @@ ptyxis_application_init (PtyxisApplication *self)
     { "new-window", 0, 0, G_OPTION_ARG_NONE, NULL, N_("New terminal window") },
     { "tab", 0, 0, G_OPTION_ARG_NONE, NULL, N_("New terminal tab in active window") },
     { "tab-with-profile", 0, 0, G_OPTION_ARG_STRING, NULL, N_("New terminal tab in active window using the profile UUID"), N_("PROFILE_UUID") },
+    { "pin", 0, 0, G_OPTION_ARG_STRING_ARRAY, NULL, N_("Open a new pinned tab, optionally running COMMAND"), N_("COMMAND") },
 
     /* Standalone (single instance mode) */
     { "standalone", 's', 0, G_OPTION_ARG_NONE, NULL, N_("Start a new instance, ignoring existing instances") },
@@ -1183,6 +1237,10 @@ ptyxis_application_init (PtyxisApplication *self)
   g_string_append_printf (summary, "  %s\n", _("Run Custom Command in New Window"));
   g_string_append (summary, "    ptyxis -x \"bash -c 'sleep 3'\"\n");
   g_string_append (summary, "    ptyxis -- bash -c 'sleep 3'\n");
+
+  g_string_append_c (summary, '\n');
+  g_string_append_printf (summary, "  %s\n", _("Open pinned tabs running specific commands, plus a plain shell tab"));
+  g_string_append (summary, "    ptyxis -s --pin htop --pin \"journalctl -f\" --tab\n");
 
   g_string_append_c (summary, '\n');
   g_string_append_printf (summary, "  %s\n", _("Import a custom palette"));

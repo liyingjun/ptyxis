@@ -61,6 +61,8 @@ check_early_opts (int        *argc,
 
       if (g_str_equal (arg, "--tab") ||
           g_str_equal (arg , "--new-window") ||
+          g_str_equal (arg, "--pin") ||
+          g_str_has_prefix (arg, "--pin=") ||
           (g_str_equal (arg, "--tab-with-profile") || g_str_has_prefix (arg, "--tab-with-profile=")))
         ignore_standalone = TRUE;
 
@@ -96,6 +98,29 @@ check_early_opts (int        *argc,
 
   if (!ignore_standalone && real_standalone)
     *standalone = real_standalone;
+
+  /* Normalize --pin [optional-command] into --pin=COMMAND so that
+   * GApplication can collect repeated --pin entries as a string array.
+   * A bare --pin with no following non-flag argument becomes --pin=
+   * (empty string), meaning open a pinned tab with the default shell. */
+  for (int i = 1; i < *argc; i++)
+    {
+      if (!g_str_equal ((*argv)[i], "--pin"))
+        continue;
+
+      const char *pin_cmd = "";
+
+      if (i + 1 < *argc && !g_str_has_prefix ((*argv)[i + 1], "-"))
+        {
+          pin_cmd = (*argv)[i + 1];
+          for (int j = i + 1; j < *argc - 1; j++)
+            (*argv)[j] = (*argv)[j + 1];
+          (*argv)[*argc - 1] = NULL;
+          (*argc)--;
+        }
+
+      (*argv)[i] = g_strdup_printf ("--pin=%s", pin_cmd);
+    }
 
   context = g_option_context_new (NULL);
   g_option_context_set_ignore_unknown_options (context, TRUE);
