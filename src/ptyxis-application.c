@@ -485,19 +485,20 @@ ptyxis_application_command_line (GApplication            *app,
         cwd_uri = g_strdup_printf ("file://%s", working_directory);
     }
 
+  if (g_variant_dict_contains (dict, "execute"))
+    g_variant_dict_lookup (dict, "execute", "s", &command);
+
   /* First restore our session state so it won't be lost when closing the
-   * application down. No matter what the options, if we're not single instance
-   * mode then we need to restore state.
+   * application down, unless we're single-instance or were requested a command
    */
-  if (!is_standalone (self))
+  if (!is_standalone (self) && !(new_window && command))
     did_restore = ptyxis_application_restore (self);
 
   if (g_variant_dict_contains (dict, "preferences"))
     {
       g_action_group_activate_action (G_ACTION_GROUP (self), "preferences", NULL);
     }
-  else if (g_variant_dict_contains (dict, "execute") &&
-           g_variant_dict_lookup (dict, "execute", "s", &command))
+  else if (command)
     {
       g_autoptr(GError) error = NULL;
 
@@ -547,8 +548,8 @@ ptyxis_application_command_line (GApplication            *app,
           PtyxisWindow *window;
           PtyxisTab *tab;
 
-          window = ptyxis_window_new_empty ();
-          tab = ptyxis_window_add_tab_for_command (window, NULL, (const char * const *)argv, cwd_uri);
+          window = ptyxis_window_new_for_command (NULL, (const char * const *)argv, cwd_uri);
+          tab = ptyxis_window_get_active_tab (window);
 
           ptyxis_tab_set_title_prefix (tab, title);
           ptyxis_tab_set_ignore_osc_title (tab, should_ignore_osc_title (self, title));

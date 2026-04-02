@@ -388,7 +388,7 @@ update_visible_and_maybe_close (PtyxisWindow *self)
 
   if (n_pages == 0 && !adw_tab_view_get_is_transferring_page (self->tab_view))
     {
-      if (!self->in_close_request)
+      if (!self->in_close_request && !self->single_terminal_mode)
         ptyxis_application_save_session (PTYXIS_APPLICATION_DEFAULT);
       gtk_window_destroy (GTK_WINDOW (self));
       return;
@@ -1365,8 +1365,13 @@ is_last_window (PtyxisWindow *self)
        iter;
        iter = iter->next)
     {
-      if (PTYXIS_IS_WINDOW (iter->data) && iter->data != (gpointer)self)
-        return FALSE;
+      if (PTYXIS_IS_WINDOW (iter->data))
+        {
+          PtyxisWindow *window = PTYXIS_WINDOW (iter->data);
+
+          if (window != self && !window->single_terminal_mode)
+            return FALSE;
+        }
     }
 
   return TRUE;
@@ -2372,10 +2377,7 @@ ptyxis_window_new_for_command (PtyxisProfile      *profile,
 
   if (self != NULL)
     {
-      GApplication *app = G_APPLICATION (PTYXIS_APPLICATION_DEFAULT);
-      GApplicationFlags flags = g_application_get_flags (app);
-
-      self->single_terminal_mode = !!(flags & G_APPLICATION_NON_UNIQUE);
+      self->single_terminal_mode = TRUE;
 
       gtk_widget_action_set_enabled (GTK_WIDGET (self), "win.new-tab", FALSE);
       gtk_widget_action_set_enabled (GTK_WIDGET (self), "win.new-window", FALSE);
