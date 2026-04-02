@@ -60,6 +60,7 @@ check_early_opts (int        *argc,
       char *arg = (*argv)[i];
 
       if (g_str_equal (arg, "--tab") ||
+          g_str_has_prefix (arg, "--tab=") ||
           g_str_equal (arg , "--new-window") ||
           g_str_equal (arg, "--pin") ||
           g_str_has_prefix (arg, "--pin=") ||
@@ -99,27 +100,29 @@ check_early_opts (int        *argc,
   if (!ignore_standalone && real_standalone)
     *standalone = real_standalone;
 
-  /* Normalize --pin [optional-command] into --pin=COMMAND so that
-   * GApplication can collect repeated --pin entries as a string array.
-   * A bare --pin with no following non-flag argument becomes --pin=
-   * (empty string), meaning open a pinned tab with the default shell. */
+  /* Normalize --pin/--tab [optional-command] into --pin=COMMAND/--tab=COMMAND
+   * so that GApplication can collect repeated entries as a string array.
+   * A bare flag with no following non-flag argument becomes --flag=
+   * (empty string), meaning open a tab with the default shell. */
   for (int i = 1; i < *argc; i++)
     {
-      if (!g_str_equal ((*argv)[i], "--pin"))
-        continue;
+      gboolean is_pin = g_str_equal ((*argv)[i], "--pin");
+      gboolean is_tab = g_str_equal ((*argv)[i], "--tab");
+      const char *cmd = "";
 
-      const char *pin_cmd = "";
+      if (!is_pin && !is_tab)
+        continue;
 
       if (i + 1 < *argc && !g_str_has_prefix ((*argv)[i + 1], "-"))
         {
-          pin_cmd = (*argv)[i + 1];
+          cmd = (*argv)[i + 1];
           for (int j = i + 1; j < *argc - 1; j++)
             (*argv)[j] = (*argv)[j + 1];
           (*argv)[*argc - 1] = NULL;
           (*argc)--;
         }
 
-      (*argv)[i] = g_strdup_printf ("--pin=%s", pin_cmd);
+      (*argv)[i] = g_strdup_printf ("--%s=%s", is_pin ? "pin" : "tab", cmd);
     }
 
   context = g_option_context_new (NULL);
