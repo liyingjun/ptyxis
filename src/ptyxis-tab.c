@@ -423,6 +423,8 @@ ptyxis_tab_wait_cb (GObject      *object,
 
   /* If this was started with something like ptyxis_window_new_for_command()
    * then we just want to exit the application (so allow tab to close).
+   * commands set to start in a tab (--tab=COMMAND or --pin=COMMAND) are
+   * wrapped in a shell so will not exit this way after command completes.
    */
   if (self->command != NULL)
     exit_action = PTYXIS_EXIT_ACTION_CLOSE;

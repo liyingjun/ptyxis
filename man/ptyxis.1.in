@@ -104,7 +104,7 @@ option.
 
 .TP
 .BR \-x ", " \-\-execute
-Execute a custom command then trigger normal exit action.
+Execute a custom command.
 
 This is similar to using
 .BR \-\-
