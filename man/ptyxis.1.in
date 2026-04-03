@@ -50,6 +50,12 @@ May be combined with
 and
 .B \-\-execute
 and
+.B \-\-tab
+and
+.B \-\-tab\-with\-profile
+and
+.B \-\-pin
+and
 .B \-\-title
 options.
 
@@ -64,7 +70,9 @@ to open multiple tabs.
 If a Ptyxis instance is already running, the tab will be
 opened in the most-recently-used window unless combined with
 .B \-\-standalone
-to open a new instance.
+or
+.B \-\-new\-window
+options.
 
 May be combined with
 .B \-\-working\-directory
@@ -86,7 +94,9 @@ repeated to open multiple pinned tabs.
 If a Ptyxis instance is already running, the pinned tab will
 be opened in the most-recently-used window unless combined with
 .B \-\-standalone
-to open a new instance.
+or
+.B \-\-new\-window
+options.
 
 May be combined with
 .B \-\-working\-directory

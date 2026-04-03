@@ -491,14 +491,6 @@ ptyxis_application_command_line (GApplication            *app,
   if (!g_variant_dict_lookup (dict, "pin", "^as", &pin_commands))
     pin_commands = NULL;
 
-  if (tab_commands != NULL && new_window)
-    {
-      g_application_command_line_printerr (cmdline,
-                                           "%s\n",
-                                           _("--tab, --tab-with-profile, or --new-window may not be used together"));
-      return EXIT_FAILURE;
-    }
-
   if (!g_variant_dict_lookup (dict, "working-directory", "^ay", &working_directory))
     working_directory = NULL;
 
@@ -533,7 +525,7 @@ ptyxis_application_command_line (GApplication            *app,
     {
       PtyxisWindow *window = get_current_window (self);
 
-      if (window == NULL)
+      if (window == NULL || new_window)
         window = ptyxis_window_new_empty ();
 
       for (guint i = 0; pin_commands[i] != NULL; i++)
