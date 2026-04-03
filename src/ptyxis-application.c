@@ -540,8 +540,16 @@ ptyxis_application_command_line (GApplication            *app,
           PtyxisWindow *window = get_current_window (self);
           PtyxisTab *tab;
 
-          if (window == NULL)
+          if (window == NULL || new_window)
             window = ptyxis_window_new_empty ();
+
+          for (guint i = 0; tab_commands[i] != NULL; i++)
+            {
+              const char *tab_argv[] = { tab_commands[i], NULL };
+              PtyxisTab *t = ptyxis_window_add_tab_for_command (window, NULL, tab_argv, cwd_uri, TRUE);
+              ptyxis_tab_set_title_prefix (t, title);
+              ptyxis_tab_set_ignore_osc_title (t, should_ignore_osc_title (self, title));
+            }
 
           tab = ptyxis_window_add_tab_for_command (window, NULL, (const char * const *)argv, cwd_uri, FALSE);
 

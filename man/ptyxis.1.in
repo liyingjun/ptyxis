@@ -78,10 +78,10 @@ May be combined with
 .B \-\-working\-directory
 and
 .B \-\-title
-options. May be combined with the
+options. When combined with the
 .B \-\-execute
-option to run a command directly \fBwithout\fR keeping the tab
-open after it exits.
+option, any tab commands open as persistent tabs and the execute
+command runs in a final tab that closes when it exits.
 
 .TP
 .BR \-\-pin[=COMMAND]
