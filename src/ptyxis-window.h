@@ -45,6 +45,9 @@ PtyxisTab     *ptyxis_window_add_tab_for_command (PtyxisWindow       *self,
                                                   PtyxisProfile      *profile,
                                                   const char * const *argv,
                                                   const char         *cwd_uri);
+PtyxisTab     *ptyxis_window_add_tab_for_profile (PtyxisWindow       *self,
+                                                  PtyxisProfile      *profile,
+                                                  const char         *cwd_uri);
 GListModel    *ptyxis_window_list_pages          (PtyxisWindow       *self);
 void           ptyxis_window_append_tab          (PtyxisWindow       *self,
                                                   PtyxisTab          *tab);

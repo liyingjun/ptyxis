@@ -416,13 +416,7 @@ open_tab_for_command (PtyxisApplication *self,
     }
   else
     {
-      g_autoptr(PtyxisProfile) profile = ptyxis_application_dup_default_profile (self);
-      PtyxisTab *tab = ptyxis_tab_new (profile);
-
-      ptyxis_tab_set_initial_working_directory_uri (tab, cwd_uri);
-      ptyxis_window_add_tab (window, tab);
-
-      return tab;
+      return ptyxis_window_add_tab_for_profile (window, NULL, cwd_uri);
     }
 }
 
@@ -650,6 +644,16 @@ ptyxis_application_command_line (GApplication            *app,
           last_tab = tab;
         }
 
+      if (new_tab_with_profile != NULL)
+        {
+          g_autoptr(PtyxisProfile) profile = ptyxis_application_dup_profile (self, new_tab_with_profile);
+          PtyxisTab *tab = ptyxis_window_add_tab_for_profile (window, profile, cwd_uri);
+
+          ptyxis_tab_set_title_prefix (tab, title);
+          ptyxis_tab_set_ignore_osc_title (tab, should_ignore_osc_title (self, title));
+          last_tab = tab;
+        }
+
       if (last_tab != NULL)
         ptyxis_window_set_active_tab (window, last_tab);
 
@@ -663,19 +667,13 @@ ptyxis_application_command_line (GApplication            *app,
     {
       g_autoptr(PtyxisProfile) profile = ptyxis_application_dup_profile (self, new_tab_with_profile);
       PtyxisWindow *window = get_current_window (self);
-      PtyxisTab *tab = ptyxis_tab_new (profile);
-      PtyxisTerminal *terminal = ptyxis_tab_get_terminal (tab);
+      PtyxisTab *tab;
 
       if (window == NULL || new_window)
-        {
-          window = ptyxis_window_new_empty ();
-          ptyxis_application_apply_default_size (self, terminal);
-        }
-
-      ptyxis_tab_set_initial_working_directory_uri (tab, cwd_uri);
+        window = ptyxis_window_new_empty ();
+      tab = ptyxis_window_add_tab_for_profile (window, profile, cwd_uri);
       ptyxis_tab_set_title_prefix (tab, title);
       ptyxis_tab_set_ignore_osc_title (tab, should_ignore_osc_title (self, title));
-      ptyxis_window_add_tab (window, tab);
       ptyxis_window_set_active_tab (window, tab);
 
       gtk_window_present (GTK_WINDOW (window));

@@ -2269,6 +2269,33 @@ ptyxis_window_add_tab_for_command (PtyxisWindow       *self,
   return tab;
 }
 
+PtyxisTab *
+ptyxis_window_add_tab_for_profile (PtyxisWindow  *self,
+                                    PtyxisProfile *profile,
+                                    const char    *cwd_uri)
+{
+  g_autoptr(PtyxisProfile) default_profile = NULL;
+  PtyxisTab *tab;
+
+  g_return_val_if_fail (PTYXIS_IS_WINDOW (self), NULL);
+  g_return_val_if_fail (!profile || PTYXIS_IS_PROFILE (profile), NULL);
+
+  if (profile == NULL)
+    {
+      default_profile = ptyxis_application_dup_default_profile (PTYXIS_APPLICATION_DEFAULT);
+      profile = default_profile;
+    }
+
+  tab = ptyxis_tab_new (profile);
+
+  if (!ptyxis_str_empty0 (cwd_uri))
+    ptyxis_tab_set_initial_working_directory_uri (tab, cwd_uri);
+
+  ptyxis_window_append_tab (self, tab);
+
+  return tab;
+}
+
 static PtyxisWindow *
 ptyxis_window_new_for_profile_and_command (PtyxisProfile      *profile,
                                            const char * const *argv,
