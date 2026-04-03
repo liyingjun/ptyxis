@@ -2243,7 +2243,8 @@ PtyxisTab *
 ptyxis_window_add_tab_for_command (PtyxisWindow       *self,
                                    PtyxisProfile      *profile,
                                    const char * const *argv,
-                                   const char         *cwd_uri)
+                                   const char         *cwd_uri,
+                                   gboolean            keep_alive)
 {
   g_autoptr(PtyxisProfile) default_profile = NULL;
   PtyxisTab *tab;
@@ -2259,12 +2260,27 @@ ptyxis_window_add_tab_for_command (PtyxisWindow       *self,
     }
 
   tab = ptyxis_tab_new (profile);
-  ptyxis_tab_set_command (tab, argv);
+
+  if (keep_alive)
+    {
+      g_autofree char *cmd = g_strjoinv (" ", (char **)argv);
+      g_autofree char *sh_arg = g_strdup_printf ("%s; exec $SHELL", cmd);
+      const char *wrapper_argv[] = { "sh", "-c", sh_arg, NULL };
+
+      ptyxis_tab_set_command (tab, wrapper_argv);
+    }
+  else
+    {
+      ptyxis_tab_set_command (tab, argv);
+    }
 
   if (!ptyxis_str_empty0 (cwd_uri))
     ptyxis_tab_set_previous_working_directory_uri (tab, cwd_uri);
 
   ptyxis_window_append_tab (self, tab);
+
+  if (keep_alive)
+    ptyxis_tab_start (tab);
 
   return tab;
 }

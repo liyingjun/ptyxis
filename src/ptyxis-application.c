@@ -296,7 +296,7 @@ ptyxis_application_open (GApplication  *app,
           argv = g_strv_builder_end (command_builder);
           cwd = g_get_home_dir ();
 
-          tab = ptyxis_window_add_tab_for_command (window, NULL, (const char * const *)argv, cwd);
+          tab = ptyxis_window_add_tab_for_command (window, NULL, (const char * const *)argv, cwd, FALSE);
           terminal = ptyxis_tab_get_terminal (tab);
 
           ptyxis_application_apply_default_size (self, terminal);
@@ -393,32 +393,6 @@ ptyxis_application_apply_default_size (PtyxisApplication *self,
   vte_terminal_set_size (VTE_TERMINAL (terminal), columns, rows);
 }
 
-/* Opens a tab in @window, running @command inside the user's shell via a
- * wrapper so the shell stays alive after the command exits.  If @command is
- * NULL or empty a plain shell tab is opened instead. */
-static PtyxisTab *
-open_tab_for_command (PtyxisApplication *self,
-                      PtyxisWindow      *window,
-                      const char        *command,
-                      const char        *cwd_uri)
-{
-  if (command != NULL && command[0] != '\0')
-    {
-      g_autofree char *sh_arg = g_strdup_printf ("%s; exec $SHELL", command);
-      const char *wrapper_argv[] = { "sh", "-c", sh_arg, NULL };
-      PtyxisTab *tab;
-
-      tab = ptyxis_window_add_tab_for_command (window, NULL,
-                                               (const char * const *)wrapper_argv,
-                                               cwd_uri);
-      ptyxis_tab_start (tab);
-      return tab;
-    }
-  else
-    {
-      return ptyxis_window_add_tab_for_profile (window, NULL, cwd_uri);
-    }
-}
 
 static int
 ptyxis_application_command_line (GApplication            *app,
@@ -524,7 +498,8 @@ ptyxis_application_command_line (GApplication            *app,
 
       for (guint i = 0; pin_commands[i] != NULL; i++)
         {
-          PtyxisTab *tab = open_tab_for_command (self, window, pin_commands[i], cwd_uri);
+          const char *pin_argv[] = { pin_commands[i], NULL };
+          PtyxisTab *tab = ptyxis_window_add_tab_for_command (window, NULL, pin_argv, cwd_uri, TRUE);
 
           ptyxis_window_set_tab_pinned (window, tab, TRUE);
         }
@@ -568,7 +543,7 @@ ptyxis_application_command_line (GApplication            *app,
           if (window == NULL)
             window = ptyxis_window_new_empty ();
 
-          tab = ptyxis_window_add_tab_for_command (window, NULL, (const char * const *)argv, cwd_uri);
+          tab = ptyxis_window_add_tab_for_command (window, NULL, (const char * const *)argv, cwd_uri, FALSE);
 
           ptyxis_tab_set_title_prefix (tab, title);
           ptyxis_tab_set_ignore_osc_title (tab, should_ignore_osc_title (self, title));
@@ -585,7 +560,7 @@ ptyxis_application_command_line (GApplication            *app,
           if (window == NULL || new_window)
             window = ptyxis_window_new_empty ();
 
-          tab = ptyxis_window_add_tab_for_command (window, profile, (const char * const *)argv, cwd_uri);
+          tab = ptyxis_window_add_tab_for_command (window, profile, (const char * const *)argv, cwd_uri, FALSE);
 
           ptyxis_tab_set_title_prefix (tab, title);
           ptyxis_tab_set_ignore_osc_title (tab, should_ignore_osc_title (self, title));
@@ -599,7 +574,7 @@ ptyxis_application_command_line (GApplication            *app,
           PtyxisTab *tab;
 
           window = ptyxis_window_new_empty ();
-          tab = ptyxis_window_add_tab_for_command (window, NULL, (const char * const *)argv, cwd_uri);
+          tab = ptyxis_window_add_tab_for_command (window, NULL, (const char * const *)argv, cwd_uri, FALSE);
 
           ptyxis_tab_set_title_prefix (tab, title);
           ptyxis_tab_set_ignore_osc_title (tab, should_ignore_osc_title (self, title));
@@ -637,7 +612,8 @@ ptyxis_application_command_line (GApplication            *app,
 
       for (guint i = 0; tab_commands[i] != NULL; i++)
         {
-          PtyxisTab *tab = open_tab_for_command (self, window, tab_commands[i], cwd_uri);
+          const char *tab_argv[] = { tab_commands[i], NULL };
+          PtyxisTab *tab = ptyxis_window_add_tab_for_command (window, NULL, tab_argv, cwd_uri, TRUE);
 
           ptyxis_tab_set_title_prefix (tab, title);
           ptyxis_tab_set_ignore_osc_title (tab, should_ignore_osc_title (self, title));

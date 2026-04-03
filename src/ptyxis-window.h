@@ -44,7 +44,8 @@ void           ptyxis_window_add_tab_at_end      (PtyxisWindow       *self,
 PtyxisTab     *ptyxis_window_add_tab_for_command (PtyxisWindow       *self,
                                                   PtyxisProfile      *profile,
                                                   const char * const *argv,
-                                                  const char         *cwd_uri);
+                                                  const char         *cwd_uri,
+                                                  gboolean            keep_alive);
 PtyxisTab     *ptyxis_window_add_tab_for_profile (PtyxisWindow       *self,
                                                   PtyxisProfile      *profile,
                                                   const char         *cwd_uri);
