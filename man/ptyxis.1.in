@@ -54,22 +54,47 @@ and
 options.
 
 .TP
-.BR \-\-tab
-Open a new tab in the most-recently-used window of an existing
-Ptyxis instance. If Ptyxis is not running, a new instance is
-started.
+.BR \-\-tab[=COMMAND]
+Open a new tab. If
+.B COMMAND
+is given, it will run inside the tab, which will remain
+open after the command finishes. The flag may be repeated
+to open multiple tabs.
+
+If a Ptyxis instance is already running, the tab will be
+opened in the most-recently-used window unless combined with
+.B \-\-standalone
+to open a new instance.
 
 May be combined with
 .B \-\-working\-directory
 and
-.B \-\-execute
-and
 .B \-\-title
-options.
+options. May be combined with the
+.B \-\-execute
+option to run a command directly \fBwithout\fR keeping the tab
+open after it exits.
+
+.TP
+.BR \-\-pin[=COMMAND]
+Open a new pinned tab. If
+.B COMMAND
+is given, it will be run inside the pinned tab, which
+will remain open after the command finishes. The flag may be
+repeated to open multiple pinned tabs.
+
+If a Ptyxis instance is already running, the pinned tab will
+be opened in the most-recently-used window unless combined with
+.B \-\-standalone
+to open a new instance.
+
+May be combined with
+.B \-\-working\-directory
+option.
 
 .TP
 .BR \-x ", " \-\-execute
-Execute a custom command.
+Execute a custom command then trigger normal exit action.
 
 This is similar to using
 .BR \-\-
@@ -91,12 +116,14 @@ options.
 .TP
 .BR \-d ", " \-\-working\-directory
 Set the current working directory for a new tab [\-\-tab],
-window [\-\-window], or custom command [\-\- COMMAND...].
+pinned tab [\-\-pin], window [\-\-new\-window], or custom command
+[\-\- COMMAND...].
 
 .TP
 .BR \-\-title=TITLE
 Sets the title for a new terminal page created with either
-\-\-tab or \-\-new-window.
+\-\-tab or \-\-new\-window. Not intended for use when opening
+multiple tabs.
 
 .TP
 .BR \-\-maximize

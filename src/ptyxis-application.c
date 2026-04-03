@@ -452,7 +452,7 @@ ptyxis_application_command_line (GApplication            *app,
 
   /* NOTE: This looks complex, because it is.
    *
-   * The primary idea is that we want to allow all of --tab, --new-window,
+   * The primary idea is that we want to allow all of --tab, --pin, --new-window,
    * --tab-with-profile to work with --working-dir and -x/--. But additionally
    * it needs to do the right thing in the case we're running in
    * single-instance-mode (such as for Terminal=true .desktop file) as well as
@@ -1212,7 +1212,7 @@ ptyxis_application_init (PtyxisApplication *self)
     { "preferences", 0, 0, G_OPTION_ARG_NONE, NULL, N_("Show the application preferences") },
 
     /* Used for new tabs/windows/etc when specified */
-    { "working-directory", 'd', 0, G_OPTION_ARG_FILENAME, NULL, N_("Use DIR for --tab, --tab-with-profile, --new-window, or -x"), N_("DIR") },
+    { "working-directory", 'd', 0, G_OPTION_ARG_FILENAME, NULL, N_("Use DIR for --pin, --tab, --tab-with-profile, --new-window, or -x"), N_("DIR") },
 
     /* By default, this implies a new ptyxis instance unless the options
      * below are provided to override that.
