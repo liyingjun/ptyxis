@@ -2264,7 +2264,9 @@ ptyxis_window_add_tab_for_command (PtyxisWindow       *self,
   if (keep_alive)
     {
       g_autofree char *cmd = g_strjoinv (" ", (char **)argv);
-      g_autofree char *sh_arg = g_strdup_printf ("%s; exec $SHELL", cmd);
+      g_autofree char *sh_arg = ptyxis_str_empty0 (cmd)
+        ? g_strdup ("exec $SHELL")
+        : g_strdup_printf ("%s; exec $SHELL", cmd);
       const char *wrapper_argv[] = { "sh", "-c", sh_arg, NULL };
 
       ptyxis_tab_set_command (tab, wrapper_argv);
