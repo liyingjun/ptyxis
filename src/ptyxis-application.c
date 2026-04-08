@@ -510,7 +510,7 @@ ptyxis_application_command_line (GApplication            *app,
        * so reducing back to one tab will hide the bar again as expected. */
       ptyxis_window_show_tab_bar (window);
 
-      if (tab_commands == NULL && !new_window && new_tab_with_profile == NULL &&
+      if (tab_commands == NULL && new_tab_with_profile == NULL &&
           !g_variant_dict_contains (dict, "execute"))
         {
           gtk_window_present (GTK_WINDOW (window));
