@@ -408,6 +408,7 @@ ptyxis_application_command_line (GApplication            *app,
   g_auto(GStrv) pin_commands = NULL;
   g_auto(GStrv) tab_commands = NULL;
   GVariantDict *dict;
+  PtyxisWindow *window = NULL;
   const char *cwd;
   gboolean new_window = FALSE;
   gboolean did_restore = FALSE;
@@ -491,7 +492,7 @@ ptyxis_application_command_line (GApplication            *app,
 
   if (pin_commands != NULL && pin_commands[0] != NULL)
     {
-      PtyxisWindow *window = get_current_window (self);
+      window = get_current_window (self);
 
       if (window == NULL || new_window)
         window = ptyxis_window_new_empty ();
@@ -537,9 +538,9 @@ ptyxis_application_command_line (GApplication            *app,
 
       if (tab_commands != NULL)
         {
-          PtyxisWindow *window = get_current_window (self);
           PtyxisTab *tab;
 
+          window = get_current_window (self);
           if (window == NULL || new_window)
             window = ptyxis_window_new_empty ();
 
@@ -562,9 +563,9 @@ ptyxis_application_command_line (GApplication            *app,
       else if (new_tab_with_profile)
         {
           g_autoptr(PtyxisProfile) profile = ptyxis_application_dup_profile (self, new_tab_with_profile);
-          PtyxisWindow *window = get_current_window (self);
           PtyxisTab *tab;
 
+          window = get_current_window (self);
           if (window == NULL || new_window)
             window = ptyxis_window_new_empty ();
 
@@ -578,7 +579,6 @@ ptyxis_application_command_line (GApplication            *app,
         }
       else if (new_window)
         {
-          PtyxisWindow *window;
           PtyxisTab *tab;
 
           window = ptyxis_window_new_empty ();
@@ -595,7 +595,6 @@ ptyxis_application_command_line (GApplication            *app,
         }
       else
         {
-          PtyxisWindow *window;
           PtyxisTab *tab;
 
           window = ptyxis_window_new_for_command (NULL, (const char * const *)argv, cwd_uri);
@@ -612,11 +611,14 @@ ptyxis_application_command_line (GApplication            *app,
     }
   else if (tab_commands != NULL)
     {
-      PtyxisWindow *window = get_current_window (self);
       PtyxisTab *last_tab = NULL;
 
-      if (window == NULL || new_window)
-        window = ptyxis_window_new_empty ();
+      if (window == NULL)
+        {
+          window = get_current_window (self);
+          if (window == NULL || new_window)
+            window = ptyxis_window_new_empty ();
+        }
 
       for (guint i = 0; tab_commands[i] != NULL; i++)
         {
@@ -650,9 +652,9 @@ ptyxis_application_command_line (GApplication            *app,
   else if (new_tab_with_profile)
     {
       g_autoptr(PtyxisProfile) profile = ptyxis_application_dup_profile (self, new_tab_with_profile);
-      PtyxisWindow *window = get_current_window (self);
       PtyxisTab *tab;
 
+      window = get_current_window (self);
       if (window == NULL || new_window)
         window = ptyxis_window_new_empty ();
       tab = ptyxis_window_add_tab_for_profile (window, profile, cwd_uri);
@@ -665,9 +667,10 @@ ptyxis_application_command_line (GApplication            *app,
   else if (g_variant_dict_contains (dict, "new-window"))
     {
       g_autoptr(PtyxisProfile) profile = ptyxis_application_dup_default_profile (self);
-      PtyxisWindow *window = get_current_window (self);
       PtyxisTerminal *terminal;
       PtyxisTab *tab;
+
+      window = get_current_window (self);
 
       /* If the request to create a new-window was not combined with other
        * actions above, and we restored a session, then we will consider the
