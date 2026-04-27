@@ -204,18 +204,32 @@ ptyxis_terminal_update_url_actions (PtyxisTerminal *self,
                                     double          x,
                                     double          y)
 {
+  g_autofree char *hyperlink = NULL;
   g_autofree char *pattern = NULL;
+  g_autofree char *url = NULL;
   int tag = 0;
 
   g_assert (PTYXIS_IS_TERMINAL (self));
 
-  if (!(pattern = vte_terminal_check_hyperlink_at (VTE_TERMINAL (self), x, y)))
-    pattern = vte_terminal_check_match_at (VTE_TERMINAL (self), x, y, &tag);
+  hyperlink = vte_terminal_check_hyperlink_at (VTE_TERMINAL (self), x, y);
+  pattern = vte_terminal_check_match_at (VTE_TERMINAL (self), x, y, &tag);
 
-  gtk_widget_action_set_enabled (GTK_WIDGET (self), "clipboard.copy-link", pattern != NULL);
-  gtk_widget_action_set_enabled (GTK_WIDGET (self), "terminal.open-link", pattern != NULL);
+  if (hyperlink != NULL)
+    url = g_steal_pointer (&hyperlink);
+  else if (pattern != NULL)
+    {
+      PtyxisCustomLink *custom_link = g_hash_table_lookup (self->custom_links, GINT_TO_POINTER (tag));
 
-  g_set_str (&self->url, pattern);
+      if (custom_link != NULL)
+        url = ptyxis_custom_link_substitute (custom_link, pattern);
+      else
+        url = g_steal_pointer (&pattern);
+    }
+
+  gtk_widget_action_set_enabled (GTK_WIDGET (self), "clipboard.copy-link", url != NULL);
+  gtk_widget_action_set_enabled (GTK_WIDGET (self), "terminal.open-link", url != NULL);
+
+  g_set_str (&self->url, url);
 }
 
 static gboolean
