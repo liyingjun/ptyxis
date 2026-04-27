@@ -106,6 +106,24 @@ static const char * const url_regexes_str[] = {
 };
 static VteRegex *url_regexes[G_N_ELEMENTS (url_regexes_str)];
 
+static GdkDragAction
+ptyxis_terminal_get_drop_action (GdkDrop *drop)
+{
+  GdkDragAction actions;
+
+  g_assert (GDK_IS_DROP (drop));
+
+  actions = gdk_drop_get_actions (drop);
+
+  if (actions & GDK_ACTION_COPY)
+    return GDK_ACTION_COPY;
+
+  if (actions & GDK_ACTION_MOVE)
+    return GDK_ACTION_MOVE;
+
+  return 0;
+}
+
 static void
 ptyxis_terminal_update_colors (PtyxisTerminal *self)
 {
@@ -644,7 +662,7 @@ ptyxis_terminal_drop_uri_list_line_cb (GObject      *object,
   if (line == NULL || g_strcmp0 (state->mime_type, TEXT_X_MOZ_URL) == 0)
     {
       ptyxis_terminal_drop_file_list (state->terminal, state->files);
-      gdk_drop_finish (state->drop, GDK_ACTION_COPY);
+      gdk_drop_finish (state->drop, ptyxis_terminal_get_drop_action (state->drop));
       return;
     }
 
@@ -742,7 +760,7 @@ ptyxis_terminal_drop_file_list_cb (GObject      *object,
 
   file_list = (const GList *)g_value_get_boxed (value);
   ptyxis_terminal_drop_file_list (self, file_list);
-  gdk_drop_finish (drop, GDK_ACTION_COPY);
+  gdk_drop_finish (drop, ptyxis_terminal_get_drop_action (drop));
 }
 
 static void
@@ -774,7 +792,7 @@ ptyxis_terminal_drop_string_cb (GObject      *object,
   if (string != NULL && string[0] != 0)
     vte_terminal_paste_text (VTE_TERMINAL (self), string);
 
-  gdk_drop_finish (drop, GDK_ACTION_COPY);
+  gdk_drop_finish (drop, ptyxis_terminal_get_drop_action (drop));
 }
 
 static void
@@ -893,7 +911,7 @@ ptyxis_terminal_drop_target_drag_enter (PtyxisTerminal     *self,
 
   gtk_widget_set_visible (self->drop_highlight, TRUE);
 
-  return GDK_ACTION_COPY;
+  return ptyxis_terminal_get_drop_action (drop);
 }
 
 static void
@@ -1447,7 +1465,9 @@ ptyxis_terminal_init (PtyxisTerminal *self)
   gdk_content_formats_builder_add_mime_type (builder, TEXT_X_MOZ_URL);
   formats = gdk_content_formats_builder_free_to_formats (builder);
 
-  gtk_drop_target_async_set_actions (self->drop_target, GDK_ACTION_COPY);
+  gtk_drop_target_async_set_actions (self->drop_target,
+                                     (GDK_ACTION_COPY |
+                                      GDK_ACTION_MOVE));
   gtk_drop_target_async_set_formats (self->drop_target, formats);
 
   g_signal_connect (self,
