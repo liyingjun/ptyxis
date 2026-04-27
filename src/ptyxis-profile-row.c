@@ -144,6 +144,7 @@ ptyxis_profile_row_default_profile_changed_cb (PtyxisProfileRow *self,
   is_default = g_strcmp0 (default_uuid, ptyxis_profile_get_uuid (self->profile)) == 0;
 
   gtk_widget_set_visible (GTK_WIDGET (self->checkmark), is_default);
+  gtk_widget_action_set_enabled (GTK_WIDGET (self), "profile.make-default", !is_default);
 }
 
 static void
