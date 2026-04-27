@@ -1447,9 +1447,7 @@ ptyxis_terminal_init (PtyxisTerminal *self)
   gdk_content_formats_builder_add_mime_type (builder, TEXT_X_MOZ_URL);
   formats = gdk_content_formats_builder_free_to_formats (builder);
 
-  gtk_drop_target_async_set_actions (self->drop_target,
-                                     (GDK_ACTION_COPY |
-                                      GDK_ACTION_MOVE));
+  gtk_drop_target_async_set_actions (self->drop_target, GDK_ACTION_COPY);
   gtk_drop_target_async_set_formats (self->drop_target, formats);
 
   g_signal_connect (self,
