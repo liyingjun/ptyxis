@@ -73,6 +73,8 @@ struct _PtyxisTab
   PtyxisTabNotify          notify;
   GSignalGroup            *profile_signals;
 
+  GdkRGBA                 *tab_color;
+
   PtyxisTabState           state;
   GPid                     pid;
 
@@ -100,6 +102,7 @@ enum {
   PROP_PROGRESS_FRACTION,
   PROP_READ_ONLY,
   PROP_SUBTITLE,
+  PROP_TAB_COLOR,
   PROP_TITLE,
   PROP_TITLE_PREFIX,
   PROP_UUID,
@@ -1202,6 +1205,7 @@ ptyxis_tab_dispose (GObject *object)
       self->inhibit_cookie = 0;
     }
 
+  g_clear_pointer (&self->tab_color, gdk_rgba_free);
   g_clear_pointer (&self->initial_working_directory_uri, g_free);
   g_clear_pointer (&self->previous_working_directory_uri, g_free);
   g_clear_pointer (&self->title_prefix, g_free);
@@ -1269,6 +1273,10 @@ ptyxis_tab_get_property (GObject    *object,
       g_value_set_boolean (value, !vte_terminal_get_input_enabled (VTE_TERMINAL (self->terminal)));
       break;
 
+    case PROP_TAB_COLOR:
+      g_value_set_boxed (value, self->tab_color);
+      break;
+
     case PROP_SUBTITLE:
       g_value_take_string (value, ptyxis_tab_dup_subtitle (self));
       break;
@@ -1318,6 +1326,10 @@ ptyxis_tab_set_property (GObject      *object,
 
     case PROP_READ_ONLY:
       vte_terminal_set_input_enabled (VTE_TERMINAL (self->terminal), !g_value_get_boolean (value));
+      break;
+
+    case PROP_TAB_COLOR:
+      ptyxis_tab_set_tab_color (self, g_value_get_boxed (value));
       break;
 
     case PROP_TITLE_PREFIX:
@@ -1375,6 +1387,13 @@ ptyxis_tab_class_init (PtyxisTabClass *klass)
                          G_TYPE_ICON,
                          (G_PARAM_READABLE |
                           G_PARAM_STATIC_STRINGS));
+
+  properties[PROP_TAB_COLOR] =
+    g_param_spec_boxed ("tab-color", NULL, NULL,
+                        GDK_TYPE_RGBA,
+                        (G_PARAM_READWRITE |
+                         G_PARAM_EXPLICIT_NOTIFY |
+                         G_PARAM_STATIC_STRINGS));
 
   properties[PROP_PROCESS_LEADER_KIND] =
     g_param_spec_enum ("process-leader-kind", NULL, NULL,
@@ -2468,7 +2487,42 @@ ptyxis_tab_dup_indicator_icon (PtyxisTab *self)
     return g_themed_icon_new ("dialog-error-symbolic");
 
   if (progress == PTYXIS_TAB_PROGRESS_INDETERMINATE)
-    return NULL;
+    {
+      if (self->tab_color != NULL)
+        {
+          g_autoptr(GdkTexture) texture = NULL;
+          g_autoptr(GBytes) bytes = NULL;
+          cairo_surface_t *surface;
+          cairo_t *cr;
+          int stride;
+          int scale;
+          int width;
+          int height;
+
+          scale = gtk_widget_get_scale_factor (GTK_WIDGET (self));
+          width = 16 * scale;
+          height = 16 * scale;
+
+          surface = cairo_image_surface_create (CAIRO_FORMAT_ARGB32, width, height);
+          stride = cairo_image_surface_get_stride (surface);
+          cr = cairo_create (surface);
+
+          cairo_arc (cr, width / 2.0, height / 2.0, width / 2.0 - 1.5 * scale, 0, 2 * G_PI);
+          gdk_cairo_set_source_rgba (cr, self->tab_color);
+          cairo_fill (cr);
+
+          cairo_destroy (cr);
+
+          bytes = g_bytes_new (cairo_image_surface_get_data (surface), height * stride);
+          texture = gdk_memory_texture_new (width, height, GDK_MEMORY_DEFAULT, bytes, stride);
+
+          cairo_surface_destroy (surface);
+
+          return G_ICON (g_steal_pointer (&texture));
+        }
+
+      return NULL;
+    }
 
   if (progress == PTYXIS_TAB_PROGRESS_ACTIVE)
     {
@@ -2547,4 +2601,32 @@ ptyxis_tab_grab_focus (PtyxisTab *self)
   g_return_if_fail (PTYXIS_IS_TAB (self));
 
   gtk_widget_grab_focus (GTK_WIDGET (self->terminal));
+}
+
+const GdkRGBA *
+ptyxis_tab_get_tab_color (PtyxisTab *self)
+{
+  g_return_val_if_fail (PTYXIS_IS_TAB (self), NULL);
+
+  return self->tab_color;
+}
+
+void
+ptyxis_tab_set_tab_color (PtyxisTab     *self,
+                          const GdkRGBA *color)
+{
+  g_return_if_fail (PTYXIS_IS_TAB (self));
+
+  if (color == self->tab_color)
+    return;
+
+  if (color != NULL && self->tab_color != NULL &&
+      gdk_rgba_equal (color, self->tab_color))
+    return;
+
+  g_clear_pointer (&self->tab_color, gdk_rgba_free);
+  self->tab_color = color ? gdk_rgba_copy (color) : NULL;
+
+  g_object_notify_by_pspec (G_OBJECT (self), properties[PROP_TAB_COLOR]);
+  g_object_notify_by_pspec (G_OBJECT (self), properties[PROP_INDICATOR_ICON]);
 }
