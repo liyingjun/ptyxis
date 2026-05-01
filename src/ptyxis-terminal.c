@@ -67,9 +67,13 @@ struct _PtyxisTerminal
   GtkRevealer        *size_revealer;
   GtkLabel           *size_label;
 
+  GtkProgressBar     *progress_bar;
+
   GdkRGBA             background;
 
   guint               size_dismiss_source;
+  guint               progress_pulse_source;
+  guint               progress_timeout_source;
   guint               n_columns;
   guint               n_rows;
 
@@ -947,6 +951,123 @@ dismiss_size_label_cb (gpointer user_data)
   return G_SOURCE_REMOVE;
 }
 
+static gboolean
+ptyxis_terminal_progress_pulse_cb (gpointer data)
+{
+  PtyxisTerminal *self = data;
+
+  gtk_progress_bar_pulse (self->progress_bar);
+
+  return G_SOURCE_CONTINUE;
+}
+
+static gboolean
+ptyxis_terminal_progress_timeout_cb (gpointer data)
+{
+  PtyxisTerminal *self = data;
+
+  self->progress_timeout_source = 0;
+  g_clear_handle_id (&self->progress_pulse_source, g_source_remove);
+  gtk_widget_set_visible (GTK_WIDGET (self->progress_bar), FALSE);
+
+  /* Feed an explicit OSC 9;4;0 (reset) so VTE clears the progress termprops.
+   * VTE deduplicates termprop updates and only emits termprop-changed when a
+   * value actually changes. If we only hide the widget here without clearing
+   * the termprops, sending the same OSC 9;4 sequence again would find the
+   * stored value unchanged and emit no signal, so the bar would never
+   * reappear. Injecting the reset synchronises VTE's internal state with the
+   * bar being hidden, so the next sequence is always treated as a change. */
+  vte_terminal_feed (VTE_TERMINAL (self), "\033]9;4;0\033\\", -1);
+
+  return G_SOURCE_REMOVE;
+}
+
+static void
+ptyxis_terminal_update_progress (PtyxisTerminal *self)
+{
+  GtkProgressBar *bar = self->progress_bar;
+  gint64 hint = 0;
+  guint64 value = 0;
+  gboolean has_hint;
+  gboolean has_value;
+
+  g_assert (PTYXIS_IS_TERMINAL (self));
+
+  has_hint = vte_terminal_get_termprop_int_by_id (VTE_TERMINAL (self),
+                                                  VTE_PROPERTY_ID_PROGRESS_HINT,
+                                                  &hint);
+  has_value = vte_terminal_get_termprop_uint_by_id (VTE_TERMINAL (self),
+                                                    VTE_PROPERTY_ID_PROGRESS_VALUE,
+                                                    &value);
+
+  /* Cancel any in-flight pulse animation and inactivity timer. */
+  g_clear_handle_id (&self->progress_pulse_source, g_source_remove);
+  g_clear_handle_id (&self->progress_timeout_source, g_source_remove);
+
+  if (!has_hint || hint == VTE_PROGRESS_HINT_INACTIVE)
+    {
+      gtk_widget_set_visible (GTK_WIDGET (bar), FALSE);
+      return;
+    }
+
+  gtk_widget_remove_css_class (GTK_WIDGET (bar), "error");
+  gtk_widget_set_visible (GTK_WIDGET (bar), TRUE);
+
+  switch (hint)
+    {
+    case VTE_PROGRESS_HINT_ACTIVE:
+      if (has_value)
+        gtk_progress_bar_set_fraction (bar, MIN (value, 100) / 100.0);
+      else
+        {
+          gtk_progress_bar_pulse (bar);
+          self->progress_pulse_source =
+            g_timeout_add (100, ptyxis_terminal_progress_pulse_cb, self);
+        }
+      break;
+
+    case VTE_PROGRESS_HINT_ERROR:
+      gtk_widget_add_css_class (GTK_WIDGET (bar), "error");
+      if (has_value)
+        gtk_progress_bar_set_fraction (bar, MIN (value, 100) / 100.0);
+      else
+        {
+          gtk_progress_bar_pulse (bar);
+          self->progress_pulse_source =
+            g_timeout_add (100, ptyxis_terminal_progress_pulse_cb, self);
+        }
+      break;
+
+    case VTE_PROGRESS_HINT_INDETERMINATE:
+      gtk_progress_bar_pulse (bar);
+      self->progress_pulse_source =
+        g_timeout_add (100, ptyxis_terminal_progress_pulse_cb, self);
+      break;
+
+    case VTE_PROGRESS_HINT_PAUSED:
+      if (has_value)
+        gtk_progress_bar_set_fraction (bar, MIN (value, 100) / 100.0);
+      break;
+
+    default:
+      gtk_widget_set_visible (GTK_WIDGET (bar), FALSE);
+      return;
+    }
+
+  /* Start the inactivity timer: if no new OSC 9;4 arrives within 15 s,
+   * hide the bar automatically. Every update resets the clock. */
+  self->progress_timeout_source =
+    g_timeout_add_seconds (15, ptyxis_terminal_progress_timeout_cb, self);
+}
+
+static void
+ptyxis_terminal_on_progress_changed (PtyxisTerminal *self)
+{
+  g_assert (PTYXIS_IS_TERMINAL (self));
+
+  ptyxis_terminal_update_progress (self);
+}
+
 static void
 ptyxis_terminal_size_allocate (GtkWidget *widget,
                                int        width,
@@ -1022,6 +1143,20 @@ ptyxis_terminal_size_allocate (GtkWidget *widget,
   dnd_alloc.width = padding.left - 1 + width + padding.right - 1;
   dnd_alloc.height = height - 2;
   gtk_widget_size_allocate (GTK_WIDGET (self->drop_highlight), &dnd_alloc, -1);
+
+  {
+    GtkAllocation pb_alloc;
+    int pb_min_h, pb_nat_h;
+
+    gtk_widget_measure (GTK_WIDGET (self->progress_bar),
+                        GTK_ORIENTATION_VERTICAL, width + padding.left + padding.right,
+                        &pb_min_h, &pb_nat_h, NULL, NULL);
+    pb_alloc.x = -padding.left;
+    pb_alloc.y = -padding.top;
+    pb_alloc.width = width + padding.left + padding.right;
+    pb_alloc.height = pb_nat_h;
+    gtk_widget_size_allocate (GTK_WIDGET (self->progress_bar), &pb_alloc, -1);
+  }
 
   if (emit_size_changed)
     g_signal_emit (self, signals[GRID_SIZE_CHANGED], 0, column_count, row_count);
@@ -1138,6 +1273,7 @@ ptyxis_terminal_snapshot (GtkWidget   *widget,
 
   gtk_widget_snapshot_child (widget, GTK_WIDGET (self->size_revealer), snapshot);
   gtk_widget_snapshot_child (widget, GTK_WIDGET (self->drop_highlight), snapshot);
+  gtk_widget_snapshot_child (widget, GTK_WIDGET (self->progress_bar), snapshot);
 }
 
 static void
@@ -1213,6 +1349,15 @@ ptyxis_terminal_constructed (GObject *object)
                                               g_direct_equal,
                                               NULL,
                                               g_object_unref);
+
+  g_signal_connect_swapped (self,
+                             "termprop-changed::" VTE_TERMPROP_PROGRESS_HINT,
+                             G_CALLBACK (ptyxis_terminal_on_progress_changed),
+                             self);
+  g_signal_connect_swapped (self,
+                             "termprop-changed::" VTE_TERMPROP_PROGRESS_VALUE,
+                             G_CALLBACK (ptyxis_terminal_on_progress_changed),
+                             self);
 }
 
 static void
@@ -1221,6 +1366,9 @@ ptyxis_terminal_dispose (GObject *object)
   PtyxisTerminal *self = (PtyxisTerminal *)object;
 
   g_debug ("Disposing %s @ %p", G_OBJECT_TYPE_NAME (self), object);
+
+  g_clear_handle_id (&self->progress_pulse_source, g_source_remove);
+  g_clear_handle_id (&self->progress_timeout_source, g_source_remove);
 
   gtk_widget_dispose_template (GTK_WIDGET (self), PTYXIS_TYPE_TERMINAL);
 
@@ -1383,6 +1531,7 @@ ptyxis_terminal_class_init (PtyxisTerminalClass *klass)
   gtk_widget_class_bind_template_child (widget_class, PtyxisTerminal, drop_highlight);
   gtk_widget_class_bind_template_child (widget_class, PtyxisTerminal, drop_target);
   gtk_widget_class_bind_template_child (widget_class, PtyxisTerminal, popover);
+  gtk_widget_class_bind_template_child (widget_class, PtyxisTerminal, progress_bar);
   gtk_widget_class_bind_template_child (widget_class, PtyxisTerminal, size_label);
   gtk_widget_class_bind_template_child (widget_class, PtyxisTerminal, size_revealer);
   gtk_widget_class_bind_template_child (widget_class, PtyxisTerminal, terminal_menu);

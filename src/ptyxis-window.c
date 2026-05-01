@@ -2325,6 +2325,7 @@ ptyxis_window_setup_page (PtyxisWindow *self,
   g_object_bind_property (tab, "title", page, "title", G_BINDING_SYNC_CREATE);
   g_object_bind_property (tab, "icon", page, "icon", G_BINDING_SYNC_CREATE);
   g_object_bind_property (tab, "indicator-icon", page, "indicator-icon", G_BINDING_SYNC_CREATE);
+  g_object_bind_property (tab, "loading", page, "loading", G_BINDING_SYNC_CREATE);
 }
 
 void

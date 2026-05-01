@@ -668,6 +668,8 @@ ptyxis_client_spawn_async (PtyxisClient        *self,
   env = g_environ_setenv (env, "PTYXIS_VERSION", PACKAGE_VERSION, TRUE);
   env = g_environ_setenv (env, "COLORTERM", "truecolor", TRUE);
   env = g_environ_setenv (env, "TERM", "xterm-256color", TRUE);
+  env = g_environ_setenv (env, "TERM_PROGRAM", "ptyxis", TRUE);
+  env = g_environ_setenv (env, "TERM_PROGRAM_VERSION", PACKAGE_VERSION, TRUE);
 
   g_snprintf (vte_version, sizeof vte_version, "%u", VTE_VERSION_NUMERIC);
   env = g_environ_setenv (env, "VTE_VERSION", vte_version, TRUE);
