@@ -48,14 +48,13 @@ nightly@aarch64:
 build-gnomeos-goblint:
   image: 'fedora:44'
   before_script:
-    - dnf install -y golang git
-    - export GOPATH=$HOME/go
-    - export PATH=$PATH:$GOPATH/bin
-    # Use the official GNOME namespace path
-    - go install gitlab.gnome.org/GNOME/goblint@latest
+    - dnf install -y curl
+    # Download the binary directly from the GNOME GitLab package registry or releases
+    # This URL targets the current standard location for the goblint binary
+    - curl --location "https://gitlab.gnome.org/GNOME/goblint/-/releases/permalink/latest/downloads/bin/goblint" --output /usr/local/bin/goblint || curl --location "https://github.com/bilelmoussaoui/goblint/releases/latest/download/goblint" --output /usr/local/bin/goblint
+    - chmod +x /usr/local/bin/goblint
   script:
-    # Use $(go env GOPATH) to be safe about the binary location
-    - $(go env GOPATH)/bin/goblint . --format gitlab-codequality > goblint-codequality.json
+    - goblint . --format gitlab-codequality > goblint-codequality.json
   artifacts:
     reports:
       codequality: goblint-codequality.json
