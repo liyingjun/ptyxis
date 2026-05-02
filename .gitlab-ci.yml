@@ -51,10 +51,11 @@ build-gnomeos-goblint:
     - dnf install -y golang git
     - export GOPATH=$HOME/go
     - export PATH=$PATH:$GOPATH/bin
-    # Install the linter from source (takes ~30-60 seconds)
-    - go install gitlab.gnome.org/bilelmoussaoui/goblint@latest
+    # Use the official GNOME namespace path
+    - go install gitlab.gnome.org/GNOME/goblint@latest
   script:
-    - /home/gitlab-runner/go/bin/goblint . --format gitlab-codequality > goblint-codequality.json
+    # Use $(go env GOPATH) to be safe about the binary location
+    - $(go env GOPATH)/bin/goblint . --format gitlab-codequality > goblint-codequality.json
   artifacts:
     reports:
       codequality: goblint-codequality.json
