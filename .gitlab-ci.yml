@@ -47,8 +47,14 @@ nightly@aarch64:
 
 build-gnomeos-goblint:
   image: 'fedora:44'
-  variables:
-    GIT_SUBMODULE_STRATEGY: normal 
   before_script:
-    - dnf install -y goblint
-    - echo "Using $(ldd --version | head -n 1)"
+    - dnf install -y golang git
+    - export GOPATH=$HOME/go
+    - export PATH=$PATH:$GOPATH/bin
+    # Install the linter from source (takes ~30-60 seconds)
+    - go install gitlab.gnome.org/bilelmoussaoui/goblint@latest
+  script:
+    - /home/gitlab-runner/go/bin/goblint . --format gitlab-codequality > goblint-codequality.json
+  artifacts:
+    reports:
+      codequality: goblint-codequality.json
