@@ -970,14 +970,11 @@ ptyxis_terminal_progress_timeout_cb (gpointer data)
   g_clear_handle_id (&self->progress_pulse_source, g_source_remove);
   gtk_widget_set_visible (GTK_WIDGET (self->progress_bar), FALSE);
 
-  /* Feed an explicit OSC 9;4;0 (reset) so VTE clears the progress termprops.
-   * VTE deduplicates termprop updates and only emits termprop-changed when a
-   * value actually changes. If we only hide the widget here without clearing
-   * the termprops, sending the same OSC 9;4 sequence again would find the
-   * stored value unchanged and emit no signal, so the bar would never
-   * reappear. Injecting the reset synchronises VTE's internal state with the
-   * bar being hidden, so the next sequence is always treated as a change. */
-  vte_terminal_feed (VTE_TERMINAL (self), "\033]9;4;0\033\\", -1);
+  /* Reset the progress termprops so VTE's stored values are cleared. Without
+   * this, a subsequent OSC 9;4 with the same value would be deduplicated and
+   * termprop-changed would not fire, so the bar would never reappear. */
+  vte_terminal_reset_termprop_by_id (VTE_TERMINAL (self), VTE_PROPERTY_ID_PROGRESS_HINT);
+  vte_terminal_reset_termprop_by_id (VTE_TERMINAL (self), VTE_PROPERTY_ID_PROGRESS_VALUE);
 
   return G_SOURCE_REMOVE;
 }
