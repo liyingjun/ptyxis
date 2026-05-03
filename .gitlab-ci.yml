@@ -48,10 +48,8 @@ nightly@aarch64:
 build-gnomeos-goblint:
   image: 'fedora:44'
   before_script:
-    - dnf install -y curl
-    # Download the binary directly from the GNOME GitLab package registry or releases
-    # This URL targets the current standard location for the goblint binary
-    - curl --location "https://gitlab.gnome.org/GNOME/goblint/-/releases/permalink/latest/downloads/bin/goblint" --output /usr/local/bin/goblint || curl --location "https://github.com/bilelmoussaoui/goblint/releases/latest/download/goblint" --output /usr/local/bin/goblint
+    # GitHub releases are public and serve the raw binary directly
+    - curl -L "https://github.com/bilelmoussaoui/goblint/releases/latest/download/goblint" -o /usr/local/bin/goblint
     - chmod +x /usr/local/bin/goblint
   script:
     - goblint . --format gitlab-codequality > goblint-codequality.json
