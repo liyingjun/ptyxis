@@ -33,6 +33,13 @@
 
 #define PODMAN_RELOAD_DELAY_SECONDS 3
 
+/* Podman can return no or malformed data on the first query right after boot;
+ * historically that was worked around by immediately re-running the query
+ * (see #62). Keep that behavior, but asynchronously and bounded so a
+ * persistently failing podman does not re-query forever.
+ */
+#define PODMAN_UPDATE_MAX_RETRIES 2
+
 typedef struct _LabelToType
 {
   const char *label;
@@ -47,6 +54,7 @@ struct _PtyxisPodmanProvider
   GFileMonitor *monitor;
   GArray *label_to_type;
   guint queued_update;
+  guint update_retries;
   guint is_updating : 1;
 };
 
@@ -314,6 +322,21 @@ _ptyxis_podman_provider_parse_json (PtyxisPodmanProvider  *self,
 }
 
 static void
+ptyxis_podman_provider_retry_update (PtyxisPodmanProvider *self)
+{
+  /* Re-run the query a bounded number of times when it fails, so a transient
+   * podman failure right after boot (see #62) recovers on its own instead of
+   * leaving the container list empty until some other change triggers a
+   * refresh.
+   */
+  if (self->update_retries < PODMAN_UPDATE_MAX_RETRIES)
+    {
+      self->update_retries++;
+      ptyxis_podman_provider_queue_update (self);
+    }
+}
+
+static void
 ptyxis_podman_provider_communicate_cb (GObject      *object,
                                        GAsyncResult *result,
                                        gpointer      user_data)
@@ -334,6 +357,7 @@ ptyxis_podman_provider_communicate_cb (GObject      *object,
   if (!g_subprocess_communicate_utf8_finish (subprocess, result, &stdout_buf, NULL, &error))
     {
       g_debug ("Failed to run podman ps: %s", error->message);
+      ptyxis_podman_provider_retry_update (self);
       g_task_return_boolean (task, FALSE);
       return;
     }
@@ -341,10 +365,12 @@ ptyxis_podman_provider_communicate_cb (GObject      *object,
   if (!_ptyxis_podman_provider_parse_json (self, stdout_buf, &error))
     {
       g_critical ("Failed to load podman JSON: %s", error->message);
+      ptyxis_podman_provider_retry_update (self);
       g_task_return_boolean (task, FALSE);
       return;
     }
 
+  self->update_retries = 0;
   g_task_return_boolean (task, TRUE);
 }
 

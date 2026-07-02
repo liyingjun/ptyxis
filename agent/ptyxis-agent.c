@@ -70,7 +70,6 @@ ptyxis_agent_init (PtyxisAgent  *agent,
 {
   g_autoptr(PtyxisSessionContainer) session = NULL;
   g_autoptr(PtyxisContainerProvider) podman = NULL;
-  g_autoptr(GError) local_error = NULL;
   g_autoptr(GFile) jhbuildrc = NULL;
 
   memset (agent, 0, sizeof *agent);
@@ -147,16 +146,21 @@ ptyxis_agent_init (PtyxisAgent  *agent,
                                              NULL,
                                              PTYXIS_TYPE_TOOLBOX_CONTAINER);
 
-  if (!ptyxis_podman_provider_update_sync (PTYXIS_PODMAN_PROVIDER (podman), NULL, &local_error))
-    {
-      g_debug ("Failed to process podman containers: %s", local_error->message);
-
-      /* Sometimes podman seems to crap out on us. Try a second time and see
-       * if that works any better. See #62.
-       */
-      ptyxis_podman_provider_update_sync (PTYXIS_PODMAN_PROVIDER (podman), NULL, NULL);
-    }
-
+  /*
+   * Do not enumerate podman containers synchronously here. Running `podman ps`
+   * is slow and can block for a long time when the backend is degraded (for
+   * example rootless podman rebuilding its storage after an unclean shutdown).
+   * Doing it before g_dbus_connection_start_message_processing() below would
+   * delay message processing and make the agent unresponsive to the client
+   * during startup, which is how a wedged podman turns into a failed terminal
+   * launch. The old code retried once here as a workaround (see #62); a
+   * synchronous retry does not help while podman is blocked.
+   *
+   * The provider already queues an asynchronous update when constructed, and
+   * delivers the container list to the client via "containers-changed" once
+   * podman responds. The retry-on-failure behavior from #62 is preserved on
+   * that asynchronous path (see ptyxis_podman_provider_communicate_cb()).
+   */
   ptyxis_agent_impl_add_provider (agent->impl, podman);
 
   g_dbus_connection_start_message_processing (agent->bus);
