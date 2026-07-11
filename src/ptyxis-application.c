@@ -296,7 +296,7 @@ ptyxis_application_open (GApplication  *app,
           argv = g_strv_builder_end (command_builder);
           cwd = g_get_home_dir ();
 
-          tab = ptyxis_window_add_tab_for_command (window, NULL, (const char * const *)argv, cwd);
+          tab = ptyxis_window_add_tab_for_command (window, NULL, (const char * const *)argv, cwd, FALSE);
           terminal = ptyxis_tab_get_terminal (tab);
 
           ptyxis_application_apply_default_size (self, terminal);
@@ -393,6 +393,7 @@ ptyxis_application_apply_default_size (PtyxisApplication *self,
   vte_terminal_set_size (VTE_TERMINAL (terminal), columns, rows);
 }
 
+
 static int
 ptyxis_application_command_line (GApplication            *app,
                                  GApplicationCommandLine *cmdline)
@@ -404,9 +405,11 @@ ptyxis_application_command_line (GApplication            *app,
   g_autofree char *cwd_uri = NULL;
   g_autofree char *title = NULL;
   g_auto(GStrv) argv = NULL;
+  g_auto(GStrv) pin_commands = NULL;
+  g_auto(GStrv) tab_commands = NULL;
   GVariantDict *dict;
+  PtyxisWindow *window = NULL;
   const char *cwd;
-  gboolean new_tab = FALSE;
   gboolean new_window = FALSE;
   gboolean did_restore = FALSE;
   gboolean fullscreen = FALSE;
@@ -418,7 +421,7 @@ ptyxis_application_command_line (GApplication            *app,
 
   /* NOTE: This looks complex, because it is.
    *
-   * The primary idea is that we want to allow all of --tab, --new-window,
+   * The primary idea is that we want to allow all of --tab, --pin, --new-window,
    * --tab-with-profile to work with --working-dir and -x/--. But additionally
    * it needs to do the right thing in the case we're running in
    * single-instance-mode (such as for Terminal=true .desktop file) as well as
@@ -442,8 +445,8 @@ ptyxis_application_command_line (GApplication            *app,
       self->maximize = FALSE;
     }
 
-  if (!g_variant_dict_lookup (dict, "tab", "b", &new_tab))
-    new_tab = FALSE;
+  if (!g_variant_dict_lookup (dict, "tab", "^as", &tab_commands))
+    tab_commands = NULL;
 
   if (!g_variant_dict_lookup (dict, "tab-with-profile", "s", &new_tab_with_profile))
     new_tab_with_profile = NULL;
@@ -454,13 +457,8 @@ ptyxis_application_command_line (GApplication            *app,
   if (!g_variant_dict_lookup (dict, "title", "s", &title))
     title = NULL;
 
-  if (new_tab && new_window)
-    {
-      g_application_command_line_printerr (cmdline,
-                                           "%s\n",
-                                           _("--tab, --tab-with-profile, or --new-window may not be used together"));
-      return EXIT_FAILURE;
-    }
+  if (!g_variant_dict_lookup (dict, "pin", "^as", &pin_commands))
+    pin_commands = NULL;
 
   if (!g_variant_dict_lookup (dict, "working-directory", "^ay", &working_directory))
     working_directory = NULL;
@@ -492,6 +490,35 @@ ptyxis_application_command_line (GApplication            *app,
   if (!is_standalone (self))
     did_restore = ptyxis_application_restore (self);
 
+  if (pin_commands != NULL && pin_commands[0] != NULL)
+    {
+      window = get_current_window (self);
+
+      if (window == NULL || new_window)
+        window = ptyxis_window_new_empty ();
+
+      for (guint i = 0; pin_commands[i] != NULL; i++)
+        {
+          const char *pin_argv[] = { pin_commands[i], NULL };
+          PtyxisTab *tab = ptyxis_window_add_tab_for_command (window, NULL, pin_argv, cwd_uri, TRUE);
+
+          ptyxis_window_set_tab_pinned (window, tab, TRUE);
+        }
+
+      /* Pinned tabs are only meaningful with a visible tab bar.  If we opened
+       * with a single pinned tab the normal n_pages > 1 rule would hide it, so
+       * force it visible here.  Subsequent tab opens/closes use the normal rule,
+       * so reducing back to one tab will hide the bar again as expected. */
+      ptyxis_window_show_tab_bar (window);
+
+      if (tab_commands == NULL && new_tab_with_profile == NULL &&
+          !g_variant_dict_contains (dict, "execute"))
+        {
+          gtk_window_present (GTK_WINDOW (window));
+          return EXIT_SUCCESS;
+        }
+    }
+
   if (g_variant_dict_contains (dict, "preferences"))
     {
       g_action_group_activate_action (G_ACTION_GROUP (self), "preferences", NULL);
@@ -509,15 +536,23 @@ ptyxis_application_command_line (GApplication            *app,
           return EXIT_FAILURE;
         }
 
-      if (new_tab)
+      if (tab_commands != NULL)
         {
-          PtyxisWindow *window = get_current_window (self);
           PtyxisTab *tab;
 
-          if (window == NULL)
+          window = get_current_window (self);
+          if (window == NULL || new_window)
             window = ptyxis_window_new_empty ();
 
-          tab = ptyxis_window_add_tab_for_command (window, NULL, (const char * const *)argv, cwd_uri);
+          for (guint i = 0; tab_commands[i] != NULL; i++)
+            {
+              const char *tab_argv[] = { tab_commands[i], NULL };
+              PtyxisTab *t = ptyxis_window_add_tab_for_command (window, NULL, tab_argv, cwd_uri, TRUE);
+              ptyxis_tab_set_title_prefix (t, title);
+              ptyxis_tab_set_ignore_osc_title (t, should_ignore_osc_title (self, title));
+            }
+
+          tab = ptyxis_window_add_tab_for_command (window, NULL, (const char * const *)argv, cwd_uri, FALSE);
 
           ptyxis_tab_set_title_prefix (tab, title);
           ptyxis_tab_set_ignore_osc_title (tab, should_ignore_osc_title (self, title));
@@ -528,13 +563,13 @@ ptyxis_application_command_line (GApplication            *app,
       else if (new_tab_with_profile)
         {
           g_autoptr(PtyxisProfile) profile = ptyxis_application_dup_profile (self, new_tab_with_profile);
-          PtyxisWindow *window = get_current_window (self);
           PtyxisTab *tab;
 
+          window = get_current_window (self);
           if (window == NULL || new_window)
             window = ptyxis_window_new_empty ();
 
-          tab = ptyxis_window_add_tab_for_command (window, profile, (const char * const *)argv, cwd_uri);
+          tab = ptyxis_window_add_tab_for_command (window, profile, (const char * const *)argv, cwd_uri, FALSE);
 
           ptyxis_tab_set_title_prefix (tab, title);
           ptyxis_tab_set_ignore_osc_title (tab, should_ignore_osc_title (self, title));
@@ -544,11 +579,10 @@ ptyxis_application_command_line (GApplication            *app,
         }
       else if (new_window)
         {
-          PtyxisWindow *window;
           PtyxisTab *tab;
 
           window = ptyxis_window_new_empty ();
-          tab = ptyxis_window_add_tab_for_command (window, NULL, (const char * const *)argv, cwd_uri);
+          tab = ptyxis_window_add_tab_for_command (window, NULL, (const char * const *)argv, cwd_uri, FALSE);
 
           ptyxis_tab_set_title_prefix (tab, title);
           ptyxis_tab_set_ignore_osc_title (tab, should_ignore_osc_title (self, title));
@@ -561,7 +595,6 @@ ptyxis_application_command_line (GApplication            *app,
         }
       else
         {
-          PtyxisWindow *window;
           PtyxisTab *tab;
 
           window = ptyxis_window_new_for_command (NULL, (const char * const *)argv, cwd_uri);
@@ -576,44 +609,57 @@ ptyxis_application_command_line (GApplication            *app,
           gtk_window_present (GTK_WINDOW (window));
         }
     }
-  else if (g_variant_dict_contains (dict, "tab"))
+  else if (tab_commands != NULL)
     {
-      g_autoptr(PtyxisProfile) profile = ptyxis_application_dup_default_profile (self);
-      PtyxisWindow *window = get_current_window (self);
-      PtyxisTab *tab = ptyxis_tab_new (profile);
-      PtyxisTerminal *terminal = ptyxis_tab_get_terminal (tab);
+      PtyxisTab *last_tab = NULL;
 
-      if (window == NULL || new_window)
+      if (window == NULL)
         {
-          window = ptyxis_window_new_empty ();
-          ptyxis_application_apply_default_size (self, terminal);
+          window = get_current_window (self);
+          if (window == NULL || new_window)
+            window = ptyxis_window_new_empty ();
         }
 
-      ptyxis_tab_set_initial_working_directory_uri (tab, cwd_uri);
-      ptyxis_tab_set_title_prefix (tab, title);
-      ptyxis_tab_set_ignore_osc_title (tab, should_ignore_osc_title (self, title));
-      ptyxis_window_add_tab (window, tab);
-      ptyxis_window_set_active_tab (window, tab);
+      for (guint i = 0; tab_commands[i] != NULL; i++)
+        {
+          const char *tab_argv[] = { tab_commands[i], NULL };
+          PtyxisTab *tab = ptyxis_window_add_tab_for_command (window, NULL, tab_argv, cwd_uri, TRUE);
+
+          ptyxis_tab_set_title_prefix (tab, title);
+          ptyxis_tab_set_ignore_osc_title (tab, should_ignore_osc_title (self, title));
+          last_tab = tab;
+        }
+
+      if (new_tab_with_profile != NULL)
+        {
+          g_autoptr(PtyxisProfile) profile = ptyxis_application_dup_profile (self, new_tab_with_profile);
+          PtyxisTab *tab = ptyxis_window_add_tab_for_profile (window, profile, cwd_uri);
+
+          ptyxis_tab_set_title_prefix (tab, title);
+          ptyxis_tab_set_ignore_osc_title (tab, should_ignore_osc_title (self, title));
+          last_tab = tab;
+        }
+
+      if (last_tab != NULL)
+        ptyxis_window_set_active_tab (window, last_tab);
+
+      /* When opened from the command line the user explicitly requested a tab,
+       * so make the tab bar visible even if there is only one tab. */
+      ptyxis_window_show_tab_bar (window);
 
       gtk_window_present (GTK_WINDOW (window));
     }
   else if (new_tab_with_profile)
     {
       g_autoptr(PtyxisProfile) profile = ptyxis_application_dup_profile (self, new_tab_with_profile);
-      PtyxisWindow *window = get_current_window (self);
-      PtyxisTab *tab = ptyxis_tab_new (profile);
-      PtyxisTerminal *terminal = ptyxis_tab_get_terminal (tab);
+      PtyxisTab *tab;
 
+      window = get_current_window (self);
       if (window == NULL || new_window)
-        {
-          window = ptyxis_window_new_empty ();
-          ptyxis_application_apply_default_size (self, terminal);
-        }
-
-      ptyxis_tab_set_initial_working_directory_uri (tab, cwd_uri);
+        window = ptyxis_window_new_empty ();
+      tab = ptyxis_window_add_tab_for_profile (window, profile, cwd_uri);
       ptyxis_tab_set_title_prefix (tab, title);
       ptyxis_tab_set_ignore_osc_title (tab, should_ignore_osc_title (self, title));
-      ptyxis_window_add_tab (window, tab);
       ptyxis_window_set_active_tab (window, tab);
 
       gtk_window_present (GTK_WINDOW (window));
@@ -621,9 +667,10 @@ ptyxis_application_command_line (GApplication            *app,
   else if (g_variant_dict_contains (dict, "new-window"))
     {
       g_autoptr(PtyxisProfile) profile = ptyxis_application_dup_default_profile (self);
-      PtyxisWindow *window = get_current_window (self);
       PtyxisTerminal *terminal;
       PtyxisTab *tab;
+
+      window = get_current_window (self);
 
       /* If the request to create a new-window was not combined with other
        * actions above, and we restored a session, then we will consider the
@@ -1142,7 +1189,7 @@ ptyxis_application_init (PtyxisApplication *self)
     { "preferences", 0, 0, G_OPTION_ARG_NONE, NULL, N_("Show the application preferences") },
 
     /* Used for new tabs/windows/etc when specified */
-    { "working-directory", 'd', 0, G_OPTION_ARG_FILENAME, NULL, N_("Use DIR for --tab, --tab-with-profile, --new-window, or -x"), N_("DIR") },
+    { "working-directory", 'd', 0, G_OPTION_ARG_FILENAME, NULL, N_("Use DIR for --pin, --tab, --tab-with-profile, --new-window, or -x"), N_("DIR") },
 
     /* By default, this implies a new ptyxis instance unless the options
      * below are provided to override that.
@@ -1154,8 +1201,9 @@ ptyxis_application_init (PtyxisApplication *self)
      * checking from `main.c`.
      */
     { "new-window", 0, 0, G_OPTION_ARG_NONE, NULL, N_("New terminal window") },
-    { "tab", 0, 0, G_OPTION_ARG_NONE, NULL, N_("New terminal tab in active window") },
+    { "tab", 0, 0, G_OPTION_ARG_STRING_ARRAY, NULL, N_("New terminal tab in active window, optionally running COMMAND"), N_("COMMAND") },
     { "tab-with-profile", 0, 0, G_OPTION_ARG_STRING, NULL, N_("New terminal tab in active window using the profile UUID"), N_("PROFILE_UUID") },
+    { "pin", 0, 0, G_OPTION_ARG_STRING_ARRAY, NULL, N_("Open a new pinned tab, optionally running COMMAND"), N_("COMMAND") },
 
     /* Standalone (single instance mode) */
     { "standalone", 's', 0, G_OPTION_ARG_NONE, NULL, N_("Start a new instance, ignoring existing instances") },
@@ -1183,6 +1231,10 @@ ptyxis_application_init (PtyxisApplication *self)
   g_string_append_printf (summary, "  %s\n", _("Run Custom Command in New Window"));
   g_string_append (summary, "    ptyxis -x \"bash -c 'sleep 3'\"\n");
   g_string_append (summary, "    ptyxis -- bash -c 'sleep 3'\n");
+
+  g_string_append_c (summary, '\n');
+  g_string_append_printf (summary, "  %s\n", _("Open pinned tabs running specific commands, plus a plain shell tab"));
+  g_string_append (summary, "    ptyxis -s --pin htop --pin \"journalctl -f\" --tab\n");
 
   g_string_append_c (summary, '\n');
   g_string_append_printf (summary, "  %s\n", _("Import a custom palette"));

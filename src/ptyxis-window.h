@@ -44,6 +44,10 @@ void           ptyxis_window_add_tab_at_end      (PtyxisWindow       *self,
 PtyxisTab     *ptyxis_window_add_tab_for_command (PtyxisWindow       *self,
                                                   PtyxisProfile      *profile,
                                                   const char * const *argv,
+                                                  const char         *cwd_uri,
+                                                  gboolean            keep_alive);
+PtyxisTab     *ptyxis_window_add_tab_for_profile (PtyxisWindow       *self,
+                                                  PtyxisProfile      *profile,
                                                   const char         *cwd_uri);
 GListModel    *ptyxis_window_list_pages          (PtyxisWindow       *self);
 void           ptyxis_window_append_tab          (PtyxisWindow       *self,
@@ -59,5 +63,6 @@ gboolean       ptyxis_window_is_animating        (PtyxisWindow       *self);
 void           ptyxis_window_set_tab_pinned      (PtyxisWindow       *self,
                                                   PtyxisTab          *tab,
                                                   gboolean            pinned);
+void           ptyxis_window_show_tab_bar        (PtyxisWindow       *self);
 
 G_END_DECLS

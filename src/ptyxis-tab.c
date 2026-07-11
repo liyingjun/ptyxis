@@ -423,6 +423,8 @@ ptyxis_tab_wait_cb (GObject      *object,
 
   /* If this was started with something like ptyxis_window_new_for_command()
    * then we just want to exit the application (so allow tab to close).
+   * commands set to start in a tab (--tab=COMMAND or --pin=COMMAND) are
+   * wrapped in a shell so will not exit this way after command completes.
    */
   if (self->command != NULL)
     exit_action = PTYXIS_EXIT_ACTION_CLOSE;
@@ -652,6 +654,15 @@ ptyxis_tab_map (GtkWidget *widget)
   g_assert (PTYXIS_IS_TAB (widget));
 
   GTK_WIDGET_CLASS (ptyxis_tab_parent_class)->map (widget);
+
+  if (self->state == PTYXIS_TAB_STATE_INITIAL)
+    ptyxis_tab_respawn (self);
+}
+
+void
+ptyxis_tab_start (PtyxisTab *self)
+{
+  g_return_if_fail (PTYXIS_IS_TAB (self));
 
   if (self->state == PTYXIS_TAB_STATE_INITIAL)
     ptyxis_tab_respawn (self);

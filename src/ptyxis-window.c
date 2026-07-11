@@ -934,6 +934,19 @@ ptyxis_window_set_tab_pinned (PtyxisWindow *self,
     adw_tab_view_set_page_pinned (self->tab_view, tab_page, pinned);
 }
 
+void
+ptyxis_window_show_tab_bar (PtyxisWindow *self)
+{
+  g_return_if_fail (PTYXIS_IS_WINDOW (self));
+
+  if (self->single_terminal_mode)
+    return;
+
+  gtk_widget_set_visible (GTK_WIDGET (self->tab_bar), TRUE);
+  gtk_widget_add_css_class (GTK_WIDGET (self), "has-tab-bar");
+  gtk_window_set_default_size (GTK_WINDOW (self), -1, -1);
+}
+
 static void
 ptyxis_window_page_previous_action (GtkWidget  *widget,
                                     const char *action_name,
@@ -1670,6 +1683,7 @@ ptyxis_window_constructed (GObject *object)
                     "notify::is-active",
                     G_CALLBACK (ptyxis_window_notify_is_active_cb),
                     NULL);
+
 }
 
 static void
@@ -2229,7 +2243,8 @@ PtyxisTab *
 ptyxis_window_add_tab_for_command (PtyxisWindow       *self,
                                    PtyxisProfile      *profile,
                                    const char * const *argv,
-                                   const char         *cwd_uri)
+                                   const char         *cwd_uri,
+                                   gboolean            keep_alive)
 {
   g_autoptr(PtyxisProfile) default_profile = NULL;
   PtyxisTab *tab;
@@ -2245,10 +2260,54 @@ ptyxis_window_add_tab_for_command (PtyxisWindow       *self,
     }
 
   tab = ptyxis_tab_new (profile);
-  ptyxis_tab_set_command (tab, argv);
+
+  if (keep_alive)
+    {
+      g_autofree char *cmd = g_strjoinv (" ", (char **)argv);
+      g_autofree char *sh_arg = ptyxis_str_empty0 (cmd)
+        ? g_strdup ("exec $SHELL")
+        : g_strdup_printf ("%s; exec $SHELL", cmd);
+      const char *wrapper_argv[] = { "sh", "-c", sh_arg, NULL };
+
+      ptyxis_tab_set_command (tab, wrapper_argv);
+    }
+  else
+    {
+      ptyxis_tab_set_command (tab, argv);
+    }
 
   if (!ptyxis_str_empty0 (cwd_uri))
     ptyxis_tab_set_previous_working_directory_uri (tab, cwd_uri);
+
+  ptyxis_window_append_tab (self, tab);
+
+  if (keep_alive)
+    ptyxis_tab_start (tab);
+
+  return tab;
+}
+
+PtyxisTab *
+ptyxis_window_add_tab_for_profile (PtyxisWindow  *self,
+                                    PtyxisProfile *profile,
+                                    const char    *cwd_uri)
+{
+  g_autoptr(PtyxisProfile) default_profile = NULL;
+  PtyxisTab *tab;
+
+  g_return_val_if_fail (PTYXIS_IS_WINDOW (self), NULL);
+  g_return_val_if_fail (!profile || PTYXIS_IS_PROFILE (profile), NULL);
+
+  if (profile == NULL)
+    {
+      default_profile = ptyxis_application_dup_default_profile (PTYXIS_APPLICATION_DEFAULT);
+      profile = default_profile;
+    }
+
+  tab = ptyxis_tab_new (profile);
+
+  if (!ptyxis_str_empty0 (cwd_uri))
+    ptyxis_tab_set_initial_working_directory_uri (tab, cwd_uri);
 
   ptyxis_window_append_tab (self, tab);
 
