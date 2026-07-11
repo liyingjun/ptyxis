@@ -65,6 +65,7 @@ struct _PtyxisPreferencesWindow
   AdwComboRow          *cursor_shape;
   GListModel           *cursor_shapes;
   AdwComboRow          *delete_binding;
+  AdwSwitchRow         *disable_dynamic_title;
   AdwSwitchRow         *enable_a11y;
   GListModel           *erase_bindings;
   AdwComboRow          *exit_action;
@@ -891,6 +892,9 @@ ptyxis_preferences_window_constructed (GObject *object)
   g_object_bind_property (settings, "visual-bell",
                           self->visual_bell, "active",
                           G_BINDING_SYNC_CREATE | G_BINDING_BIDIRECTIONAL);
+  g_object_bind_property (settings, "disable-dynamic-title",
+                          self->disable_dynamic_title, "active",
+                          G_BINDING_SYNC_CREATE | G_BINDING_BIDIRECTIONAL);
   g_object_bind_property (settings, "restore-session",
                           self->restore_session, "active",
                           G_BINDING_SYNC_CREATE | G_BINDING_BIDIRECTIONAL);
@@ -1148,6 +1152,7 @@ ptyxis_preferences_window_class_init (PtyxisPreferencesWindowClass *klass)
   gtk_widget_class_bind_template_child (widget_class, PtyxisPreferencesWindow, cursor_shapes);
   gtk_widget_class_bind_template_child (widget_class, PtyxisPreferencesWindow, custom_links_list_box);
   gtk_widget_class_bind_template_child (widget_class, PtyxisPreferencesWindow, delete_binding);
+  gtk_widget_class_bind_template_child (widget_class, PtyxisPreferencesWindow, disable_dynamic_title);
   gtk_widget_class_bind_template_child (widget_class, PtyxisPreferencesWindow, enable_a11y);
   gtk_widget_class_bind_template_child (widget_class, PtyxisPreferencesWindow, erase_bindings);
   gtk_widget_class_bind_template_child (widget_class, PtyxisPreferencesWindow, exit_action);

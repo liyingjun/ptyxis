@@ -51,6 +51,7 @@ G_BEGIN_DECLS
 #define PTYXIS_SETTING_KEY_WORD_CHAR_EXCEPTIONS    "word-char-exceptions"
 #define PTYXIS_SETTING_KEY_TAB_MIDDLE_CLICK        "tab-middle-click"
 #define PTYXIS_SETTING_KEY_IGNORE_OSC_TITLE        "ignore-osc-title"
+#define PTYXIS_SETTING_KEY_DISABLE_DYNAMIC_TITLE  "disable-dynamic-title"
 #define PTYXIS_SETTING_KEY_INHIBIT_LOGOUT          "inhibit-logout"
 
 typedef enum _PtyxisNewTabPosition
@@ -174,6 +175,9 @@ void                    ptyxis_settings_set_prompt_on_close         (PtyxisSetti
 gboolean                ptyxis_settings_get_ignore_osc_title        (PtyxisSettings             *self);
 void                    ptyxis_settings_set_ignore_osc_title        (PtyxisSettings             *self,
                                                                      gboolean                    ignore_osc_title);
+gboolean                ptyxis_settings_get_disable_dynamic_title   (PtyxisSettings             *self);
+void                    ptyxis_settings_set_disable_dynamic_title   (PtyxisSettings             *self,
+                                                                     gboolean                    disable_dynamic_title);
 gboolean                ptyxis_settings_get_inhibit_logout          (PtyxisSettings             *self);
 void                    ptyxis_settings_set_inhibit_logout          (PtyxisSettings             *self,
                                                                      gboolean                    inhibit_logout);

@@ -251,6 +251,13 @@
       <description>If OSC title should be ignored in tab titles.</description>
     </key>
 
+    <key name="disable-dynamic-title" type="b">
+      <default>false</default>
+      <summary>Disable Dynamic Title</summary>
+      <description>Disable dynamic title updates from running commands.</description>
+    </key>
+
+
     <key name="inhibit-logout" type="b">
       <default>true</default>
       <summary>Inhibit Logout</summary>
