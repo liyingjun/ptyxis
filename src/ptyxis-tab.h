@@ -106,6 +106,7 @@ char               *ptyxis_tab_dup_current_directory_uri          (PtyxisTab    
 char               *ptyxis_tab_dup_previous_working_directory_uri (PtyxisTab            *self);
 void                ptyxis_tab_set_previous_working_directory_uri (PtyxisTab            *self,
                                                                    const char           *previous_working_directory_uri);
+gboolean            ptyxis_tab_get_loading                        (PtyxisTab            *self);
 PtyxisTabProgress   ptyxis_tab_get_progress                       (PtyxisTab            *self);
 double              ptyxis_tab_get_progress_fraction              (PtyxisTab            *self);
 PtyxisZoomLevel     ptyxis_tab_get_zoom                           (PtyxisTab            *self);

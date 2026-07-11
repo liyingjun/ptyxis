@@ -175,3 +175,28 @@ window.has-tab-bar .visual-bell-area {
   padding-top: 3px;
   padding-bottom: 3px;
 }
+
+/* Viewport progress bar overlay (OSC 9;4 / ConEmu progress) */
+vte-terminal progressbar.progress-overlay {
+  margin: 0;
+  padding: 0;
+  min-height: 2px;
+}
+
+vte-terminal progressbar.progress-overlay trough {
+  min-height: 2px;
+  border-radius: 0;
+  background: transparent;
+}
+
+vte-terminal progressbar.progress-overlay trough progress {
+  min-height: 2px;
+  border-radius: 0;
+  background-color: @accent_color;
+  opacity: 0.85;
+}
+
+vte-terminal progressbar.progress-overlay.error trough progress {
+  background-color: @error_color;
+  opacity: 0.85;
+}

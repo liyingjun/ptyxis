@@ -96,6 +96,7 @@ enum {
   PROP_INDICATOR_ICON,
   PROP_PROCESS_LEADER_KIND,
   PROP_PROFILE,
+  PROP_LOADING,
   PROP_PROGRESS,
   PROP_PROGRESS_FRACTION,
   PROP_READ_ONLY,
@@ -1101,6 +1102,7 @@ ptyxis_tab_invalidate_progress (PtyxisTab *self)
 {
   g_assert (PTYXIS_IS_TAB (self));
 
+  g_object_notify_by_pspec (G_OBJECT (self), properties[PROP_LOADING]);
   g_object_notify_by_pspec (G_OBJECT (self), properties[PROP_PROGRESS]);
   g_object_notify_by_pspec (G_OBJECT (self), properties[PROP_PROGRESS_FRACTION]);
   g_object_notify_by_pspec (G_OBJECT (self), properties[PROP_INDICATOR_ICON]);
@@ -1249,6 +1251,10 @@ ptyxis_tab_get_property (GObject    *object,
       g_value_take_object (value, ptyxis_tab_dup_indicator_icon (self));
       break;
 
+    case PROP_LOADING:
+      g_value_set_boolean (value, ptyxis_tab_get_loading (self));
+      break;
+
     case PROP_PROCESS_LEADER_KIND:
       g_value_set_enum (value, self->leader_kind);
       break;
@@ -1389,6 +1395,12 @@ ptyxis_tab_class_init (PtyxisTabClass *klass)
                          (G_PARAM_READWRITE |
                           G_PARAM_CONSTRUCT_ONLY |
                           G_PARAM_STATIC_STRINGS));
+
+  properties[PROP_LOADING] =
+    g_param_spec_boolean ("loading", NULL, NULL,
+                          FALSE,
+                          (G_PARAM_READABLE |
+                           G_PARAM_STATIC_STRINGS));
 
   properties[PROP_PROGRESS] =
     g_param_spec_enum ("progress", NULL, NULL,
@@ -2366,6 +2378,8 @@ ptyxis_tab_get_progress (PtyxisTab *self)
           return PTYXIS_TAB_PROGRESS_ERROR;
 
         case VTE_PROGRESS_HINT_PAUSED:
+          return PTYXIS_TAB_PROGRESS_ACTIVE;
+
         case VTE_PROGRESS_HINT_INDETERMINATE:
         default:
           return PTYXIS_TAB_PROGRESS_INDETERMINATE;
@@ -2373,6 +2387,21 @@ ptyxis_tab_get_progress (PtyxisTab *self)
     }
 
   return PTYXIS_TAB_PROGRESS_INDETERMINATE;
+}
+
+gboolean
+ptyxis_tab_get_loading (PtyxisTab *self)
+{
+  gint64 state;
+
+  g_return_val_if_fail (PTYXIS_IS_TAB (self), FALSE);
+
+  if (!vte_terminal_get_termprop_int_by_id (VTE_TERMINAL (self->terminal),
+                                            VTE_PROPERTY_ID_PROGRESS_HINT,
+                                            &state))
+    return FALSE;
+
+  return state == VTE_PROGRESS_HINT_INDETERMINATE;
 }
 
 double
