@@ -25,10 +25,6 @@
 
 #include <cairo.h>
 
-#ifdef __linux__
-# include <libportal/portal.h>
-# include <libportal-gtk4/portal-gtk4.h>
-#endif
 
 #include "ptyxis-agent-ipc.h"
 #include "ptyxis-application.h"
@@ -120,10 +116,6 @@ static void ptyxis_tab_profile_signals_bind_cb (PtyxisTab     *self,
                                                 GSignalGroup  *group);
 
 G_DEFINE_FINAL_TYPE (PtyxisTab, ptyxis_tab, GTK_TYPE_WIDGET)
-
-#ifdef __linux__
-static XdpPortal *portal;
-#endif
 
 static GParamSpec *properties[N_PROPS];
 static guint signals[N_SIGNALS];
@@ -2201,7 +2193,6 @@ ptyxis_tab_get_command_line (PtyxisTab *self)
   return self->command_line;
 }
 
-#ifdef __linux__
 static void
 ptyxis_tab_toast (PtyxisTab  *self,
                   int         timeout,
@@ -2228,13 +2219,16 @@ ptyxis_tab_open_uri_cb (GObject      *object,
   g_autoptr(PtyxisTab) self = user_data;
   g_autoptr(GError) error = NULL;
 
-  g_assert (XDP_IS_PORTAL (object));
+  g_assert (GTK_IS_URI_LAUNCHER (object));
   g_assert (G_IS_ASYNC_RESULT (result));
   g_assert (PTYXIS_IS_TAB (self));
 
-  if (!xdp_portal_open_uri_finish (XDP_PORTAL (object), result, &error) &&
+  if (!gtk_uri_launcher_launch_finish (GTK_URI_LAUNCHER (object), result, &error) &&
       !g_error_matches (error, G_IO_ERROR, G_IO_ERROR_CANCELLED))
-    ptyxis_tab_toast (self, 3, _("Failed to open link"));
+    {
+      g_warning ("Failed to open link: %s", error->message);
+      ptyxis_tab_toast (self, 3, _("Failed to open link"));
+    }
 }
 
 void
@@ -2243,7 +2237,7 @@ ptyxis_tab_open_uri (PtyxisTab  *self,
 {
   g_autofree char *translated = NULL;
   GtkWindow *window;
-  XdpParent *parent;
+  g_autoptr(GtkUriLauncher) launcher = NULL;
 
   g_return_if_fail (PTYXIS_IS_TAB (self));
   g_return_if_fail (uri != NULL);
@@ -2293,29 +2287,13 @@ ptyxis_tab_open_uri (PtyxisTab  *self,
       uri = translated = g_strconcat ("mailto:", uri, NULL);
     }
 
-  if (portal == NULL)
-    portal = xdp_portal_new ();
-
-  parent = xdp_parent_new_gtk (window);
-  xdp_portal_open_uri (portal,
-                       parent,
-                       uri,
-                       XDP_OPEN_URI_FLAG_NONE,
-                       NULL,
-                       ptyxis_tab_open_uri_cb,
-                       g_object_ref (self));
-  xdp_parent_free (parent);
+  launcher = gtk_uri_launcher_new (uri);
+  gtk_uri_launcher_launch (launcher,
+                           window,
+                           NULL,
+                           ptyxis_tab_open_uri_cb,
+                           g_object_ref (self));
 }
-#else
-void
-ptyxis_tab_open_uri (PtyxisTab  *self,
-                     const char *uri)
-{
-  G_GNUC_BEGIN_IGNORE_DEPRECATIONS
-  gtk_show_uri (GTK_WINDOW (gtk_widget_get_root (GTK_WIDGET (self))), uri, 0);
-  G_GNUC_END_IGNORE_DEPRECATIONS
-}
-#endif
 
 char *
 ptyxis_tab_query_working_directory_from_agent (PtyxisTab *self)
