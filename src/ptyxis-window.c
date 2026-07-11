@@ -451,6 +451,8 @@ bind_title_cb (GBinding     *binding,
   return TRUE;
 }
 
+static void ptyxis_window_apply_tab_colors (PtyxisWindow *self);
+
 static void
 ptyxis_window_notify_selected_page_cb (PtyxisWindow *self,
                                        GParamSpec   *pspec,
@@ -525,6 +527,11 @@ ptyxis_window_notify_selected_page_cb (PtyxisWindow *self,
   g_object_notify_by_pspec (G_OBJECT (self), properties[PROP_ACTIVE_TAB]);
 
   ptyxis_fullscreen_box_reveal (self->fullscreen_box);
+
+  ptyxis_window_apply_tab_colors (self);
+
+  gtk_widget_action_set_enabled (GTK_WIDGET (self), "win.clear-tab-color",
+                                 tab != NULL && ptyxis_tab_get_tab_color (tab) != NULL);
 }
 
 static void
@@ -1234,6 +1241,62 @@ ptyxis_window_set_profile_action (GtkWidget  *widget,
 
   adw_dialog_set_presentation_mode (dialog, ADW_DIALOG_FLOATING);
   adw_dialog_present (ADW_DIALOG (dialog), GTK_WIDGET (self));
+}
+
+static void
+ptyxis_window_tab_color_chosen_cb (GObject      *source_object,
+                                   GAsyncResult *result,
+                                   gpointer      user_data)
+{
+  GtkColorDialog *dialog = GTK_COLOR_DIALOG (source_object);
+  g_autoptr(PtyxisTab) tab = user_data;
+  g_autoptr(GdkRGBA) rgba = NULL;
+  g_autoptr(GError) error = NULL;
+
+  rgba = gtk_color_dialog_choose_rgba_finish (dialog, result, &error);
+  if (rgba != NULL)
+    ptyxis_tab_set_tab_color (tab, rgba);
+}
+
+static void
+ptyxis_window_set_tab_color_action (GtkWidget  *widget,
+                                    const char *action_name,
+                                    GVariant   *param)
+{
+  PtyxisWindow *self = (PtyxisWindow *)widget;
+  g_autoptr(GtkColorDialog) dialog = NULL;
+  PtyxisTab *active_tab;
+
+  g_assert (PTYXIS_IS_WINDOW (self));
+
+  if (!(active_tab = ptyxis_window_get_active_tab (self)))
+    return;
+
+  dialog = gtk_color_dialog_new ();
+  gtk_color_dialog_set_with_alpha (dialog, FALSE);
+
+  gtk_color_dialog_choose_rgba (dialog,
+                                GTK_WINDOW (self),
+                                ptyxis_tab_get_tab_color (active_tab),
+                                NULL,
+                                ptyxis_window_tab_color_chosen_cb,
+                                g_object_ref (active_tab));
+}
+
+static void
+ptyxis_window_clear_tab_color_action (GtkWidget  *widget,
+                                      const char *action_name,
+                                      GVariant   *param)
+{
+  PtyxisWindow *self = (PtyxisWindow *)widget;
+  PtyxisTab *active_tab;
+
+  g_assert (PTYXIS_IS_WINDOW (self));
+
+  if (!(active_tab = ptyxis_window_get_active_tab (self)))
+    return;
+
+  ptyxis_tab_set_tab_color (active_tab, NULL);
 }
 
 static void
@@ -2115,6 +2178,8 @@ ptyxis_window_class_init (PtyxisWindowClass *klass)
   gtk_widget_class_install_action (widget_class, "page.next", NULL, ptyxis_window_page_next_action);
   gtk_widget_class_install_action (widget_class, "page.previous", NULL, ptyxis_window_page_previous_action);
   gtk_widget_class_install_action (widget_class, "win.set-title", NULL, ptyxis_window_set_title_action);
+  gtk_widget_class_install_action (widget_class, "win.set-tab-color", NULL, ptyxis_window_set_tab_color_action);
+  gtk_widget_class_install_action (widget_class, "win.clear-tab-color", NULL, ptyxis_window_clear_tab_color_action);
   gtk_widget_class_install_action (widget_class, "win.set-profile", NULL, ptyxis_window_set_profile_action);
   gtk_widget_class_install_action (widget_class, "win.search", NULL, ptyxis_window_search_action);
   gtk_widget_class_install_action (widget_class, "win.undo-close-tab", NULL, ptyxis_window_undo_close_tab_action);
@@ -2313,11 +2378,129 @@ ptyxis_window_new_for_profile_and_command (PtyxisProfile      *profile,
   return self;
 }
 
+/* Walk AdwTabBar's internal widget tree looking for the button that owns @page.
+ * libadwaita's internal AdwTabButton has a GObject "page" property. */
+static GtkWidget *
+find_tab_button_for_page (GtkWidget  *widget,
+                          AdwTabPage *target_page)
+{
+  GParamSpec *pspec;
+  GtkWidget *child;
+
+  pspec = g_object_class_find_property (G_OBJECT_GET_CLASS (widget), "page");
+  if (pspec != NULL && g_type_is_a (G_PARAM_SPEC_VALUE_TYPE (pspec), ADW_TYPE_TAB_PAGE))
+    {
+      g_autoptr(AdwTabPage) page = NULL;
+      g_object_get (widget, "page", &page, NULL);
+      if (page == target_page)
+        return widget;
+    }
+
+  for (child = gtk_widget_get_first_child (widget);
+       child != NULL;
+       child = gtk_widget_get_next_sibling (child))
+    {
+      GtkWidget *result = find_tab_button_for_page (child, target_page);
+      if (result != NULL)
+        return result;
+    }
+
+  return NULL;
+}
+
+static void
+apply_tab_button_color (GtkWidget     *tab_button,
+                        const GdkRGBA *color,
+                        gboolean       is_selected)
+{
+  GtkCssProvider *provider;
+
+  provider = g_object_get_data (G_OBJECT (tab_button), "ptyxis-color-provider");
+
+  if (provider == NULL)
+    return;
+
+  if (color != NULL)
+    {
+      double luminance = 0.299 * color->red + 0.587 * color->green + 0.114 * color->blue;
+      /* Pull very light colors toward gray so they remain visible against a light theme */
+      double scale = luminance > 0.85 ? 0.75 : 1.0;
+      int r = (int)(color->red   * 255 * scale);
+      int g = (int)(color->green * 255 * scale);
+      int b = (int)(color->blue  * 255 * scale);
+      char *css;
+
+      if (is_selected)
+        {
+          const char *text_color = luminance < 0.5 ? "white" : "black";
+          css = g_strdup_printf ("tab { background-color: rgba(%d,%d,%d,0.75);"
+                                 "      color: %s;"
+                                 "      box-shadow: inset 0 0 0 2px rgba(%d,%d,%d,1.0); }",
+                                 r, g, b, text_color, r, g, b);
+        }
+      else
+        {
+          css = g_strdup_printf ("tab { background-color: rgba(%d,%d,%d,0.20); }",
+                                 r, g, b);
+        }
+
+      gtk_css_provider_load_from_string (provider, css);
+      g_free (css);
+    }
+  else
+    {
+      gtk_css_provider_load_from_string (provider, "");
+    }
+}
+
+static void
+ptyxis_window_apply_tab_colors (PtyxisWindow *self)
+{
+  AdwTabPage *selected_page;
+  guint n_pages;
+
+  g_assert (PTYXIS_IS_WINDOW (self));
+
+  if (self->tab_bar == NULL || self->tab_view == NULL)
+    return;
+
+  selected_page = adw_tab_view_get_selected_page (self->tab_view);
+  n_pages = adw_tab_view_get_n_pages (self->tab_view);
+
+  for (guint i = 0; i < n_pages; i++)
+    {
+      AdwTabPage *page = adw_tab_view_get_nth_page (self->tab_view, i);
+      PtyxisTab *tab = PTYXIS_TAB (adw_tab_page_get_child (page));
+      const GdkRGBA *color = ptyxis_tab_get_tab_color (tab);
+      GtkWidget *button = find_tab_button_for_page (GTK_WIDGET (self->tab_bar), page);
+
+      if (button != NULL)
+        apply_tab_button_color (button, color, page == selected_page);
+    }
+}
+
+static void
+ptyxis_window_tab_color_changed_cb (PtyxisTab    *tab,
+                                    GParamSpec   *pspec,
+                                    PtyxisWindow *self)
+{
+  g_assert (PTYXIS_IS_TAB (tab));
+  g_assert (PTYXIS_IS_WINDOW (self));
+
+  ptyxis_window_apply_tab_colors (self);
+
+  if (ptyxis_window_get_active_tab (self) == tab)
+    gtk_widget_action_set_enabled (GTK_WIDGET (self), "win.clear-tab-color",
+                                   ptyxis_tab_get_tab_color (tab) != NULL);
+}
+
 static void
 ptyxis_window_setup_page (PtyxisWindow *self,
                           PtyxisTab    *tab,
                           AdwTabPage   *page)
 {
+  GtkWidget *button;
+
   g_assert (PTYXIS_IS_WINDOW (self));
   g_assert (PTYXIS_IS_TAB (tab));
   g_assert (ADW_IS_TAB_PAGE (page));
@@ -2325,6 +2508,25 @@ ptyxis_window_setup_page (PtyxisWindow *self,
   g_object_bind_property (tab, "title", page, "title", G_BINDING_SYNC_CREATE);
   g_object_bind_property (tab, "icon", page, "icon", G_BINDING_SYNC_CREATE);
   g_object_bind_property (tab, "indicator-icon", page, "indicator-icon", G_BINDING_SYNC_CREATE);
+
+  /* Pre-attach an empty CSS provider now so later color updates only call
+   * gtk_css_provider_load_from_string(), avoiding a first-use layout shift. */
+  button = find_tab_button_for_page (GTK_WIDGET (self->tab_bar), page);
+  if (button != NULL)
+    {
+      GtkCssProvider *provider = gtk_css_provider_new ();
+      g_object_set_data_full (G_OBJECT (button), "ptyxis-color-provider",
+                              provider, g_object_unref);
+      G_GNUC_BEGIN_IGNORE_DEPRECATIONS
+      gtk_style_context_add_provider (gtk_widget_get_style_context (button),
+                                      GTK_STYLE_PROVIDER (provider),
+                                      GTK_STYLE_PROVIDER_PRIORITY_APPLICATION);
+      G_GNUC_END_IGNORE_DEPRECATIONS
+    }
+
+  g_signal_connect_object (tab, "notify::tab-color",
+                           G_CALLBACK (ptyxis_window_tab_color_changed_cb),
+                           self, 0);
 }
 
 void

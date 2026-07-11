@@ -143,5 +143,8 @@ void                ptyxis_tab_open_uri                           (PtyxisTab    
                                                                    const char           *uri);
 char               *ptyxis_tab_query_working_directory_from_agent (PtyxisTab            *self);
 void                ptyxis_tab_grab_focus                         (PtyxisTab            *self);
+const GdkRGBA      *ptyxis_tab_get_tab_color                      (PtyxisTab            *self);
+void                ptyxis_tab_set_tab_color                      (PtyxisTab            *self,
+                                                                   const GdkRGBA        *color);
 
 G_END_DECLS

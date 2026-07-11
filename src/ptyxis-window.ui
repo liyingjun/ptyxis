@@ -846,6 +846,17 @@
         <attribute name="label" translatable="yes">Set Title</attribute>
         <attribute name="action">win.set-title</attribute>
       </item>
+      <item>
+        <attribute name="id">set-tab-color</attribute>
+        <attribute name="label" translatable="yes">Set Tab Color</attribute>
+        <attribute name="action">win.set-tab-color</attribute>
+      </item>
+      <item>
+        <attribute name="id">clear-tab-color</attribute>
+        <attribute name="label" translatable="yes">Clear Tab Color</attribute>
+        <attribute name="action">win.clear-tab-color</attribute>
+        <attribute name="hidden-when">action-disabled</attribute>
+      </item>
     </section>
     <section>
       <item>
