@@ -874,6 +874,14 @@ ptyxis_application_client_process_exited_cb (PtyxisApplication *self,
                          GINT_TO_POINTER (exit_code));
 }
 
+/* How hard to try to reach ptyxis-agent before giving up. Spawning it can
+ * fail transiently while the backend it relies on recovers (for example
+ * rootless podman rebuilding its storage after an unclean shutdown), so we
+ * retry rather than treating the failure as fatal.
+ */
+#define PTYXIS_AGENT_SPAWN_MAX_RETRIES        5
+#define PTYXIS_AGENT_SPAWN_RETRY_INTERVAL_US  G_USEC_PER_SEC
+
 static void
 ptyxis_application_startup (GApplication *application)
 {
@@ -916,11 +924,27 @@ ptyxis_application_startup (GApplication *application)
   else
     timeout_msec = 2000;
 
-  /* Try to spawn ptyxis-agent on the host when possible, wait up to timeout_msec */
-  if (!(self->client = ptyxis_client_new (sandbox_agent, &error)) ||
-      !ptyxis_client_ping (self->client, timeout_msec, &error))
+  /*
+   * ptyxis-agent owns the PTYs and reports when processes exit, so the
+   * terminal cannot operate without it. Spawning it can fail transiently when
+   * the backend it depends on is briefly unavailable (for example rootless
+   * podman still recovering its storage after an unclean shutdown). That is an
+   * environmental condition, not a programming error, so retry a bounded
+   * number of times instead of aborting. If the agent still cannot be reached,
+   * exit cleanly with a logged reason rather than dumping core.
+   */
+  for (guint attempt = 1; ; attempt++)
     {
-      self->client_is_fallback = TRUE;
+      g_clear_error (&error);
+      g_clear_object (&self->client);
+      self->client_is_fallback = FALSE;
+
+      /* Try to spawn ptyxis-agent on the host when possible, wait up to
+       * timeout_msec.
+       */
+      if ((self->client = ptyxis_client_new (sandbox_agent, &error)) &&
+          ptyxis_client_ping (self->client, timeout_msec, &error))
+        break;
 
       /* Try again, but launching inside our own Flatpak namespace. This
        * can happen when the host system does not have glibc. We may not
@@ -932,10 +956,25 @@ ptyxis_application_startup (GApplication *application)
 
       g_clear_object (&self->client);
       g_clear_error (&error);
+      self->client_is_fallback = TRUE;
 
-      if (!(self->client = ptyxis_client_new (TRUE, &error)) ||
-          !ptyxis_client_ping (self->client, G_MAXINT, &error))
-        g_error ("Failed to spawn ptyxis-agent in sandbox: %s", error->message);
+      if ((self->client = ptyxis_client_new (TRUE, &error)) &&
+          ptyxis_client_ping (self->client, G_MAXINT, &error))
+        break;
+
+      if (attempt >= PTYXIS_AGENT_SPAWN_MAX_RETRIES)
+        {
+          g_critical ("Failed to spawn ptyxis-agent after %u attempts: %s",
+                      attempt, error->message);
+          /*
+           * Without the agent nothing can run in the terminal. Exit cleanly
+           * instead of aborting; a user-facing "agent unavailable" view would
+           * be a nicer long-term fix (see the TODO in ptyxis-client.c).
+           */
+          exit (EXIT_FAILURE);
+        }
+
+      g_usleep (PTYXIS_AGENT_SPAWN_RETRY_INTERVAL_US);
     }
 
   g_debug ("Connected to ptyxis-agent");
