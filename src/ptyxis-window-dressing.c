@@ -125,8 +125,9 @@ ptyxis_window_dressing_update (PtyxisWindowDressing *self)
                               "window.%s .window-contents popover > arrow { background-color: alpha(%s, %s); }\n",
                               self->css_class, titlebar_bg, popover_alpha_str);
       g_string_append_printf (string,
-                              "window.%s .window-contents vte-terminal > revealer.size label { color: %s; background-color: %s; }\n",
-                              self->css_class, titlebar_fg, revealer_bg);
+                              "window.%s .window-contents vte-terminal > revealer.size label,"
+                              "window.%s .window-contents vte-terminal > revealer.hover-uri label { color: %s; background-color: %s; }\n",
+                              self->css_class, self->css_class, titlebar_fg, revealer_bg);
       /* It would be super if we could make these match the color of the
        * actual tab contents rather than the active tab profile.
        */

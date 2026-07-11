@@ -22,7 +22,8 @@ vte-terminal:drop(active) { border-radius: 0 0 11px 11px; }
 window.maximized vte-terminal:drop(active),
 window.tiled-bottom vte-terminal:drop(active) { border-radius: 0; }
 
-vte-terminal revealer.size label
+vte-terminal revealer.size label,
+vte-terminal revealer.hover-uri label
 {
   padding: 3px 12px;
   border-radius: 8px;
