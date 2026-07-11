@@ -907,6 +907,18 @@ ptyxis_application_startup (GApplication *application)
 
       if (variant != NULL)
         self->session = g_variant_take_ref (g_steal_pointer (&variant));
+
+      if (self->session)
+        {
+          const char *session_id;
+
+          if (!g_variant_lookup (self->session, "session-id", "s", &session_id))
+            session_id = NULL;
+
+          if (session_id)
+            gtk_application_set_session_id (GTK_APPLICATION (application),
+                                            session_id);
+        }
     }
 
   G_APPLICATION_CLASS (ptyxis_application_parent_class)->startup (application);

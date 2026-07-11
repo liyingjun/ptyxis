@@ -33,11 +33,17 @@ ptyxis_session_save (PtyxisApplication *app)
   PtyxisSettings *settings;
   GVariantBuilder builder;
   gboolean restore_session;
+  const char *session_id;
 
   g_return_val_if_fail (PTYXIS_IS_APPLICATION (app), NULL);
 
   g_variant_builder_init (&builder, G_VARIANT_TYPE ("a{sv}"));
   g_variant_builder_add_parsed (&builder, "{'version', <%u>}", 1);
+
+  session_id = gtk_application_get_current_session_id (GTK_APPLICATION (app));
+  if (session_id)
+    g_variant_builder_add_parsed (&builder, "{'session-id', <%s>}", session_id);
+
   g_variant_builder_open (&builder, G_VARIANT_TYPE ("{sv}"));
   g_variant_builder_add (&builder, "s", "windows");
   g_variant_builder_open (&builder, G_VARIANT_TYPE ("v"));
@@ -55,11 +61,16 @@ ptyxis_session_save (PtyxisApplication *app)
           PtyxisWindow *window = PTYXIS_WINDOW (list->data);
           g_autoptr(GListModel) pages = ptyxis_window_list_pages (window);
           guint n_items = g_list_model_get_n_items (pages);
+          const char *window_session_id;
 
           g_variant_builder_open (&builder, G_VARIANT_TYPE ("a{sv}"));
 
           if (gtk_window_is_maximized (GTK_WINDOW (window)))
             g_variant_builder_add_parsed (&builder, "{'maximized', <%b>}", TRUE);
+
+          window_session_id = gtk_window_get_session_id (GTK_WINDOW (window));
+          if (window_session_id)
+            g_variant_builder_add_parsed (&builder, "{'session-id', <%s>}", window_session_id);
 
           g_variant_builder_open (&builder, G_VARIANT_TYPE ("{sv}"));
           g_variant_builder_add (&builder, "s", "tabs");
@@ -187,6 +198,7 @@ ptyxis_session_restore (PtyxisApplication *app,
       PtyxisWindow *the_window = NULL;
       PtyxisTab *active_tab = NULL;
       GVariantIter tab_iter;
+      const char *window_session_id;
       gboolean maximized;
 
       if (!(tabs = g_variant_lookup_value (window, "tabs", G_VARIANT_TYPE ("aa{sv}"))) ||
@@ -195,6 +207,9 @@ ptyxis_session_restore (PtyxisApplication *app,
 
       if (!g_variant_lookup (window, "maximized", "b", &maximized))
         maximized = FALSE;
+
+      if (!g_variant_lookup (window, "session-id", "&s", &window_session_id))
+        window_session_id = NULL;
 
       g_variant_iter_init (&tab_iter, tabs);
       while (g_variant_iter_loop (&tab_iter, "@a{sv}", &tab))
@@ -251,7 +266,11 @@ ptyxis_session_restore (PtyxisApplication *app,
             the_profile = ptyxis_application_dup_default_profile (app);
 
           if (the_window == NULL)
-            the_window = ptyxis_window_new_empty ();
+            {
+              the_window = ptyxis_window_new_empty ();
+              if (window_session_id)
+                gtk_window_set_session_id (GTK_WINDOW (the_window), window_session_id);
+            }
 
           the_tab = ptyxis_tab_new (the_profile);
 

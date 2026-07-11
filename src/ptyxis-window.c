@@ -1177,6 +1177,14 @@ ptyxis_window_realize (GtkWidget *widget)
                            G_CALLBACK (ptyxis_window_toplevel_state_changed_cb),
                            self,
                            G_CONNECT_SWAPPED);
+
+  if (!gtk_window_get_session_id (GTK_WINDOW (widget)))
+    {
+      g_autofree char *uuid = NULL;
+
+      uuid = g_uuid_string_random ();
+      gtk_window_set_session_id (GTK_WINDOW (widget), uuid);
+    }
 }
 
 static void
