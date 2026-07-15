@@ -1024,6 +1024,112 @@ ptyxis_window_tab_reset_action (GtkWidget  *widget,
 }
 
 static void
+ptyxis_window_split_horizontal_action (GtkWidget  *widget,
+                                       const char *action_name,
+                                       GVariant   *param)
+{
+  PtyxisWindow *self = (PtyxisWindow *)widget;
+  PtyxisTab *tab;
+
+  g_assert (PTYXIS_IS_WINDOW (self));
+
+  if (!(tab = ptyxis_window_get_active_tab (self)))
+    return;
+
+  ptyxis_tab_split (tab, GTK_ORIENTATION_HORIZONTAL);
+}
+
+static void
+ptyxis_window_split_vertical_action (GtkWidget  *widget,
+                                     const char *action_name,
+                                     GVariant   *param)
+{
+  PtyxisWindow *self = (PtyxisWindow *)widget;
+  PtyxisTab *tab;
+
+  g_assert (PTYXIS_IS_WINDOW (self));
+
+  if (!(tab = ptyxis_window_get_active_tab (self)))
+    return;
+
+  ptyxis_tab_split (tab, GTK_ORIENTATION_VERTICAL);
+}
+
+static gboolean
+ptyxis_window_close_pane_idle_cb (gpointer data)
+{
+  g_autoptr(PtyxisTab) tab = data;
+
+  /* If there are multiple panes, close the active one. When only the
+   * primary pane remains, fall through to closing the entire tab.
+   */
+  if (ptyxis_tab_close_pane (tab))
+    return G_SOURCE_REMOVE;
+
+  gtk_widget_activate_action (GTK_WIDGET (tab), "page.close", NULL);
+
+  return G_SOURCE_REMOVE;
+}
+
+static void
+ptyxis_window_close_pane_action (GtkWidget  *widget,
+                                 const char *action_name,
+                                 GVariant   *param)
+{
+  PtyxisWindow *self = (PtyxisWindow *)widget;
+  PtyxisTab *tab;
+
+  g_assert (PTYXIS_IS_WINDOW (self));
+
+  if (!(tab = ptyxis_window_get_active_tab (self)))
+    return;
+
+  /* Defer the actual close to an idle callback so that we don't destroy
+   * the focused terminal widget while it is still processing the key
+   * event that triggered this shortcut. Destroying a widget in the
+   * middle of its event handling can cause the event to propagate to
+   * the tab or window, inadvertently closing the entire tab/window.
+   */
+  g_idle_add_full (G_PRIORITY_HIGH_IDLE,
+                   ptyxis_window_close_pane_idle_cb,
+                   g_object_ref (tab),
+                   g_object_unref);
+}
+
+static void
+ptyxis_window_focus_pane_action (GtkWidget  *widget,
+                                 const char *action_name,
+                                 GVariant   *param)
+{
+  PtyxisWindow *self = (PtyxisWindow *)widget;
+  PtyxisTab *tab;
+  const char *direction_str;
+  GtkDirectionType direction;
+
+  g_assert (PTYXIS_IS_WINDOW (self));
+  g_assert (param != NULL);
+  g_assert (g_variant_is_of_type (param, G_VARIANT_TYPE_STRING));
+
+  if (!(tab = ptyxis_window_get_active_tab (self)))
+    return;
+
+  direction_str = g_variant_get_string (param, NULL);
+
+  if (g_strcmp0 (direction_str, "up") == 0)
+    direction = GTK_DIR_UP;
+  else if (g_strcmp0 (direction_str, "down") == 0)
+    direction = GTK_DIR_DOWN;
+  else if (g_strcmp0 (direction_str, "left") == 0)
+    direction = GTK_DIR_LEFT;
+  else if (g_strcmp0 (direction_str, "right") == 0)
+    direction = GTK_DIR_RIGHT;
+  else
+    return;
+
+  ptyxis_tab_focus_pane (tab, direction);
+}
+
+static void
 ptyxis_window_move_left_action (GtkWidget  *widget,
                                 const char *action_name,
                                 GVariant   *param)
@@ -1471,6 +1577,20 @@ ptyxis_window_notify_zoom_cb (PtyxisWindow *self,
 }
 
 static void
+ptyxis_window_notify_n_panes_cb (PtyxisWindow *self,
+                                 GParamSpec   *pspec,
+                                 PtyxisTab    *tab)
+{
+  g_assert (PTYXIS_IS_WINDOW (self));
+  g_assert (PTYXIS_IS_TAB (tab));
+
+  /* tab.close-pane is always enabled: when multiple panes exist it closes
+   * the active pane; when only one remains it falls back to closing the tab.
+   */
+  gtk_widget_action_set_enabled (GTK_WIDGET (self), "tab.close-pane", TRUE);
+}
+
+static void
 ptyxis_window_active_tab_bind_cb (PtyxisWindow *self,
                                   PtyxisTab    *tab,
                                   GSignalGroup *signals)
@@ -1481,6 +1601,7 @@ ptyxis_window_active_tab_bind_cb (PtyxisWindow *self,
 
   ptyxis_window_notify_process_leader_kind_cb (self, NULL, tab);
   ptyxis_window_notify_zoom_cb (self, NULL, tab);
+  ptyxis_window_notify_n_panes_cb (self, NULL, tab);
 }
 
 static void
@@ -2112,6 +2233,10 @@ ptyxis_window_class_init (PtyxisWindowClass *klass)
   gtk_widget_class_install_action (widget_class, "tab.unpin", NULL, ptyxis_window_tab_unpin_action);
   gtk_widget_class_install_action (widget_class, "tab.reset", "b", ptyxis_window_tab_reset_action);
   gtk_widget_class_install_action (widget_class, "tab.focus", "i", ptyxis_window_tab_focus_action);
+  gtk_widget_class_install_action (widget_class, "tab.split-horizontal", NULL, ptyxis_window_split_horizontal_action);
+  gtk_widget_class_install_action (widget_class, "tab.split-vertical", NULL, ptyxis_window_split_vertical_action);
+  gtk_widget_class_install_action (widget_class, "tab.close-pane", NULL, ptyxis_window_close_pane_action);
+  gtk_widget_class_install_action (widget_class, "tab.focus-pane", "s", ptyxis_window_focus_pane_action);
   gtk_widget_class_install_action (widget_class, "page.next", NULL, ptyxis_window_page_next_action);
   gtk_widget_class_install_action (widget_class, "page.previous", NULL, ptyxis_window_page_previous_action);
   gtk_widget_class_install_action (widget_class, "win.set-title", NULL, ptyxis_window_set_title_action);
@@ -2174,6 +2299,11 @@ ptyxis_window_init (PtyxisWindow *self)
   g_signal_group_connect_object (self->active_tab_signals,
                                  "notify::zoom",
                                  G_CALLBACK (ptyxis_window_notify_zoom_cb),
+                                 self,
+                                 G_CONNECT_SWAPPED);
+  g_signal_group_connect_object (self->active_tab_signals,
+                                 "notify::n-panes",
+                                 G_CALLBACK (ptyxis_window_notify_n_panes_cb),
                                  self,
                                  G_CONNECT_SWAPPED);
 

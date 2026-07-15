@@ -17,6 +17,33 @@ vte-terminal.padded {
   padding: 7px 6px 3px 6px;
 }
 
+/* Terminal pane splits */
+ptyxistab paned.ptyxis-split {
+  background: transparent;
+}
+
+ptyxistab paned.ptyxis-split > separator {
+  min-width: 6px;
+  min-height: 6px;
+  background: color-mix(in srgb, var(--border-color, @borders) 60%, transparent);
+}
+
+/* Dim non-focused panes so the active pane stands out */
+ptyxistab box.ptyxis-pane-inactive {
+  opacity: .66;
+}
+ptyxistab box.ptyxis-pane-active {
+  opacity: 1;
+}
+
+ptyxistab.ptyxis-pane-focused {
+  /* Focus ring is handled on the active terminal */
+}
+
+ptyxistab vte-terminal:focus-within {
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent-bg-color) 45%, transparent);
+}
+
 vte-terminal:drop(active) { border-radius: 0 0 11px 11px; }
 
 window.maximized vte-terminal:drop(active),

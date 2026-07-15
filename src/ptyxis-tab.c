@@ -50,6 +50,35 @@ typedef enum _PtyxisTabState
   PTYXIS_TAB_STATE_FAILED,
 } PtyxisTabState;
 
+typedef struct _PtyxisTabPane PtyxisTabPane;
+
+struct _PtyxisTabPane
+{
+  PtyxisTab               *tab;
+  GtkWidget               *box;
+  AdwBanner               *banner;
+  GtkScrolledWindow       *scrolled_window;
+  PtyxisTerminal          *terminal;
+
+  PtyxisIpcProcess        *process;
+  GCancellable            *cancellable;
+  char                    *command_line;
+  char                    *program_name;
+  char                    *initial_working_directory_uri;
+  char                    *previous_working_directory_uri;
+  PtyxisIpcContainer      *container_at_creation;
+  char                   **command;
+
+  PtyxisTabState           state;
+  GPid                     pid;
+  gint64                   respawn_time;
+
+  PtyxisProcessLeaderKind  leader_kind : 3;
+  guint                    has_foreground_process : 1;
+  guint                    forced_exit : 1;
+  guint                    is_primary : 1;
+};
+
 struct _PtyxisTab
 {
   GtkWidget                parent_instance;
@@ -65,6 +94,7 @@ struct _PtyxisTab
   char                   **command;
   char                    *initial_title;
   GdkTexture              *cached_texture;
+  GtkBox                  *content_box;
   AdwBanner               *banner;
   GtkScrolledWindow       *scrolled_window;
   PtyxisTerminal          *terminal;
@@ -72,6 +102,9 @@ struct _PtyxisTab
   char                    *program_name;
   PtyxisTabNotify          notify;
   GSignalGroup            *profile_signals;
+
+  GPtrArray               *panes;
+  PtyxisTabPane           *active_pane;
 
   PtyxisTabState           state;
   GPid                     pid;
@@ -105,6 +138,7 @@ enum {
   PROP_UUID,
   PROP_ZOOM,
   PROP_ZOOM_LABEL,
+  PROP_N_PANES,
   N_PROPS
 };
 
@@ -118,6 +152,22 @@ static void ptyxis_tab_respawn (PtyxisTab *self);
 static void ptyxis_tab_profile_signals_bind_cb (PtyxisTab     *self,
                                                 PtyxisProfile *profile,
                                                 GSignalGroup  *group);
+static void ptyxis_tab_pane_free (gpointer data);
+static void ptyxis_tab_sync_active_pane (PtyxisTab     *self,
+                                         PtyxisTabPane *pane);
+static void ptyxis_tab_pane_respawn (PtyxisTabPane *pane);
+static void ptyxis_tab_bind_terminal_settings (PtyxisTab      *self,
+                                               PtyxisTerminal *terminal);
+static void ptyxis_tab_apply_zoom_to_terminal (PtyxisTab      *self,
+                                               PtyxisTerminal *terminal);
+static gboolean ptyxis_tab_close_pane_widget (PtyxisTab     *self,
+                                              PtyxisTabPane *pane);
+static void ptyxis_tab_pane_apply_scrollbar_policy (PtyxisTabPane *pane);
+static void ptyxis_tab_pane_send_signal (PtyxisTabPane *pane,
+                                         int            signum);
+static void ptyxis_tab_pane_focus_enter_cb (PtyxisTabPane           *pane,
+                                           GParamSpec              *pspec,
+                                           GtkEventControllerFocus *focus);
 
 G_DEFINE_FINAL_TYPE (PtyxisTab, ptyxis_tab, GTK_TYPE_WIDGET)
 
@@ -265,7 +315,20 @@ ptyxis_tab_update_scrollback_lines (PtyxisTab *self)
   if (ptyxis_profile_get_limit_scrollback (self->profile))
     scrollback_lines = ptyxis_profile_get_scrollback_lines (self->profile);
 
-  vte_terminal_set_scrollback_lines (VTE_TERMINAL (self->terminal), scrollback_lines);
+  if (self->panes != NULL)
+    {
+      for (guint i = 0; i < self->panes->len; i++)
+        {
+          PtyxisTabPane *pane = g_ptr_array_index (self->panes, i);
+
+          if (pane->terminal != NULL)
+            vte_terminal_set_scrollback_lines (VTE_TERMINAL (pane->terminal), scrollback_lines);
+        }
+    }
+  else if (self->terminal != NULL)
+    {
+      vte_terminal_set_scrollback_lines (VTE_TERMINAL (self->terminal), scrollback_lines);
+    }
 }
 
 static void
@@ -278,7 +341,20 @@ ptyxis_tab_update_cell_height_scale (PtyxisTab *self)
   if (ptyxis_profile_get_cell_height_scale (self->profile))
     cell_height_scale = ptyxis_profile_get_cell_height_scale (self->profile);
 
-  vte_terminal_set_cell_height_scale (VTE_TERMINAL (self->terminal), cell_height_scale);
+  if (self->panes != NULL)
+    {
+      for (guint i = 0; i < self->panes->len; i++)
+        {
+          PtyxisTabPane *pane = g_ptr_array_index (self->panes, i);
+
+          if (pane->terminal != NULL)
+            vte_terminal_set_cell_height_scale (VTE_TERMINAL (pane->terminal), cell_height_scale);
+        }
+    }
+  else if (self->terminal != NULL)
+    {
+      vte_terminal_set_cell_height_scale (VTE_TERMINAL (self->terminal), cell_height_scale);
+    }
 }
 
 static void
@@ -291,7 +367,20 @@ ptyxis_tab_update_cell_width_scale (PtyxisTab *self)
   if (ptyxis_profile_get_cell_width_scale (self->profile))
     cell_width_scale = ptyxis_profile_get_cell_width_scale (self->profile);
 
-  vte_terminal_set_cell_width_scale (VTE_TERMINAL (self->terminal), cell_width_scale);
+  if (self->panes != NULL)
+    {
+      for (guint i = 0; i < self->panes->len; i++)
+        {
+          PtyxisTabPane *pane = g_ptr_array_index (self->panes, i);
+
+          if (pane->terminal != NULL)
+            vte_terminal_set_cell_width_scale (VTE_TERMINAL (pane->terminal), cell_width_scale);
+        }
+    }
+  else if (self->terminal != NULL)
+    {
+      vte_terminal_set_cell_width_scale (VTE_TERMINAL (self->terminal), cell_width_scale);
+    }
 }
 
 static void
@@ -302,7 +391,21 @@ ptyxis_tab_update_custom_links (PtyxisTab *self)
   g_assert (PTYXIS_IS_TAB (self));
 
   custom_links_list = ptyxis_profile_list_custom_links(self->profile);
-  ptyxis_terminal_update_custom_links_list(self->terminal, custom_links_list);
+
+  if (self->panes != NULL)
+    {
+      for (guint i = 0; i < self->panes->len; i++)
+        {
+          PtyxisTabPane *pane = g_ptr_array_index (self->panes, i);
+
+          if (pane->terminal != NULL)
+            ptyxis_terminal_update_custom_links_list(pane->terminal, custom_links_list);
+        }
+    }
+  else if (self->terminal != NULL)
+    {
+      ptyxis_terminal_update_custom_links_list(self->terminal, custom_links_list);
+    }
 }
 
 static void
@@ -385,6 +488,14 @@ ptyxis_tab_wait_cb (GObject      *object,
 
   g_clear_object (&self->process);
 
+  if (self->panes != NULL && self->panes->len > 0)
+    {
+      PtyxisTabPane *primary = g_ptr_array_index (self->panes, 0);
+
+      if (primary->is_primary)
+        g_clear_object (&primary->process);
+    }
+
   /* Update inhibit state when process exits */
   ptyxis_tab_update_inhibit (self);
 
@@ -398,6 +509,14 @@ ptyxis_tab_wait_cb (GObject      *object,
     self->state = PTYXIS_TAB_STATE_EXITED;
   else
     self->state = PTYXIS_TAB_STATE_FAILED;
+
+  if (self->panes != NULL && self->panes->len > 0)
+    {
+      PtyxisTabPane *primary = g_ptr_array_index (self->panes, 0);
+
+      if (primary->is_primary)
+        primary->state = self->state;
+    }
 
   if (self->forced_exit)
     return;
@@ -514,6 +633,24 @@ ptyxis_tab_spawn_cb (GObject      *object,
 
   g_set_object (&self->process, process);
 
+  if (self->active_pane != NULL && self->active_pane->is_primary)
+    {
+      self->active_pane->state = self->state;
+      self->active_pane->respawn_time = self->respawn_time;
+      g_set_object (&self->active_pane->process, process);
+    }
+  else if (self->panes != NULL && self->panes->len > 0)
+    {
+      PtyxisTabPane *primary = g_ptr_array_index (self->panes, 0);
+
+      if (primary->is_primary)
+        {
+          primary->state = self->state;
+          primary->respawn_time = self->respawn_time;
+          g_set_object (&primary->process, process);
+        }
+    }
+
   g_object_notify_by_pspec (G_OBJECT (self), properties[PROP_ICON]);
 
   ptyxis_application_wait_async (app,
@@ -616,8 +753,19 @@ ptyxis_tab_respawn_action (GtkWidget  *widget,
                            GVariant   *params)
 {
   PtyxisTab *self = (PtyxisTab *)widget;
+  PtyxisTabPane *pane;
 
   g_assert (PTYXIS_IS_TAB (self));
+
+  pane = self->active_pane;
+
+  if (pane != NULL && !pane->is_primary)
+    {
+      if (pane->state == PTYXIS_TAB_STATE_FAILED ||
+          pane->state == PTYXIS_TAB_STATE_EXITED)
+        ptyxis_tab_pane_respawn (pane);
+      return;
+    }
 
   if (self->state == PTYXIS_TAB_STATE_FAILED ||
       self->state == PTYXIS_TAB_STATE_EXITED)
@@ -812,42 +960,24 @@ ptyxis_tab_notify_palette_cb (PtyxisTab      *self,
 static void
 ptyxis_tab_update_scrollbar_policy (PtyxisTab *self)
 {
-  PtyxisSettings *settings;
-  PtyxisScrollbarPolicy policy;
-
   g_assert (PTYXIS_IS_TAB (self));
 
-  settings = ptyxis_application_get_settings (PTYXIS_APPLICATION_DEFAULT);
-  policy = ptyxis_settings_get_scrollbar_policy (settings);
-
-  switch (policy)
+  if (self->panes != NULL)
     {
-    case PTYXIS_SCROLLBAR_POLICY_NEVER:
-      gtk_scrolled_window_set_overlay_scrolling (self->scrolled_window, FALSE);
-      gtk_scrolled_window_set_policy (self->scrolled_window, GTK_POLICY_NEVER, GTK_POLICY_EXTERNAL);
-      break;
-
-    case PTYXIS_SCROLLBAR_POLICY_ALWAYS:
-      gtk_scrolled_window_set_overlay_scrolling (self->scrolled_window, FALSE);
-      gtk_scrolled_window_set_policy (self->scrolled_window, GTK_POLICY_NEVER, GTK_POLICY_ALWAYS);
-      break;
-
-    case PTYXIS_SCROLLBAR_POLICY_SYSTEM:
-      if (ptyxis_application_get_overlay_scrollbars (PTYXIS_APPLICATION_DEFAULT))
+      for (guint i = 0; i < self->panes->len; i++)
         {
-          gtk_scrolled_window_set_overlay_scrolling (self->scrolled_window, TRUE);
-          gtk_scrolled_window_set_policy (self->scrolled_window, GTK_POLICY_NEVER, GTK_POLICY_AUTOMATIC);
-        }
-      else
-        {
-          gtk_scrolled_window_set_overlay_scrolling (self->scrolled_window, FALSE);
-          gtk_scrolled_window_set_policy (self->scrolled_window, GTK_POLICY_NEVER, GTK_POLICY_ALWAYS);
-        }
+          PtyxisTabPane *pane = g_ptr_array_index (self->panes, i);
 
-      break;
+          ptyxis_tab_pane_apply_scrollbar_policy (pane);
+        }
+    }
+  else if (self->scrolled_window != NULL)
+    {
+      PtyxisTabPane fake = {
+        .scrolled_window = self->scrolled_window,
+      };
 
-    default:
-      g_assert_not_reached ();
+      ptyxis_tab_pane_apply_scrollbar_policy (&fake);
     }
 }
 
@@ -859,10 +989,28 @@ ptyxis_tab_update_padding_cb (PtyxisTab      *self,
   g_assert (PTYXIS_IS_TAB (self));
   g_assert (PTYXIS_IS_SETTINGS (settings));
 
-  if (ptyxis_settings_get_disable_padding (settings))
-    gtk_widget_remove_css_class (GTK_WIDGET (self->terminal), "padded");
-  else
-    gtk_widget_add_css_class (GTK_WIDGET (self->terminal), "padded");
+  if (self->panes != NULL)
+    {
+      for (guint i = 0; i < self->panes->len; i++)
+        {
+          PtyxisTabPane *pane = g_ptr_array_index (self->panes, i);
+
+          if (pane->terminal == NULL)
+            continue;
+
+          if (ptyxis_settings_get_disable_padding (settings))
+            gtk_widget_remove_css_class (GTK_WIDGET (pane->terminal), "padded");
+          else
+            gtk_widget_add_css_class (GTK_WIDGET (pane->terminal), "padded");
+        }
+    }
+  else if (self->terminal != NULL)
+    {
+      if (ptyxis_settings_get_disable_padding (settings))
+        gtk_widget_remove_css_class (GTK_WIDGET (self->terminal), "padded");
+      else
+        gtk_widget_add_css_class (GTK_WIDGET (self->terminal), "padded");
+    }
 }
 
 static void
@@ -876,7 +1024,21 @@ ptyxis_tab_update_word_char_exceptions (PtyxisTab      *self,
   g_assert (PTYXIS_IS_SETTINGS (settings));
 
   word_char_exceptions = ptyxis_settings_dup_word_char_exceptions (settings);
-  vte_terminal_set_word_char_exceptions (VTE_TERMINAL (self->terminal), word_char_exceptions);
+
+  if (self->panes != NULL)
+    {
+      for (guint i = 0; i < self->panes->len; i++)
+        {
+          PtyxisTabPane *pane = g_ptr_array_index (self->panes, i);
+
+          if (pane->terminal != NULL)
+            vte_terminal_set_word_char_exceptions (VTE_TERMINAL (pane->terminal), word_char_exceptions);
+        }
+    }
+  else if (self->terminal != NULL)
+    {
+      vte_terminal_set_word_char_exceptions (VTE_TERMINAL (self->terminal), word_char_exceptions);
+    }
 }
 
 static void
@@ -1183,6 +1345,9 @@ ptyxis_tab_dispose (GObject *object)
 
   ptyxis_tab_force_quit (self);
 
+  self->active_pane = NULL;
+  g_clear_pointer (&self->panes, g_ptr_array_unref);
+
   gtk_widget_dispose_template (GTK_WIDGET (self), PTYXIS_TYPE_TAB);
 
   while ((child = gtk_widget_get_first_child (GTK_WIDGET (self))))
@@ -1291,6 +1456,10 @@ ptyxis_tab_get_property (GObject    *object,
 
     case PROP_ZOOM_LABEL:
       g_value_take_string (value, ptyxis_tab_dup_zoom_label (self));
+      break;
+
+    case PROP_N_PANES:
+      g_value_set_uint (value, ptyxis_tab_get_n_panes (self));
       break;
 
     default:
@@ -1449,6 +1618,13 @@ ptyxis_tab_class_init (PtyxisTabClass *klass)
                           G_PARAM_EXPLICIT_NOTIFY |
                           G_PARAM_STATIC_STRINGS));
 
+  properties[PROP_N_PANES] =
+    g_param_spec_uint ("n-panes", NULL, NULL,
+                       1, G_MAXUINT, 1,
+                       (G_PARAM_READABLE |
+                        G_PARAM_EXPLICIT_NOTIFY |
+                        G_PARAM_STATIC_STRINGS));
+
   g_object_class_install_properties (object_class, N_PROPS, properties);
 
   signals[BELL] =
@@ -1475,6 +1651,7 @@ ptyxis_tab_class_init (PtyxisTabClass *klass)
   gtk_widget_class_set_layout_manager_type (widget_class, GTK_TYPE_BIN_LAYOUT);
   gtk_widget_class_set_css_name (widget_class, "ptyxistab");
 
+  gtk_widget_class_bind_template_child (widget_class, PtyxisTab, content_box);
   gtk_widget_class_bind_template_child (widget_class, PtyxisTab, banner);
   gtk_widget_class_bind_template_child (widget_class, PtyxisTab, terminal);
   gtk_widget_class_bind_template_child (widget_class, PtyxisTab, scrolled_window);
@@ -1501,12 +1678,35 @@ static void
 ptyxis_tab_init (PtyxisTab *self)
 {
   GtkEventController *controller;
+  PtyxisTabPane *primary;
 
   self->state = PTYXIS_TAB_STATE_INITIAL;
   self->zoom = PTYXIS_ZOOM_LEVEL_DEFAULT;
   self->uuid = g_uuid_string_random ();
+  self->panes = g_ptr_array_new_with_free_func (ptyxis_tab_pane_free);
 
   gtk_widget_init_template (GTK_WIDGET (self));
+
+  primary = g_new0 (PtyxisTabPane, 1);
+  primary->tab = self;
+  primary->box = GTK_WIDGET (self->content_box);
+  primary->banner = self->banner;
+  primary->scrolled_window = self->scrolled_window;
+  primary->terminal = self->terminal;
+  primary->state = PTYXIS_TAB_STATE_INITIAL;
+  primary->is_primary = TRUE;
+  g_ptr_array_add (self->panes, primary);
+  self->active_pane = primary;
+
+  {
+    GtkEventController *focus = gtk_event_controller_focus_new ();
+
+    g_signal_connect_swapped (focus,
+                              "notify::contains-focus",
+                              G_CALLBACK (ptyxis_tab_pane_focus_enter_cb),
+                              primary);
+    gtk_widget_add_controller (primary->box, focus);
+  }
 
   ptyxis_tab_notify_init (&self->notify, self);
 
@@ -1621,9 +1821,12 @@ ptyxis_tab_set_title_prefix (PtyxisTab  *self,
 char *
 ptyxis_tab_dup_title (PtyxisTab *self)
 {
+  PtyxisTerminal *terminal;
   GString *gstr;
 
   g_return_val_if_fail (PTYXIS_IS_TAB (self), NULL);
+
+  terminal = ptyxis_tab_get_terminal (self);
 
   gstr = g_string_new (self->title_prefix);
 
@@ -1632,7 +1835,7 @@ ptyxis_tab_dup_title (PtyxisTab *self)
       const char *window_title;
 
       G_GNUC_BEGIN_IGNORE_DEPRECATIONS
-        window_title = vte_terminal_get_window_title (VTE_TERMINAL (self->terminal));
+        window_title = vte_terminal_get_window_title (VTE_TERMINAL (terminal));
       G_GNUC_END_IGNORE_DEPRECATIONS
 
       if (window_title && window_title[0])
@@ -1681,14 +1884,17 @@ ptyxis_tab_dup_subtitle (PtyxisTab *self)
 {
   g_autofree char *current_directory_uri = NULL;
   g_autofree char *current_file_uri = NULL;
+  PtyxisTerminal *terminal;
 
   g_return_val_if_fail (PTYXIS_IS_TAB (self), NULL);
 
-  current_file_uri = ptyxis_terminal_dup_current_file_uri (self->terminal);
+  terminal = ptyxis_tab_get_terminal (self);
+
+  current_file_uri = ptyxis_terminal_dup_current_file_uri (terminal);
   if (current_file_uri != NULL && current_file_uri[0] != 0)
     return ptyxis_tab_collapse_uri (current_file_uri);
 
-  current_directory_uri = ptyxis_terminal_dup_current_directory_uri (self->terminal);
+  current_directory_uri = ptyxis_terminal_dup_current_directory_uri (terminal);
   if (current_directory_uri != NULL && current_directory_uri[0] != 0)
     return ptyxis_tab_collapse_uri (current_directory_uri);
 
@@ -1699,6 +1905,9 @@ char *
 ptyxis_tab_dup_current_directory_uri (PtyxisTab *self)
 {
   g_return_val_if_fail (PTYXIS_IS_TAB (self), NULL);
+
+  if (self->active_pane != NULL && self->active_pane->terminal != NULL)
+    return ptyxis_terminal_dup_current_directory_uri (self->active_pane->terminal);
 
   return ptyxis_terminal_dup_current_directory_uri (self->terminal);
 }
@@ -1731,12 +1940,35 @@ ptyxis_tab_set_previous_working_directory_uri (PtyxisTab  *self,
 }
 
 static void
+ptyxis_tab_apply_zoom_to_terminal (PtyxisTab      *self,
+                                   PtyxisTerminal *terminal)
+{
+  g_assert (PTYXIS_IS_TAB (self));
+  g_assert (PTYXIS_IS_TERMINAL (terminal));
+
+  vte_terminal_set_font_scale (VTE_TERMINAL (terminal),
+                               zoom_font_scales[self->zoom]);
+}
+
+static void
 ptyxis_tab_apply_zoom (PtyxisTab *self)
 {
   g_assert (PTYXIS_IS_TAB (self));
 
-  vte_terminal_set_font_scale (VTE_TERMINAL (self->terminal),
-                               zoom_font_scales[self->zoom]);
+  if (self->panes != NULL)
+    {
+      for (guint i = 0; i < self->panes->len; i++)
+        {
+          PtyxisTabPane *pane = g_ptr_array_index (self->panes, i);
+
+          if (pane->terminal != NULL)
+            ptyxis_tab_apply_zoom_to_terminal (self, pane->terminal);
+        }
+    }
+  else if (self->terminal != NULL)
+    {
+      ptyxis_tab_apply_zoom_to_terminal (self, self->terminal);
+    }
 }
 
 PtyxisZoomLevel
@@ -1780,14 +2012,6 @@ ptyxis_tab_zoom_out (PtyxisTab *self)
 
   if (self->zoom > PTYXIS_ZOOM_LEVEL_MINUS_14)
     ptyxis_tab_set_zoom (self, self->zoom - 1);
-}
-
-PtyxisTerminal *
-ptyxis_tab_get_terminal (PtyxisTab *self)
-{
-  g_return_val_if_fail (PTYXIS_IS_TAB (self), NULL);
-
-  return self->terminal;
 }
 
 void
@@ -1868,6 +2092,38 @@ ptyxis_tab_is_running (PtyxisTab  *self,
   if (cmdline != NULL)
     *cmdline = g_strdup (self->command_line);
 
+  if (self->panes != NULL)
+    {
+      for (guint i = 0; i < self->panes->len; i++)
+        {
+          PtyxisTabPane *pane = g_ptr_array_index (self->panes, i);
+
+          if (pane->is_primary)
+            {
+              if (self->has_foreground_process &&
+                  self->program_name != NULL &&
+                  !ptyxis_is_shell (self->program_name))
+                return TRUE;
+            }
+          else if (pane->has_foreground_process &&
+                   pane->program_name != NULL &&
+                   !ptyxis_is_shell (pane->program_name))
+            {
+              if (cmdline != NULL && *cmdline == NULL)
+                *cmdline = g_strdup (pane->command_line);
+              return TRUE;
+            }
+          else if (pane->state == PTYXIS_TAB_STATE_RUNNING ||
+                   pane->state == PTYXIS_TAB_STATE_SPAWNING)
+            {
+              /* A live shell still counts as "something running" for multi-pane
+               * close prompts when prompt-on-close is enabled for foreground
+               * processes only — keep primary semantics for that path.
+               */
+            }
+        }
+    }
+
   if (self->has_foreground_process && self->program_name != NULL)
     return !ptyxis_is_shell (self->program_name);
 
@@ -1881,10 +2137,32 @@ ptyxis_tab_force_quit_in_idle (gpointer data)
 
   g_assert (PTYXIS_IS_TAB (self));
 
-  if (self->process != NULL)
-    ptyxis_tab_send_signal (self, SIGKILL);
+  if (self->panes != NULL)
+    {
+      for (guint i = 0; i < self->panes->len; i++)
+        {
+          PtyxisTabPane *pane = g_ptr_array_index (self->panes, i);
+
+          if (pane->process != NULL)
+            ptyxis_tab_pane_send_signal (pane, SIGKILL);
+        }
+    }
+  else if (self->process != NULL)
+    {
+      ptyxis_tab_send_signal (self, SIGKILL);
+    }
 
   return G_SOURCE_REMOVE;
+}
+
+static void
+ptyxis_tab_pane_send_signal (PtyxisTabPane *pane,
+                             int            signum)
+{
+  g_assert (pane != NULL);
+
+  if (pane->process != NULL)
+    ptyxis_ipc_process_call_send_signal (pane->process, signum, NULL, NULL, NULL);
 }
 
 void
@@ -1896,13 +2174,20 @@ ptyxis_tab_force_quit (PtyxisTab *self)
 
   self->forced_exit = TRUE;
 
-  if (self->process == NULL)
-    return;
+  if (self->panes != NULL)
+    {
+      for (guint i = 0; i < self->panes->len; i++)
+        {
+          PtyxisTabPane *pane = g_ptr_array_index (self->panes, i);
 
-  /* First we try to send SIGHUP so that shells like bash will save their
-   * history (See #308).
-   */
-  ptyxis_tab_send_signal (self, SIGHUP);
+          pane->forced_exit = TRUE;
+          ptyxis_tab_pane_send_signal (pane, SIGHUP);
+        }
+    }
+  else if (self->process != NULL)
+    {
+      ptyxis_tab_send_signal (self, SIGHUP);
+    }
 
   /* In case this was not enough for the process to actually exit, we setup
    * a short timer to send SIGKILL afterwards.
@@ -2073,6 +2358,25 @@ ptyxis_tab_poll_agent_cb (GObject      *object,
 
   if (changed)
     g_object_notify_by_pspec (G_OBJECT (self), properties[PROP_TITLE]);
+
+  /* Sync the updated foreground process state to the primary pane so
+   * that multi-pane bookkeeping (is_running, force_quit, etc.) stays
+   * consistent with the tab-level state.
+   */
+  if (self->panes != NULL && self->panes->len > 0)
+    {
+      PtyxisTabPane *primary = g_ptr_array_index (self->panes, 0);
+
+      if (primary->is_primary)
+        {
+          primary->state = self->state;
+          primary->pid = self->pid;
+          primary->has_foreground_process = self->has_foreground_process;
+          primary->leader_kind = self->leader_kind;
+          g_set_str (&primary->command_line, self->command_line);
+          g_set_str (&primary->program_name, self->program_name);
+        }
+    }
 
   /* Update inhibit state when foreground process changes */
   ptyxis_tab_update_inhibit (self);
@@ -2541,10 +2845,879 @@ _ptyxis_tab_ignore_snapshot (PtyxisTab *self)
   self->ignore_snapshot = TRUE;
 }
 
+PtyxisTerminal *
+_ptyxis_tab_get_primary_terminal (PtyxisTab *self)
+{
+  g_return_val_if_fail (PTYXIS_IS_TAB (self), NULL);
+
+  return self->terminal;
+}
+
 void
 ptyxis_tab_grab_focus (PtyxisTab *self)
 {
   g_return_if_fail (PTYXIS_IS_TAB (self));
 
-  gtk_widget_grab_focus (GTK_WIDGET (self->terminal));
+  if (self->active_pane != NULL && self->active_pane->terminal != NULL)
+    gtk_widget_grab_focus (GTK_WIDGET (self->active_pane->terminal));
+  else if (self->terminal != NULL)
+    gtk_widget_grab_focus (GTK_WIDGET (self->terminal));
+}
+
+/* -------------------------------------------------------------------------- */
+/* Split pane support                                                         */
+/* -------------------------------------------------------------------------- */
+
+static void
+ptyxis_tab_pane_free (gpointer data)
+{
+  PtyxisTabPane *pane = data;
+
+  if (pane == NULL)
+    return;
+
+  pane->forced_exit = TRUE;
+
+  g_cancellable_cancel (pane->cancellable);
+
+  if (pane->process != NULL)
+    {
+      ptyxis_ipc_process_call_send_signal (pane->process, SIGHUP, NULL, NULL, NULL);
+      g_clear_object (&pane->process);
+    }
+
+  if (!pane->is_primary)
+    {
+      if (pane->box != NULL)
+        {
+          GtkWidget *parent = gtk_widget_get_parent (pane->box);
+
+          if (parent != NULL)
+            {
+              if (GTK_IS_PANED (parent))
+                {
+                  if (gtk_paned_get_start_child (GTK_PANED (parent)) == pane->box)
+                    gtk_paned_set_start_child (GTK_PANED (parent), NULL);
+                  else if (gtk_paned_get_end_child (GTK_PANED (parent)) == pane->box)
+                    gtk_paned_set_end_child (GTK_PANED (parent), NULL);
+                }
+              else
+                {
+                  gtk_widget_unparent (pane->box);
+                }
+            }
+
+          g_clear_object (&pane->box);
+        }
+    }
+
+  g_clear_object (&pane->container_at_creation);
+  g_clear_object (&pane->cancellable);
+  g_clear_pointer (&pane->command, g_strfreev);
+  g_clear_pointer (&pane->command_line, g_free);
+  g_clear_pointer (&pane->program_name, g_free);
+  g_clear_pointer (&pane->initial_working_directory_uri, g_free);
+  g_clear_pointer (&pane->previous_working_directory_uri, g_free);
+
+  g_free (pane);
+}
+
+static void
+ptyxis_tab_sync_active_pane (PtyxisTab     *self,
+                             PtyxisTabPane *pane)
+{
+  g_assert (PTYXIS_IS_TAB (self));
+  g_assert (pane != NULL);
+
+  self->active_pane = pane;
+
+  /* Update the visual dimming of panes so the focused one stands out. */
+  if (self->panes != NULL)
+    {
+      for (guint i = 0; i < self->panes->len; i++)
+        {
+          PtyxisTabPane *p = g_ptr_array_index (self->panes, i);
+
+          if (p == pane)
+            {
+              gtk_widget_remove_css_class (p->box, "ptyxis-pane-inactive");
+              gtk_widget_add_css_class (p->box, "ptyxis-pane-active");
+            }
+          else
+            {
+              gtk_widget_remove_css_class (p->box, "ptyxis-pane-active");
+              gtk_widget_add_css_class (p->box, "ptyxis-pane-inactive");
+            }
+        }
+    }
+
+  if (pane->is_primary)
+    {
+      /* Primary pane mirrors the tab's own session fields. */
+    }
+  else
+    {
+      g_set_object (&self->process, pane->process);
+      self->state = pane->state;
+      self->pid = pane->pid;
+      self->has_foreground_process = pane->has_foreground_process;
+      self->leader_kind = pane->leader_kind;
+      g_set_str (&self->command_line, pane->command_line);
+      g_set_str (&self->program_name, pane->program_name);
+    }
+
+  g_object_notify_by_pspec (G_OBJECT (self), properties[PROP_TITLE]);
+  g_object_notify_by_pspec (G_OBJECT (self), properties[PROP_SUBTITLE]);
+  g_object_notify_by_pspec (G_OBJECT (self), properties[PROP_ICON]);
+  g_object_notify_by_pspec (G_OBJECT (self), properties[PROP_COMMAND_LINE]);
+  g_object_notify_by_pspec (G_OBJECT (self), properties[PROP_PROCESS_LEADER_KIND]);
+}
+
+static void
+ptyxis_tab_bind_terminal_settings (PtyxisTab      *self,
+                                   PtyxisTerminal *terminal)
+{
+  PtyxisSettings *settings;
+  g_autoptr(GListModel) custom_links_list = NULL;
+  g_autofree char *word_char_exceptions = NULL;
+  long scrollback_lines = -1;
+
+  g_assert (PTYXIS_IS_TAB (self));
+  g_assert (PTYXIS_IS_TERMINAL (terminal));
+
+  settings = ptyxis_application_get_settings (PTYXIS_APPLICATION_DEFAULT);
+
+  g_object_bind_property (settings, "audible-bell",
+                          terminal, "audible-bell",
+                          G_BINDING_SYNC_CREATE);
+  g_object_bind_property (settings, "cursor-shape",
+                          terminal, "cursor-shape",
+                          G_BINDING_SYNC_CREATE);
+  g_object_bind_property (settings, "cursor-blink-mode",
+                          terminal, "cursor-blink-mode",
+                          G_BINDING_SYNC_CREATE);
+  g_object_bind_property (settings, "enable-a11y",
+                          terminal, "enable-a11y",
+                          G_BINDING_SYNC_CREATE);
+  g_object_bind_property (settings, "font-desc",
+                          terminal, "font-desc",
+                          G_BINDING_SYNC_CREATE);
+  g_object_bind_property (settings, "text-blink-mode",
+                          terminal, "text-blink-mode",
+                          G_BINDING_SYNC_CREATE);
+
+  g_object_bind_property (self->profile, "palette",
+                          terminal, "palette",
+                          G_BINDING_SYNC_CREATE);
+  g_object_bind_property (self->profile, "scroll-on-keystroke",
+                          terminal, "scroll-on-keystroke",
+                          G_BINDING_SYNC_CREATE);
+  g_object_bind_property (self->profile, "scroll-on-output",
+                          terminal, "scroll-on-output",
+                          G_BINDING_SYNC_CREATE);
+  g_object_bind_property (self->profile, "backspace-binding",
+                          terminal, "backspace-binding",
+                          G_BINDING_SYNC_CREATE);
+  g_object_bind_property (self->profile, "delete-binding",
+                          terminal, "delete-binding",
+                          G_BINDING_SYNC_CREATE);
+  g_object_bind_property (self->profile, "cjk-ambiguous-width",
+                          terminal, "cjk-ambiguous-width",
+                          G_BINDING_SYNC_CREATE);
+  g_object_bind_property (self->profile, "bold-is-bright",
+                          terminal, "bold-is-bright",
+                          G_BINDING_SYNC_CREATE);
+
+  if (ptyxis_profile_get_limit_scrollback (self->profile))
+    scrollback_lines = ptyxis_profile_get_scrollback_lines (self->profile);
+  vte_terminal_set_scrollback_lines (VTE_TERMINAL (terminal), scrollback_lines);
+
+  vte_terminal_set_cell_height_scale (VTE_TERMINAL (terminal),
+                                      ptyxis_profile_get_cell_height_scale (self->profile));
+  vte_terminal_set_cell_width_scale (VTE_TERMINAL (terminal),
+                                     ptyxis_profile_get_cell_width_scale (self->profile));
+
+  custom_links_list = ptyxis_profile_list_custom_links (self->profile);
+  ptyxis_terminal_update_custom_links_list (terminal, custom_links_list);
+
+  word_char_exceptions = ptyxis_settings_dup_word_char_exceptions (settings);
+  vte_terminal_set_word_char_exceptions (VTE_TERMINAL (terminal), word_char_exceptions);
+
+  if (ptyxis_settings_get_disable_padding (settings))
+    gtk_widget_remove_css_class (GTK_WIDGET (terminal), "padded");
+  else
+    gtk_widget_add_css_class (GTK_WIDGET (terminal), "padded");
+
+  ptyxis_tab_apply_zoom_to_terminal (self, terminal);
+}
+
+static void
+ptyxis_tab_pane_apply_scrollbar_policy (PtyxisTabPane *pane)
+{
+  PtyxisSettings *settings;
+  PtyxisScrollbarPolicy policy;
+
+  g_assert (pane != NULL);
+  g_assert (pane->scrolled_window != NULL);
+
+  settings = ptyxis_application_get_settings (PTYXIS_APPLICATION_DEFAULT);
+  policy = ptyxis_settings_get_scrollbar_policy (settings);
+
+  switch (policy)
+    {
+    case PTYXIS_SCROLLBAR_POLICY_NEVER:
+      gtk_scrolled_window_set_overlay_scrolling (pane->scrolled_window, FALSE);
+      gtk_scrolled_window_set_policy (pane->scrolled_window, GTK_POLICY_NEVER, GTK_POLICY_EXTERNAL);
+      break;
+
+    case PTYXIS_SCROLLBAR_POLICY_ALWAYS:
+      gtk_scrolled_window_set_overlay_scrolling (pane->scrolled_window, FALSE);
+      gtk_scrolled_window_set_policy (pane->scrolled_window, GTK_POLICY_NEVER, GTK_POLICY_ALWAYS);
+      break;
+
+    case PTYXIS_SCROLLBAR_POLICY_SYSTEM:
+      if (ptyxis_application_get_overlay_scrollbars (PTYXIS_APPLICATION_DEFAULT))
+        {
+          gtk_scrolled_window_set_overlay_scrolling (pane->scrolled_window, TRUE);
+          gtk_scrolled_window_set_policy (pane->scrolled_window, GTK_POLICY_NEVER, GTK_POLICY_AUTOMATIC);
+        }
+      else
+        {
+          gtk_scrolled_window_set_overlay_scrolling (pane->scrolled_window, FALSE);
+          gtk_scrolled_window_set_policy (pane->scrolled_window, GTK_POLICY_NEVER, GTK_POLICY_ALWAYS);
+        }
+      break;
+
+    default:
+      g_assert_not_reached ();
+    }
+}
+
+static void
+ptyxis_tab_pane_focus_enter_cb (PtyxisTabPane            *pane,
+                                GParamSpec               *pspec,
+                                GtkEventControllerFocus  *focus)
+{
+  g_assert (pane != NULL);
+  g_assert (pane->tab != NULL);
+
+  if (gtk_event_controller_focus_contains_focus (focus))
+    {
+      ptyxis_tab_sync_active_pane (pane->tab, pane);
+      ptyxis_tab_set_needs_attention (pane->tab, FALSE);
+      g_application_withdraw_notification (G_APPLICATION (PTYXIS_APPLICATION_DEFAULT),
+                                           pane->tab->uuid);
+    }
+}
+
+static void
+ptyxis_tab_pane_wait_cb (GObject      *object,
+                         GAsyncResult *result,
+                         gpointer      user_data)
+{
+  PtyxisApplication *app = (PtyxisApplication *)object;
+  g_autoptr(PtyxisTab) tab = NULL;
+  PtyxisTabPane *pane = user_data;
+  g_autoptr(GError) error = NULL;
+  int exit_code;
+
+  g_assert (PTYXIS_IS_APPLICATION (app));
+  g_assert (pane != NULL);
+
+  tab = g_object_ref (pane->tab);
+  g_clear_object (&pane->process);
+
+  exit_code = ptyxis_application_wait_finish (app, result, &error);
+
+  g_debug ("Pane process completed with exit-code 0x%x %s",
+           exit_code,
+           error ? error->message : "");
+
+  if (g_error_matches (error, G_IO_ERROR, G_IO_ERROR_CANCELLED))
+    return;
+
+  if (error == NULL && WIFEXITED (exit_code) && WEXITSTATUS (exit_code) == 0)
+    pane->state = PTYXIS_TAB_STATE_EXITED;
+  else
+    pane->state = PTYXIS_TAB_STATE_FAILED;
+
+  if (pane->forced_exit || tab->forced_exit)
+    return;
+
+  /* Secondary panes auto-close on shell exit; primary keeps banner UX. */
+  if (!pane->is_primary)
+    {
+      PtyxisExitAction exit_action = ptyxis_profile_get_exit_action (tab->profile);
+
+      if (exit_action == PTYXIS_EXIT_ACTION_RESTART)
+        {
+          pane->state = PTYXIS_TAB_STATE_EXITED;
+          ptyxis_tab_pane_respawn (pane);
+          return;
+        }
+
+      if (exit_action == PTYXIS_EXIT_ACTION_CLOSE ||
+          exit_action == PTYXIS_EXIT_ACTION_NONE)
+        {
+          if (tab->active_pane == pane && tab->panes->len > 1)
+            {
+              for (guint i = 0; i < tab->panes->len; i++)
+                {
+                  PtyxisTabPane *other = g_ptr_array_index (tab->panes, i);
+
+                  if (other != pane)
+                    {
+                      ptyxis_tab_sync_active_pane (tab, other);
+                      break;
+                    }
+                }
+            }
+
+          ptyxis_tab_close_pane_widget (tab, pane);
+          return;
+        }
+    }
+
+  if (tab->active_pane == pane)
+    {
+      g_object_notify_by_pspec (G_OBJECT (tab), properties[PROP_TITLE]);
+      adw_banner_set_title (pane->banner, _("Process Exited"));
+      adw_banner_set_button_label (pane->banner, _("_Restart"));
+      gtk_actionable_set_action_name (GTK_ACTIONABLE (pane->banner), "tab.respawn");
+      gtk_widget_set_visible (GTK_WIDGET (pane->banner), TRUE);
+    }
+}
+
+static void
+ptyxis_tab_pane_spawn_cb (GObject      *object,
+                          GAsyncResult *result,
+                          gpointer      user_data)
+{
+  PtyxisApplication *app = (PtyxisApplication *)object;
+  g_autoptr(PtyxisIpcProcess) process = NULL;
+  g_autoptr(PtyxisTab) tab = NULL;
+  PtyxisTabPane *pane = user_data;
+  g_autoptr(GError) error = NULL;
+
+  g_assert (pane != NULL);
+  g_assert (pane->state == PTYXIS_TAB_STATE_SPAWNING);
+
+  tab = g_object_ref (pane->tab);
+
+  if (g_cancellable_is_cancelled (pane->cancellable))
+    return;
+
+  if (!(process = ptyxis_application_spawn_finish (app, result, &error)))
+    {
+      if (g_error_matches (error, G_IO_ERROR, G_IO_ERROR_CANCELLED))
+        return;
+
+      pane->state = PTYXIS_TAB_STATE_FAILED;
+      vte_terminal_feed (VTE_TERMINAL (pane->terminal), error->message, -1);
+      vte_terminal_feed (VTE_TERMINAL (pane->terminal), "\r\n", -1);
+      adw_banner_set_title (pane->banner, _("Failed to launch terminal"));
+      gtk_widget_set_visible (GTK_WIDGET (pane->banner), TRUE);
+      return;
+    }
+
+  pane->state = PTYXIS_TAB_STATE_RUNNING;
+  pane->respawn_time = g_get_monotonic_time ();
+  g_set_object (&pane->process, process);
+
+  if (tab->active_pane == pane)
+    ptyxis_tab_sync_active_pane (tab, pane);
+
+  ptyxis_application_wait_async (app,
+                                 process,
+                                 pane->cancellable,
+                                 ptyxis_tab_pane_wait_cb,
+                                 pane);
+}
+
+static void
+ptyxis_tab_pane_respawn (PtyxisTabPane *pane)
+{
+  g_autofree char *default_container = NULL;
+  g_autoptr(PtyxisIpcContainer) container = NULL;
+  g_autoptr(VtePty) new_pty = NULL;
+  PtyxisTab *self;
+  const char *cwd_uri;
+  VtePty *pty;
+
+  g_assert (pane != NULL);
+  g_assert (pane->tab != NULL);
+
+  self = pane->tab;
+
+  if (pane->is_primary)
+    {
+      ptyxis_tab_respawn (self);
+      return;
+    }
+
+  gtk_widget_set_visible (GTK_WIDGET (pane->banner), FALSE);
+
+  default_container = ptyxis_profile_dup_default_container (self->profile);
+
+  if (pane->container_at_creation != NULL)
+    container = g_object_ref (pane->container_at_creation);
+  else if (self->container_at_creation != NULL)
+    container = g_object_ref (self->container_at_creation);
+  else
+    container = ptyxis_application_lookup_container (PTYXIS_APPLICATION_DEFAULT,
+                                                     default_container);
+
+  if (container == NULL)
+    {
+      pane->state = PTYXIS_TAB_STATE_FAILED;
+      adw_banner_set_title (pane->banner, _("Failed to launch terminal"));
+      gtk_widget_set_visible (GTK_WIDGET (pane->banner), TRUE);
+      return;
+    }
+
+  pane->state = PTYXIS_TAB_STATE_SPAWNING;
+
+  g_clear_object (&pane->cancellable);
+  pane->cancellable = g_cancellable_new ();
+
+  pty = vte_terminal_get_pty (VTE_TERMINAL (pane->terminal));
+  if (pty == NULL)
+    {
+      g_autoptr(GError) error = NULL;
+
+      new_pty = ptyxis_application_create_pty (PTYXIS_APPLICATION_DEFAULT, &error);
+      if (new_pty == NULL)
+        {
+          pane->state = PTYXIS_TAB_STATE_FAILED;
+          adw_banner_set_title (pane->banner, _("Failed to create pseudo terminal device"));
+          gtk_widget_set_visible (GTK_WIDGET (pane->banner), TRUE);
+          return;
+        }
+
+      vte_terminal_set_pty (VTE_TERMINAL (pane->terminal), new_pty);
+      pty = new_pty;
+    }
+
+  cwd_uri = pane->previous_working_directory_uri;
+  if (pane->initial_working_directory_uri)
+    cwd_uri = pane->initial_working_directory_uri;
+  else if (cwd_uri == NULL)
+    cwd_uri = self->previous_working_directory_uri;
+
+  ptyxis_application_spawn_async (PTYXIS_APPLICATION_DEFAULT,
+                                  container,
+                                  self->profile,
+                                  cwd_uri,
+                                  pty,
+                                  (const char * const *)pane->command,
+                                  pane->cancellable,
+                                  ptyxis_tab_pane_spawn_cb,
+                                  pane);
+}
+
+static gboolean
+ptyxis_tab_close_pane_widget (PtyxisTab     *self,
+                              PtyxisTabPane *pane)
+{
+  GtkWidget *box;
+  GtkWidget *parent;
+  GtkWidget *sibling = NULL;
+  GtkWidget *grandparent;
+  guint index = GTK_INVALID_LIST_POSITION;
+
+  g_assert (PTYXIS_IS_TAB (self));
+  g_assert (pane != NULL);
+
+  if (self->panes == NULL || self->panes->len <= 1)
+    return FALSE;
+
+  box = pane->box;
+  parent = gtk_widget_get_parent (box);
+
+  if (!GTK_IS_PANED (parent))
+    return FALSE;
+
+  if (gtk_paned_get_start_child (GTK_PANED (parent)) == box)
+    sibling = gtk_paned_get_end_child (GTK_PANED (parent));
+  else
+    sibling = gtk_paned_get_start_child (GTK_PANED (parent));
+
+  if (sibling == NULL)
+    return FALSE;
+
+  grandparent = gtk_widget_get_parent (parent);
+
+  g_object_ref (sibling);
+  gtk_paned_set_start_child (GTK_PANED (parent), NULL);
+  gtk_paned_set_end_child (GTK_PANED (parent), NULL);
+
+  if (PTYXIS_IS_TAB (grandparent))
+    {
+      gtk_widget_unparent (parent);
+      gtk_widget_set_parent (sibling, grandparent);
+    }
+  else if (GTK_IS_PANED (grandparent))
+    {
+      if (gtk_paned_get_start_child (GTK_PANED (grandparent)) == parent)
+        gtk_paned_set_start_child (GTK_PANED (grandparent), sibling);
+      else
+        gtk_paned_set_end_child (GTK_PANED (grandparent), sibling);
+    }
+
+  g_object_unref (sibling);
+
+  for (guint i = 0; i < self->panes->len; i++)
+    {
+      if (g_ptr_array_index (self->panes, i) == pane)
+        {
+          index = i;
+          break;
+        }
+    }
+
+  if (self->active_pane == pane)
+    {
+      PtyxisTabPane *next = NULL;
+
+      for (guint i = 0; i < self->panes->len; i++)
+        {
+          PtyxisTabPane *other = g_ptr_array_index (self->panes, i);
+
+          if (other != pane)
+            {
+              next = other;
+              break;
+            }
+        }
+
+      if (next != NULL)
+        {
+          ptyxis_tab_sync_active_pane (self, next);
+          gtk_widget_grab_focus (GTK_WIDGET (next->terminal));
+        }
+    }
+
+  if (index != GTK_INVALID_LIST_POSITION)
+    g_ptr_array_remove_index (self->panes, index);
+
+  g_object_notify_by_pspec (G_OBJECT (self), properties[PROP_N_PANES]);
+
+  return TRUE;
+}
+
+static PtyxisTabPane *
+ptyxis_tab_create_pane (PtyxisTab *self)
+{
+  PtyxisTabPane *pane;
+  PtyxisTabPane *source;
+  GtkEventController *focus;
+  GtkWidget *box;
+  AdwBanner *banner;
+  GtkScrolledWindow *scrolled;
+  PtyxisTerminal *terminal;
+  g_autofree char *cwd_uri = NULL;
+
+  g_assert (PTYXIS_IS_TAB (self));
+
+  source = self->active_pane != NULL ? self->active_pane : g_ptr_array_index (self->panes, 0);
+
+  box = g_object_ref_sink (gtk_box_new (GTK_ORIENTATION_VERTICAL, 0));
+  gtk_widget_set_hexpand (box, TRUE);
+  gtk_widget_set_vexpand (box, TRUE);
+
+  banner = ADW_BANNER (adw_banner_new (""));
+  adw_banner_set_revealed (banner, TRUE);
+  gtk_widget_set_visible (GTK_WIDGET (banner), FALSE);
+  gtk_box_append (GTK_BOX (box), GTK_WIDGET (banner));
+
+  scrolled = GTK_SCROLLED_WINDOW (gtk_scrolled_window_new ());
+  gtk_scrolled_window_set_propagate_natural_width (scrolled, TRUE);
+  gtk_scrolled_window_set_propagate_natural_height (scrolled, TRUE);
+  gtk_scrolled_window_set_policy (scrolled, GTK_POLICY_NEVER, GTK_POLICY_AUTOMATIC);
+  gtk_widget_set_vexpand (GTK_WIDGET (scrolled), TRUE);
+  gtk_box_append (GTK_BOX (box), GTK_WIDGET (scrolled));
+
+  terminal = g_object_new (PTYXIS_TYPE_TERMINAL,
+                           "enable-fallback-scrolling", FALSE,
+                           "scroll-unit-is-pixels", TRUE,
+                           NULL);
+  gtk_scrolled_window_set_child (scrolled, GTK_WIDGET (terminal));
+
+  pane = g_new0 (PtyxisTabPane, 1);
+  pane->tab = self;
+  pane->box = box;
+  pane->banner = banner;
+  pane->scrolled_window = scrolled;
+  pane->terminal = terminal;
+  pane->state = PTYXIS_TAB_STATE_INITIAL;
+  pane->is_primary = FALSE;
+
+  /* Inherit working directory / container from the source pane. */
+  if (source->is_primary)
+    {
+      cwd_uri = ptyxis_tab_dup_current_directory_uri (self);
+      if (self->container_at_creation != NULL)
+        pane->container_at_creation = g_object_ref (self->container_at_creation);
+    }
+  else
+    {
+      cwd_uri = ptyxis_terminal_dup_current_directory_uri (source->terminal);
+      if (source->container_at_creation != NULL)
+        pane->container_at_creation = g_object_ref (source->container_at_creation);
+    }
+
+  if (cwd_uri != NULL)
+    pane->initial_working_directory_uri = g_steal_pointer (&cwd_uri);
+
+  focus = gtk_event_controller_focus_new ();
+  g_signal_connect_swapped (focus,
+                            "notify::contains-focus",
+                            G_CALLBACK (ptyxis_tab_pane_focus_enter_cb),
+                            pane);
+  gtk_widget_add_controller (box, focus);
+
+  g_signal_connect_swapped (terminal,
+                            "notify::window-title",
+                            G_CALLBACK (ptyxis_tab_notify_window_title_cb),
+                            self);
+  g_signal_connect_swapped (terminal,
+                            "current-directory-uri-changed",
+                            G_CALLBACK (ptyxis_tab_notify_window_subtitle_cb),
+                            self);
+  g_signal_connect_swapped (terminal,
+                            "current-file-uri-changed",
+                            G_CALLBACK (ptyxis_tab_notify_window_subtitle_cb),
+                            self);
+  g_signal_connect_swapped (terminal,
+                            "increase-font-size",
+                            G_CALLBACK (ptyxis_tab_increase_font_size_cb),
+                            self);
+  g_signal_connect_swapped (terminal,
+                            "decrease-font-size",
+                            G_CALLBACK (ptyxis_tab_decrease_font_size_cb),
+                            self);
+  g_signal_connect_swapped (terminal,
+                            "bell",
+                            G_CALLBACK (ptyxis_tab_bell_cb),
+                            self);
+  g_signal_connect_swapped (terminal,
+                            "commit",
+                            G_CALLBACK (ptyxis_tab_commit_cb),
+                            self);
+  g_signal_connect_object (terminal,
+                           "match-clicked",
+                           G_CALLBACK (ptyxis_tab_match_clicked_cb),
+                           self,
+                           G_CONNECT_SWAPPED);
+
+  ptyxis_tab_bind_terminal_settings (self, terminal);
+  ptyxis_tab_pane_apply_scrollbar_policy (pane);
+
+  g_ptr_array_add (self->panes, pane);
+  ptyxis_tab_pane_respawn (pane);
+
+  return pane;
+}
+
+void
+ptyxis_tab_split (PtyxisTab      *self,
+                  GtkOrientation  orientation)
+{
+  PtyxisTabPane *source;
+  PtyxisTabPane *created;
+  GtkWidget *source_box;
+  GtkWidget *parent;
+  GtkWidget *paned;
+  int size;
+
+  g_return_if_fail (PTYXIS_IS_TAB (self));
+  g_return_if_fail (self->panes != NULL && self->panes->len > 0);
+
+  source = self->active_pane != NULL ? self->active_pane : g_ptr_array_index (self->panes, 0);
+  source_box = source->box;
+  parent = gtk_widget_get_parent (source_box);
+
+  created = ptyxis_tab_create_pane (self);
+
+  paned = gtk_paned_new (orientation);
+  gtk_widget_add_css_class (paned, "ptyxis-split");
+  gtk_widget_set_hexpand (paned, TRUE);
+  gtk_widget_set_vexpand (paned, TRUE);
+  gtk_paned_set_wide_handle (GTK_PANED (paned), TRUE);
+  gtk_paned_set_resize_start_child (GTK_PANED (paned), TRUE);
+  gtk_paned_set_resize_end_child (GTK_PANED (paned), TRUE);
+  gtk_paned_set_shrink_start_child (GTK_PANED (paned), FALSE);
+  gtk_paned_set_shrink_end_child (GTK_PANED (paned), FALSE);
+
+  if (orientation == GTK_ORIENTATION_HORIZONTAL)
+    size = gtk_widget_get_width (source_box);
+  else
+    size = gtk_widget_get_height (source_box);
+
+  /* Detach source from its parent and wrap both panes in a paned. */
+  g_object_ref (source_box);
+
+  if (PTYXIS_IS_TAB (parent))
+    {
+      gtk_widget_unparent (source_box);
+      gtk_widget_set_parent (paned, parent);
+    }
+  else if (GTK_IS_PANED (parent))
+    {
+      if (gtk_paned_get_start_child (GTK_PANED (parent)) == source_box)
+        gtk_paned_set_start_child (GTK_PANED (parent), paned);
+      else
+        gtk_paned_set_end_child (GTK_PANED (parent), paned);
+    }
+  else
+    {
+      g_object_unref (source_box);
+      g_return_if_reached ();
+    }
+
+  gtk_paned_set_start_child (GTK_PANED (paned), source_box);
+  gtk_paned_set_end_child (GTK_PANED (paned), created->box);
+  g_object_unref (source_box);
+
+  if (size > 0)
+    gtk_paned_set_position (GTK_PANED (paned), size / 2);
+
+  ptyxis_tab_sync_active_pane (self, created);
+  g_object_notify_by_pspec (G_OBJECT (self), properties[PROP_N_PANES]);
+  gtk_widget_grab_focus (GTK_WIDGET (created->terminal));
+}
+
+gboolean
+ptyxis_tab_close_pane (PtyxisTab *self)
+{
+  g_return_val_if_fail (PTYXIS_IS_TAB (self), FALSE);
+
+  if (self->panes == NULL || self->panes->len <= 1)
+    return FALSE;
+
+  if (self->active_pane == NULL)
+    return FALSE;
+
+  return ptyxis_tab_close_pane_widget (self, self->active_pane);
+}
+
+guint
+ptyxis_tab_get_n_panes (PtyxisTab *self)
+{
+  g_return_val_if_fail (PTYXIS_IS_TAB (self), 0);
+
+  if (self->panes == NULL)
+    return 1;
+
+  return self->panes->len;
+}
+
+static PtyxisTabPane *
+ptyxis_tab_find_pane_in_direction (PtyxisTab         *self,
+                                   PtyxisTabPane     *from,
+                                   GtkDirectionType   direction)
+{
+  graphene_rect_t from_bounds;
+  PtyxisTabPane *best = NULL;
+  double best_score = G_MAXDOUBLE;
+
+  g_assert (PTYXIS_IS_TAB (self));
+  g_assert (from != NULL);
+
+  if (!gtk_widget_compute_bounds (from->box, GTK_WIDGET (self), &from_bounds))
+    return NULL;
+
+  for (guint i = 0; i < self->panes->len; i++)
+    {
+      PtyxisTabPane *pane = g_ptr_array_index (self->panes, i);
+      graphene_rect_t bounds;
+      double score;
+      double dx, dy;
+
+      if (pane == from)
+        continue;
+
+      if (!gtk_widget_compute_bounds (pane->box, GTK_WIDGET (self), &bounds))
+        continue;
+
+      dx = (bounds.origin.x + bounds.size.width / 2.0) -
+           (from_bounds.origin.x + from_bounds.size.width / 2.0);
+      dy = (bounds.origin.y + bounds.size.height / 2.0) -
+           (from_bounds.origin.y + from_bounds.size.height / 2.0);
+
+      switch (direction)
+        {
+        case GTK_DIR_UP:
+          if (dy >= -1.0)
+            continue;
+          score = -dy + fabs (dx) * 0.5;
+          break;
+        case GTK_DIR_DOWN:
+          if (dy <= 1.0)
+            continue;
+          score = dy + fabs (dx) * 0.5;
+          break;
+        case GTK_DIR_LEFT:
+          if (dx >= -1.0)
+            continue;
+          score = -dx + fabs (dy) * 0.5;
+          break;
+        case GTK_DIR_RIGHT:
+          if (dx <= 1.0)
+            continue;
+          score = dx + fabs (dy) * 0.5;
+          break;
+        case GTK_DIR_TAB_FORWARD:
+        case GTK_DIR_TAB_BACKWARD:
+        default:
+          continue;
+        }
+
+      if (score < best_score)
+        {
+          best_score = score;
+          best = pane;
+        }
+    }
+
+  return best;
+}
+
+void
+ptyxis_tab_focus_pane (PtyxisTab         *self,
+                       GtkDirectionType   direction)
+{
+  PtyxisTabPane *next;
+
+  g_return_if_fail (PTYXIS_IS_TAB (self));
+
+  if (self->panes == NULL || self->panes->len <= 1 || self->active_pane == NULL)
+    return;
+
+  next = ptyxis_tab_find_pane_in_direction (self, self->active_pane, direction);
+  if (next == NULL)
+    return;
+
+  ptyxis_tab_sync_active_pane (self, next);
+  gtk_widget_grab_focus (GTK_WIDGET (next->terminal));
+}
+
+void
+ptyxis_tab_zoom_all (PtyxisTab       *self,
+                     PtyxisZoomLevel  zoom)
+{
+  g_return_if_fail (PTYXIS_IS_TAB (self));
+
+  ptyxis_tab_set_zoom (self, zoom);
+}
+
+PtyxisTerminal *
+ptyxis_tab_get_terminal (PtyxisTab *self)
+{
+  g_return_val_if_fail (PTYXIS_IS_TAB (self), NULL);
+
+  if (self->active_pane != NULL && self->active_pane->terminal != NULL)
+    return self->active_pane->terminal;
+
+  return self->terminal;
 }

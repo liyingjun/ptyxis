@@ -30,6 +30,7 @@
 #include <glib/gi18n.h>
 
 #include "ptyxis-window.h"
+#include "ptyxis-tab-private.h"
 
 #define TIME_WATERMARK_MSEC 250
 
@@ -171,7 +172,7 @@ static inline void
 ptyxis_tab_notify_init (PtyxisTabNotify *notify,
                         PtyxisTab       *tab)
 {
-  PtyxisTerminal *terminal = ptyxis_tab_get_terminal (tab);
+  PtyxisTerminal *terminal = _ptyxis_tab_get_primary_terminal (tab);
 
   notify->tab = tab;
 
@@ -197,7 +198,7 @@ ptyxis_tab_notify_init (PtyxisTabNotify *notify,
 static inline void
 ptyxis_tab_notify_destroy (PtyxisTabNotify *notify)
 {
-  PtyxisTerminal *terminal = ptyxis_tab_get_terminal (notify->tab);
+  PtyxisTerminal *terminal = _ptyxis_tab_get_primary_terminal (notify->tab);
 
   if (notify->tab == NULL)
     return;

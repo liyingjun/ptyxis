@@ -143,5 +143,13 @@ void                ptyxis_tab_open_uri                           (PtyxisTab    
                                                                    const char           *uri);
 char               *ptyxis_tab_query_working_directory_from_agent (PtyxisTab            *self);
 void                ptyxis_tab_grab_focus                         (PtyxisTab            *self);
+void                ptyxis_tab_split                              (PtyxisTab            *self,
+                                                                   GtkOrientation        orientation);
+gboolean            ptyxis_tab_close_pane                         (PtyxisTab            *self);
+guint               ptyxis_tab_get_n_panes                        (PtyxisTab            *self);
+void                ptyxis_tab_focus_pane                         (PtyxisTab            *self,
+                                                                   GtkDirectionType      direction);
+void                ptyxis_tab_zoom_all                           (PtyxisTab            *self,
+                                                                   PtyxisZoomLevel       zoom);
 
 G_END_DECLS

@@ -814,6 +814,59 @@
         <child>
           <object class="AdwPreferencesGroup">
             <child>
+              <object class="PtyxisShortcutRow" id="shortcut_split_horizontal">
+                <property name="title" translatable="yes">Split Horizontal</property>
+                <property name="subtitle" translatable="yes">Split the active terminal into top and bottom panes</property>
+                <property name="shortcut-name">split-horizontal</property>
+              </object>
+            </child>
+            <child>
+              <object class="PtyxisShortcutRow" id="shortcut_split_vertical">
+                <property name="title" translatable="yes">Split Vertical</property>
+                <property name="subtitle" translatable="yes">Split the active terminal into left and right panes</property>
+                <property name="shortcut-name">split-vertical</property>
+              </object>
+            </child>
+            <child>
+              <object class="PtyxisShortcutRow" id="shortcut_close_pane">
+                <property name="title" translatable="yes">Close Pane</property>
+                <property name="subtitle" translatable="yes">Close the active terminal pane without closing the tab</property>
+                <property name="shortcut-name">close-pane</property>
+              </object>
+            </child>
+            <child>
+              <object class="PtyxisShortcutRow" id="shortcut_focus_pane_up">
+                <property name="title" translatable="yes">Focus Pane Above</property>
+                <property name="subtitle" translatable="yes">Move keyboard focus to the terminal pane above</property>
+                <property name="shortcut-name">focus-pane-up</property>
+              </object>
+            </child>
+            <child>
+              <object class="PtyxisShortcutRow" id="shortcut_focus_pane_down">
+                <property name="title" translatable="yes">Focus Pane Below</property>
+                <property name="subtitle" translatable="yes">Move keyboard focus to the terminal pane below</property>
+                <property name="shortcut-name">focus-pane-down</property>
+              </object>
+            </child>
+            <child>
+              <object class="PtyxisShortcutRow" id="shortcut_focus_pane_left">
+                <property name="title" translatable="yes">Focus Pane to the Left</property>
+                <property name="subtitle" translatable="yes">Move keyboard focus to the terminal pane on the left</property>
+                <property name="shortcut-name">focus-pane-left</property>
+              </object>
+            </child>
+            <child>
+              <object class="PtyxisShortcutRow" id="shortcut_focus_pane_right">
+                <property name="title" translatable="yes">Focus Pane to the Right</property>
+                <property name="subtitle" translatable="yes">Move keyboard focus to the terminal pane on the right</property>
+                <property name="shortcut-name">focus-pane-right</property>
+              </object>
+            </child>
+          </object>
+        </child>
+        <child>
+          <object class="AdwPreferencesGroup">
+            <child>
               <object class="PtyxisShortcutRow" id="shortcut_move_previous_tab">
                 <property name="title" translatable="yes">Move to Previous Tab</property>
                 <property name="shortcut-name">move-previous-tab</property>

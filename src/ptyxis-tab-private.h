@@ -26,5 +26,6 @@
 G_BEGIN_DECLS
 
 void _ptyxis_tab_ignore_snapshot (PtyxisTab *self);
+PtyxisTerminal *_ptyxis_tab_get_primary_terminal (PtyxisTab *self);
 
 G_END_DECLS

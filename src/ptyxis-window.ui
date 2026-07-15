@@ -375,6 +375,80 @@
             <property name="arguments">0</property>
           </object>
         </child>
+        <child>
+          <object class="GtkShortcut">
+            <binding name="trigger">
+              <lookup name="split-horizontal" type="PtyxisShortcuts">
+                <lookup name="shortcuts">PtyxisWindow</lookup>
+              </lookup>
+            </binding>
+            <property name="action">action(tab.split-horizontal)</property>
+          </object>
+        </child>
+        <child>
+          <object class="GtkShortcut">
+            <binding name="trigger">
+              <lookup name="split-vertical" type="PtyxisShortcuts">
+                <lookup name="shortcuts">PtyxisWindow</lookup>
+              </lookup>
+            </binding>
+            <property name="action">action(tab.split-vertical)</property>
+          </object>
+        </child>
+        <child>
+          <object class="GtkShortcut">
+            <binding name="trigger">
+              <lookup name="close-pane" type="PtyxisShortcuts">
+                <lookup name="shortcuts">PtyxisWindow</lookup>
+              </lookup>
+            </binding>
+            <property name="action">action(tab.close-pane)</property>
+          </object>
+        </child>
+        <child>
+          <object class="GtkShortcut">
+            <binding name="trigger">
+              <lookup name="focus-pane-up" type="PtyxisShortcuts">
+                <lookup name="shortcuts">PtyxisWindow</lookup>
+              </lookup>
+            </binding>
+            <property name="action">action(tab.focus-pane)</property>
+            <property name="arguments">'up'</property>
+          </object>
+        </child>
+        <child>
+          <object class="GtkShortcut">
+            <binding name="trigger">
+              <lookup name="focus-pane-down" type="PtyxisShortcuts">
+                <lookup name="shortcuts">PtyxisWindow</lookup>
+              </lookup>
+            </binding>
+            <property name="action">action(tab.focus-pane)</property>
+            <property name="arguments">'down'</property>
+          </object>
+        </child>
+        <child>
+          <object class="GtkShortcut">
+            <binding name="trigger">
+              <lookup name="focus-pane-left" type="PtyxisShortcuts">
+                <lookup name="shortcuts">PtyxisWindow</lookup>
+              </lookup>
+            </binding>
+            <property name="action">action(tab.focus-pane)</property>
+            <property name="arguments">'left'</property>
+          </object>
+        </child>
+        <child>
+          <object class="GtkShortcut">
+            <binding name="trigger">
+              <lookup name="focus-pane-right" type="PtyxisShortcuts">
+                <lookup name="shortcuts">PtyxisWindow</lookup>
+              </lookup>
+            </binding>
+            <property name="action">action(tab.focus-pane)</property>
+            <property name="arguments">'right'</property>
+          </object>
+        </child>
       </object>
     </child>
     <property name="content">

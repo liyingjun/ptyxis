@@ -646,6 +646,48 @@
       <description>Undo closing of last tab</description>
     </key>
 
+    <key name="split-horizontal" type="s">
+      <default>'&lt;ctrl&gt;&lt;shift&gt;d'</default>
+      <summary>Split Horizontally</summary>
+      <description>Split the active terminal into top and bottom panes</description>
+    </key>
+
+    <key name="split-vertical" type="s">
+      <default>'&lt;ctrl&gt;&lt;shift&gt;r'</default>
+      <summary>Split Vertically</summary>
+      <description>Split the active terminal into left and right panes</description>
+    </key>
+
+    <key name="close-pane" type="s">
+      <default>''</default>
+      <summary>Close Pane</summary>
+      <description>Close the active terminal pane without closing the tab when multiple panes are open</description>
+    </key>
+
+    <key name="focus-pane-up" type="s">
+      <default>'&lt;alt&gt;Up'</default>
+      <summary>Focus Pane Above</summary>
+      <description>Move keyboard focus to the terminal pane above</description>
+    </key>
+
+    <key name="focus-pane-down" type="s">
+      <default>'&lt;alt&gt;Down'</default>
+      <summary>Focus Pane Below</summary>
+      <description>Move keyboard focus to the terminal pane below</description>
+    </key>
+
+    <key name="focus-pane-left" type="s">
+      <default>'&lt;alt&gt;Left'</default>
+      <summary>Focus Pane to the Left</summary>
+      <description>Move keyboard focus to the terminal pane on the left</description>
+    </key>
+
+    <key name="focus-pane-right" type="s">
+      <default>'&lt;alt&gt;Right'</default>
+      <summary>Focus Pane to the Right</summary>
+      <description>Move keyboard focus to the terminal pane on the right</description>
+    </key>
+
   </schema>
 
 </schemalist>

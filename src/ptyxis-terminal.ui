@@ -226,6 +226,26 @@
     </section>
     <section>
       <item>
+        <attribute name="id">split-horizontal</attribute>
+        <attribute name="label" translatable="yes">Split Horizontal</attribute>
+        <attribute name="description" translatable="yes">Split the active terminal into top and bottom panes</attribute>
+        <attribute name="action">tab.split-horizontal</attribute>
+      </item>
+      <item>
+        <attribute name="id">split-vertical</attribute>
+        <attribute name="label" translatable="yes">Split Vertical</attribute>
+        <attribute name="description" translatable="yes">Split the active terminal into left and right panes</attribute>
+        <attribute name="action">tab.split-vertical</attribute>
+      </item>
+      <item>
+        <attribute name="id">close-pane</attribute>
+        <attribute name="label" translatable="yes">Close Pane</attribute>
+        <attribute name="description" translatable="yes">Close the active terminal pane, or close the tab if only one pane remains</attribute>
+        <attribute name="action">tab.close-pane</attribute>
+      </item>
+    </section>
+    <section>
+      <item>
         <attribute name="id">reset</attribute>
         <attribute name="label" translatable="yes">Reset</attribute>
         <attribute name="action">tab.reset</attribute>
