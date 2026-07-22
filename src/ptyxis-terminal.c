@@ -75,6 +75,14 @@ struct _PtyxisTerminal
 
   guint               cell_height;
   guint               cell_width;
+
+  /* Set to TRUE at the start of dispose so that property getters can
+   * refuse to dereference the underlying VteTerminal once its parent
+   * class instance has begun tearing down. Without this, bindings and
+   * g_object_get() calls that fire during teardown will trip
+   * VTE_IS_TERMINAL() assertions inside libvte.
+   */
+  guint               disposed : 1;
 };
 
 enum {
@@ -1168,6 +1176,18 @@ ptyxis_terminal_emit_shell_preexec (PtyxisTerminal *self)
 }
 
 static void
+ptyxis_terminal_destroy_cb (GtkWidget *widget)
+{
+  /* Set disposed flag at the GtkWidget "destroy" signal (fires before
+   * GObject dispose) so any property reads triggered by widget tree
+   * teardown see the flag and refuse to call into the dying VteTerminal.
+   */
+  PtyxisTerminal *self = PTYXIS_TERMINAL (widget);
+
+  self->disposed = TRUE;
+}
+
+static void
 notify_property_changed (PtyxisTerminal *self,
                          const char     *termprop,
                          GParamSpec     *property)
@@ -1222,6 +1242,12 @@ ptyxis_terminal_dispose (GObject *object)
 
   g_debug ("Disposing %s @ %p", G_OBJECT_TYPE_NAME (self), object);
 
+  /* Mark disposed *before* chaining up to the parent class dispose so
+   * that any property reads triggered during teardown refuse to call
+   * into the dying VteTerminal instance.
+   */
+  self->disposed = TRUE;
+
   gtk_widget_dispose_template (GTK_WIDGET (self), PTYXIS_TYPE_TERMINAL);
 
   g_clear_object (&self->palette);
@@ -1240,6 +1266,29 @@ ptyxis_terminal_get_property (GObject    *object,
                               GParamSpec *pspec)
 {
   PtyxisTerminal *self = PTYXIS_TERMINAL (object);
+
+  /* While (or after) the instance is being disposed the parent VteTerminal
+   * instance has begun tearing down. Do not call into libvte — return
+   * type-appropriate defaults so bindings don't trip VTE_IS_TERMINAL().
+   */
+  if (self->disposed)
+    {
+      switch (prop_id)
+        {
+        case PROP_CURRENT_CONTAINER_NAME:
+        case PROP_CURRENT_CONTAINER_RUNTIME:
+          g_value_set_string (value, NULL);
+          break;
+        case PROP_PALETTE:
+        case PROP_SHORTCUTS:
+          g_value_set_object (value, NULL);
+          break;
+        default:
+          G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
+          break;
+        }
+      return;
+    }
 
   switch (prop_id)
     {
@@ -1474,6 +1523,17 @@ ptyxis_terminal_init (PtyxisTerminal *self)
                            G_CALLBACK (ptyxis_terminal_update_clipboard_actions),
                            self,
                            G_CONNECT_SWAPPED);
+
+  /* Mark the instance as disposed at the "destroy" signal — this fires
+   * earlier than GObject dispose, so any property reads triggered by
+   * widget teardown (e.g. GTK widget tree cleanup before refcount
+   * drops to 0) will see self->disposed == TRUE and refuse to call
+   * into the dying VteTerminal parent.
+   */
+  g_signal_connect (self,
+                    "destroy",
+                    G_CALLBACK (ptyxis_terminal_destroy_cb),
+                    NULL);
 
   ptyxis_terminal_update_clipboard_actions (self);
 }

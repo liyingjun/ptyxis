@@ -198,16 +198,30 @@ ptyxis_tab_notify_init (PtyxisTabNotify *notify,
 static inline void
 ptyxis_tab_notify_destroy (PtyxisTabNotify *notify)
 {
-  PtyxisTerminal *terminal = _ptyxis_tab_get_primary_terminal (notify->tab);
+  PtyxisTab *tab;
+  PtyxisTerminal *terminal;
 
-  if (notify->tab == NULL)
+  if (notify == NULL || notify->tab == NULL)
     return;
+
+  tab = notify->tab;
 
   g_clear_handle_id (&notify->contents_changed_source, g_source_remove);
   g_clear_handle_id (&notify->shell_preexec_source, g_source_remove);
 
-  g_clear_signal_handler (&notify->shell_precmd_handler, terminal);
-  g_clear_signal_handler (&notify->shell_preexec_handler, terminal);
+  /* Disconnect handlers via the notify struct as user_data so we don't
+   * have to dereference the terminal (it may already be finalized).
+   * If the terminal is still alive, this disconnects cleanly; if not,
+   * GLib's signal machinery already cleared the entries when the
+   * sender went away, and zeroing the IDs is safe.
+   */
+  terminal = _ptyxis_tab_get_primary_terminal (tab);
+  if (terminal != NULL)
+    {
+      g_signal_handlers_disconnect_by_data (terminal, notify);
+    }
+  notify->shell_precmd_handler = 0;
+  notify->shell_preexec_handler = 0;
 
   g_clear_pointer (&notify->current_cmdline, g_free);
 

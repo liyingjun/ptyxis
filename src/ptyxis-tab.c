@@ -705,6 +705,16 @@ ptyxis_tab_respawn (PtyxisTab *self)
 
   self->state = PTYXIS_TAB_STATE_SPAWNING;
 
+  /* If the primary terminal was destroyed (e.g. all panes have been
+   * closed and only a non-primary remains, or vice versa), there is no
+   * terminal to respawn into — bail out gracefully.
+   */
+  if (self->terminal == NULL)
+    {
+      self->state = PTYXIS_TAB_STATE_FAILED;
+      return;
+    }
+
   pty = vte_terminal_get_pty (VTE_TERMINAL (self->terminal));
 
   if (pty == NULL)
@@ -875,8 +885,22 @@ ptyxis_tab_bell_cb (PtyxisTab      *self,
 static PtyxisIpcContainer *
 ptyxis_tab_discover_container (PtyxisTab *self)
 {
-  const char *current_container_name = ptyxis_terminal_get_current_container_name (self->terminal);
-  const char *current_container_runtime = ptyxis_terminal_get_current_container_runtime (self->terminal);
+  PtyxisTerminal *terminal;
+  const char *current_container_name;
+  const char *current_container_runtime;
+
+  g_assert (PTYXIS_IS_TAB (self));
+
+  /* Route through the safe getter so the weak-pointer / active-pane
+   * fallback applies. If there is no live terminal (e.g. the last pane
+   * was just closed), bail out instead of dereferencing a freed widget.
+   */
+  terminal = ptyxis_tab_get_terminal (self);
+  if (terminal == NULL)
+    return NULL;
+
+  current_container_name = ptyxis_terminal_get_current_container_name (terminal);
+  current_container_runtime = ptyxis_terminal_get_current_container_runtime (terminal);
 
   return ptyxis_application_find_container_by_name (PTYXIS_APPLICATION_DEFAULT,
                                                     current_container_runtime,
@@ -1341,6 +1365,16 @@ ptyxis_tab_dispose (GObject *object)
 
   g_debug ("Disposing tab");
 
+  /* Drop the weak pointer before any teardown so we don't leave GLib
+   * pointing into memory that is about to be freed.
+   */
+  if (self->terminal != NULL)
+    {
+      g_object_remove_weak_pointer (G_OBJECT (self->terminal),
+                                    (gpointer *)&self->terminal);
+      self->terminal = NULL;
+    }
+
   ptyxis_tab_notify_destroy (&self->notify);
 
   ptyxis_tab_force_quit (self);
@@ -1710,6 +1744,14 @@ ptyxis_tab_init (PtyxisTab *self)
 
   ptyxis_tab_notify_init (&self->notify, self);
 
+  /* Make self->terminal self-cleaning: when the underlying widget is
+   * finalized, GLib will atomically NULL the pointer so callers can
+   * safely NULL-check rather than dereferencing a dangling reference.
+   */
+  if (self->terminal != NULL)
+    g_object_add_weak_pointer (G_OBJECT (self->terminal),
+                               (gpointer *)&self->terminal);
+
   controller = gtk_event_controller_scroll_new (GTK_EVENT_CONTROLLER_SCROLL_VERTICAL);
   gtk_event_controller_set_propagation_phase (controller, GTK_PHASE_CAPTURE);
   g_signal_connect (controller,
@@ -1830,7 +1872,7 @@ ptyxis_tab_dup_title (PtyxisTab *self)
 
   gstr = g_string_new (self->title_prefix);
 
-  if (!self->ignore_osc_title)
+  if (terminal != NULL && !self->ignore_osc_title)
     {
       const char *window_title;
 
@@ -2252,13 +2294,21 @@ PtyxisIpcContainer *
 ptyxis_tab_dup_container (PtyxisTab *self)
 {
   g_autoptr(PtyxisIpcContainer) container = NULL;
+  PtyxisTerminal *terminal;
   const char *runtime;
   const char *name;
 
   g_return_val_if_fail (PTYXIS_IS_TAB (self), NULL);
 
-  if ((runtime = ptyxis_terminal_get_current_container_runtime (self->terminal)) &&
-      (name = ptyxis_terminal_get_current_container_name (self->terminal)))
+  /* Route through the safe getter so the weak-pointer / active-pane
+   * fallback applies. If there is no live terminal, just return the
+   * creation-time container instead of dereferencing a freed widget.
+   */
+  terminal = ptyxis_tab_get_terminal (self);
+
+  if (terminal != NULL &&
+      (runtime = ptyxis_terminal_get_current_container_runtime (terminal)) &&
+      (name = ptyxis_terminal_get_current_container_name (terminal)))
     container = ptyxis_application_find_container_by_name (PTYXIS_APPLICATION_DEFAULT, runtime, name);
 
   if (container == NULL)
@@ -2359,23 +2409,24 @@ ptyxis_tab_poll_agent_cb (GObject      *object,
   if (changed)
     g_object_notify_by_pspec (G_OBJECT (self), properties[PROP_TITLE]);
 
-  /* Sync the updated foreground process state to the primary pane so
-   * that multi-pane bookkeeping (is_running, force_quit, etc.) stays
-   * consistent with the tab-level state.
+  /* Sync the updated foreground process state to the active pane so
+   * that multi-pane bookkeeping (is_running, force_quit, leader_kind,
+   * etc.) stays consistent with the tab-level state. The poll targets
+   * whichever pane is currently active, so its results belong to that
+   * pane and not necessarily the primary one.
+   *
+   * The lifecycle state is intentionally NOT mirrored here — it is
+   * owned by spawn_cb / respawn and must not be clobbered mid-spawn.
    */
-  if (self->panes != NULL && self->panes->len > 0)
+  if (self->active_pane != NULL)
     {
-      PtyxisTabPane *primary = g_ptr_array_index (self->panes, 0);
+      PtyxisTabPane *pane = self->active_pane;
 
-      if (primary->is_primary)
-        {
-          primary->state = self->state;
-          primary->pid = self->pid;
-          primary->has_foreground_process = self->has_foreground_process;
-          primary->leader_kind = self->leader_kind;
-          g_set_str (&primary->command_line, self->command_line);
-          g_set_str (&primary->program_name, self->program_name);
-        }
+      pane->pid = self->pid;
+      pane->has_foreground_process = self->has_foreground_process;
+      pane->leader_kind = self->leader_kind;
+      g_set_str (&pane->command_line, self->command_line);
+      g_set_str (&pane->program_name, self->program_name);
     }
 
   /* Update inhibit state when foreground process changes */
@@ -2420,7 +2471,7 @@ ptyxis_tab_poll_agent_async (PtyxisTab           *self,
       return;
     }
 
-  pty = vte_terminal_get_pty (VTE_TERMINAL (self->terminal));
+  pty = vte_terminal_get_pty (VTE_TERMINAL (ptyxis_tab_get_terminal (self)));
   pty_fd = vte_pty_get_fd (pty);
   fd_list = g_unix_fd_list_new ();
   handle = g_unix_fd_list_append (fd_list, pty_fd, NULL);
@@ -2635,7 +2686,7 @@ ptyxis_tab_query_working_directory_from_agent (PtyxisTab *self)
   if (self->process == NULL)
     return NULL;
 
-  pty = vte_terminal_get_pty (VTE_TERMINAL (self->terminal));
+  pty = vte_terminal_get_pty (VTE_TERMINAL (ptyxis_tab_get_terminal (self)));
   pty_fd = vte_pty_get_fd (pty);
   fd_list = g_unix_fd_list_new ();
   handle = g_unix_fd_list_append (fd_list, pty_fd, NULL);
@@ -2654,10 +2705,15 @@ PtyxisTabProgress
 ptyxis_tab_get_progress (PtyxisTab *self)
 {
   gint64 state;
+  PtyxisTerminal *terminal;
 
   g_return_val_if_fail (PTYXIS_IS_TAB (self), 0);
 
-  if (vte_terminal_get_termprop_int_by_id (VTE_TERMINAL (self->terminal),
+  terminal = ptyxis_tab_get_terminal (self);
+  if (terminal == NULL)
+    return 0;
+
+  if (vte_terminal_get_termprop_int_by_id (VTE_TERMINAL (terminal),
                                            VTE_PROPERTY_ID_PROGRESS_HINT,
                                            &state))
     {
@@ -2682,12 +2738,21 @@ ptyxis_tab_get_progress (PtyxisTab *self)
 double
 ptyxis_tab_get_progress_fraction (PtyxisTab *self)
 {
+  PtyxisTerminal *terminal;
   guint64 value;
 
   g_return_val_if_fail (PTYXIS_IS_TAB (self), .0);
 
+  /* Route through the safe getter so the weak-pointer / active-pane
+   * fallback applies. If there is no live terminal, return 0 instead of
+   * dereferencing a freed widget.
+   */
+  terminal = ptyxis_tab_get_terminal (self);
+  if (terminal == NULL)
+    return .0;
+
   if (ptyxis_tab_get_progress (self) != PTYXIS_TAB_PROGRESS_ACTIVE ||
-      !vte_terminal_get_termprop_uint_by_id (VTE_TERMINAL (self->terminal),
+      !vte_terminal_get_termprop_uint_by_id (VTE_TERMINAL (terminal),
                                              VTE_PROPERTY_ID_PROGRESS_VALUE,
                                              &value))
     return .0;
@@ -2892,6 +2957,13 @@ ptyxis_tab_pane_free (gpointer data)
         {
           GtkWidget *parent = gtk_widget_get_parent (pane->box);
 
+          /* Drop our reference to the terminal first — the box destroy
+           * below cascades into terminal destruction, and any signal
+           * handlers that fire during that cascade must not observe a
+           * dangling pane->terminal.
+           */
+          pane->terminal = NULL;
+
           if (parent != NULL)
             {
               if (GTK_IS_PANED (parent))
@@ -2908,6 +2980,13 @@ ptyxis_tab_pane_free (gpointer data)
             }
 
           g_clear_object (&pane->box);
+        }
+      else
+        {
+          /* Box already gone (e.g. on tab dispose via the child-unparent
+           * loop) — still clear the terminal pointer.
+           */
+          pane->terminal = NULL;
         }
     }
 
@@ -2951,20 +3030,26 @@ ptyxis_tab_sync_active_pane (PtyxisTab     *self,
         }
     }
 
-  if (pane->is_primary)
-    {
-      /* Primary pane mirrors the tab's own session fields. */
-    }
-  else
-    {
-      g_set_object (&self->process, pane->process);
-      self->state = pane->state;
-      self->pid = pane->pid;
-      self->has_foreground_process = pane->has_foreground_process;
-      self->leader_kind = pane->leader_kind;
-      g_set_str (&self->command_line, pane->command_line);
-      g_set_str (&self->program_name, pane->program_name);
-    }
+  /* Mirror the pane's session fields onto the tab-level state so the
+   * window chrome (title, icon, superuser/remote/container tint driven
+   * by process-leader-kind) reflects the currently focused pane. This
+   * must also run for the primary pane so switching back to it restores
+   * the correct process/leader-kind after visiting a secondary pane.
+   *
+   * The lifecycle state is only mirrored when the pane has actually
+   * finished spawning — otherwise a focus event arriving while the
+   * primary is still in SPAWNING (with pane->state == INITIAL) would
+   * clobber self->state and break the assertion in ptyxis_tab_spawn_cb.
+   */
+  if (pane->state != PTYXIS_TAB_STATE_INITIAL &&
+      pane->state != PTYXIS_TAB_STATE_SPAWNING)
+    self->state = pane->state;
+  g_set_object (&self->process, pane->process);
+  self->pid = pane->pid;
+  self->has_foreground_process = pane->has_foreground_process;
+  self->leader_kind = pane->leader_kind;
+  g_set_str (&self->command_line, pane->command_line);
+  g_set_str (&self->program_name, pane->program_name);
 
   g_object_notify_by_pspec (G_OBJECT (self), properties[PROP_TITLE]);
   g_object_notify_by_pspec (G_OBJECT (self), properties[PROP_SUBTITLE]);
@@ -3159,7 +3244,17 @@ ptyxis_tab_pane_wait_cb (GObject      *object,
       if (exit_action == PTYXIS_EXIT_ACTION_CLOSE ||
           exit_action == PTYXIS_EXIT_ACTION_NONE)
         {
-          if (tab->active_pane == pane && tab->panes->len > 1)
+          /* If this is the last remaining pane, closing it means closing
+           * the whole tab — otherwise the tab would be stuck with a dead
+           * shell and no way to dismiss it.
+           */
+          if (tab->panes->len <= 1)
+            {
+              gtk_widget_activate_action (GTK_WIDGET (tab), "page.close", NULL);
+              return;
+            }
+
+          if (tab->active_pane == pane)
             {
               for (guint i = 0; i < tab->panes->len; i++)
                 {
@@ -3398,7 +3493,41 @@ ptyxis_tab_close_pane_widget (PtyxisTab     *self,
     }
 
   if (index != GTK_INVALID_LIST_POSITION)
-    g_ptr_array_remove_index (self->panes, index);
+    {
+      /* If the closing pane owned self->terminal (i.e. was primary),
+       * redirect self->terminal to the surviving pane's terminal so
+       * subsequent code paths (respawn, progress, banner, ...) don't
+       * operate on a dangling pointer. Move the weak pointer to track
+       * the new terminal.
+       */
+      if (pane->is_primary && pane->terminal == self->terminal)
+        {
+          PtyxisTerminal *replacement = NULL;
+
+          for (guint i = 0; i < self->panes->len; i++)
+            {
+              PtyxisTabPane *other = g_ptr_array_index (self->panes, i);
+
+              if (other != pane && other->terminal != NULL)
+                {
+                  replacement = other->terminal;
+                  break;
+                }
+            }
+
+          if (replacement != NULL)
+            {
+              if (self->terminal != NULL)
+                g_object_remove_weak_pointer (G_OBJECT (self->terminal),
+                                              (gpointer *)&self->terminal);
+              self->terminal = replacement;
+              g_object_add_weak_pointer (G_OBJECT (self->terminal),
+                                         (gpointer *)&self->terminal);
+            }
+        }
+
+      g_ptr_array_remove_index (self->panes, index);
+    }
 
   g_object_notify_by_pspec (G_OBJECT (self), properties[PROP_N_PANES]);
 

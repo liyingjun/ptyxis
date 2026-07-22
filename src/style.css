@@ -30,7 +30,7 @@ ptyxistab paned.ptyxis-split > separator {
 
 /* Dim non-focused panes so the active pane stands out */
 ptyxistab box.ptyxis-pane-inactive {
-  opacity: .66;
+  opacity: .72;
 }
 ptyxistab box.ptyxis-pane-active {
   opacity: 1;
