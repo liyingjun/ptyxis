@@ -106,6 +106,17 @@ struct _PtyxisTab
   GPtrArray               *panes;
   PtyxisTabPane           *active_pane;
 
+  /* Ordered list of panes that have gained focus, most recent first.
+   * Updated on every focus transition; consulted when closing a pane
+   * to decide where focus should land (the user expects focus to
+   * return to the pane that was focused just before the closing one,
+   * not to whatever GTK picks after the widget tree is mutated).
+   * Entries are not ref-held: panes are owned by self->panes and
+   * close_pane_widget looks the candidate up in self->panes before
+   * dereferencing, so stale entries are harmless.
+   */
+  GPtrArray               *focus_history;
+
   PtyxisTabState           state;
   GPid                     pid;
 
@@ -1204,7 +1215,23 @@ ptyxis_tab_snapshot (GtkWidget   *widget,
   width = gtk_widget_get_width (widget);
   height = gtk_widget_get_height (widget);
 
-  vte_terminal_get_color_background_for_draw (VTE_TERMINAL (self->terminal), &bg);
+  /* Guard against calling into libvte when the primary terminal is no
+   * longer available — the weak pointer on self->terminal is cleared
+   * to NULL by PtyxisTab.dispose / by PtyxisTerminal.dispose, but the
+   * snapshot vfunc can still be invoked from a queued draw after that
+   * (e.g. during the close-tab animation, or while the tab is being
+   * torn down by the tab view). Falling back to opaque black keeps
+   * the animation clean and avoids spamming VTE-CRITICAL.
+   */
+  if (self->terminal != NULL && VTE_IS_TERMINAL (self->terminal))
+    vte_terminal_get_color_background_for_draw (VTE_TERMINAL (self->terminal), &bg);
+  else
+    {
+      bg.red = 0;
+      bg.green = 0;
+      bg.blue = 0;
+      bg.alpha = 1;
+    }
 
   if (animating &&
       ptyxis_window_get_active_tab (window) == self)
@@ -1375,12 +1402,22 @@ ptyxis_tab_dispose (GObject *object)
       self->terminal = NULL;
     }
 
+  /* Defensive unparent: if PtyxisTab.dispose fires with a parent still
+   * set (because something dropped the last ref without going through
+   * the standard unparent path), GTK4 logs a CRITICAL and the subsequent
+   * accessibility-tree cleanup segfaults inside gtk_accessible_get_at_context.
+   * Unparenting here is a no-op in the normal flow (the parent has
+   * already cleared us) and a safety net otherwise. */
+  if (gtk_widget_get_parent (GTK_WIDGET (self)) != NULL)
+    gtk_widget_unparent (GTK_WIDGET (self));
+
   ptyxis_tab_notify_destroy (&self->notify);
 
   ptyxis_tab_force_quit (self);
 
   self->active_pane = NULL;
   g_clear_pointer (&self->panes, g_ptr_array_unref);
+  g_clear_pointer (&self->focus_history, g_ptr_array_unref);
 
   gtk_widget_dispose_template (GTK_WIDGET (self), PTYXIS_TYPE_TAB);
 
@@ -1718,6 +1755,7 @@ ptyxis_tab_init (PtyxisTab *self)
   self->zoom = PTYXIS_ZOOM_LEVEL_DEFAULT;
   self->uuid = g_uuid_string_random ();
   self->panes = g_ptr_array_new_with_free_func (ptyxis_tab_pane_free);
+  self->focus_history = g_ptr_array_new ();
 
   gtk_widget_init_template (GTK_WIDGET (self));
 
@@ -3178,6 +3216,68 @@ ptyxis_tab_pane_apply_scrollbar_policy (PtyxisTabPane *pane)
     }
 }
 
+/* Move @pane to the front of @self->focus_history, removing any prior
+ * entry. Called whenever a pane gains focus so that close_pane_widget
+ * can find the most-recently-focused sibling pane in O(focus_history->len).
+ */
+static void
+ptyxis_tab_push_focus_history (PtyxisTab     *self,
+                              PtyxisTabPane *pane)
+{
+  g_assert (PTYXIS_IS_TAB (self));
+  g_assert (pane != NULL);
+
+  if (self->focus_history == NULL)
+    return;
+
+  /* Remove any existing entry for this pane (no-op if absent). */
+  for (guint i = 0; i < self->focus_history->len; i++)
+    {
+      if (g_ptr_array_index (self->focus_history, i) == pane)
+        {
+          g_ptr_array_remove_index (self->focus_history, i);
+          break;
+        }
+    }
+
+  g_ptr_array_insert (self->focus_history, 0, pane);
+}
+
+/* Return the first pane in focus_history that is still in self->panes
+ * and isn't @skip. Used by close_pane_widget to pick a focus-restoration
+ * target that is guaranteed to still be alive.
+ */
+static PtyxisTabPane *
+ptyxis_tab_find_focus_history_target (PtyxisTab     *self,
+                                      PtyxisTabPane *skip)
+{
+  if (self->focus_history == NULL)
+    return NULL;
+
+  for (guint i = 0; i < self->focus_history->len; i++)
+    {
+      PtyxisTabPane *candidate = g_ptr_array_index (self->focus_history, i);
+      gboolean found = FALSE;
+
+      if (candidate == skip || candidate == NULL)
+        continue;
+
+      for (guint j = 0; j < self->panes->len; j++)
+        {
+          if (g_ptr_array_index (self->panes, j) == candidate)
+            {
+              found = TRUE;
+              break;
+            }
+        }
+
+      if (found)
+        return candidate;
+    }
+
+  return NULL;
+}
+
 static void
 ptyxis_tab_pane_focus_enter_cb (PtyxisTabPane            *pane,
                                 GParamSpec               *pspec,
@@ -3188,11 +3288,55 @@ ptyxis_tab_pane_focus_enter_cb (PtyxisTabPane            *pane,
 
   if (gtk_event_controller_focus_contains_focus (focus))
     {
+      /* Record the focus transition before changing active_pane so
+       * the new pane sits at the front of focus_history and the
+       * previous active pane is now at index 1.
+       */
+      ptyxis_tab_push_focus_history (pane->tab, pane);
       ptyxis_tab_sync_active_pane (pane->tab, pane);
       ptyxis_tab_set_needs_attention (pane->tab, FALSE);
       g_application_withdraw_notification (G_APPLICATION (PTYXIS_APPLICATION_DEFAULT),
                                            pane->tab->uuid);
     }
+}
+
+/* Per-pane wait callback user data.
+ *
+ * The PtyxisTabPane struct itself is owned by PtyxisTab (freed via
+ * g_ptr_array_unref). If close_pane_widget removes the pane before the
+ * IPC layer fires "exited", the struct memory is gone before this cb
+ * runs and dereferencing `pane` would be a use-after-free.
+ *
+ * To keep the callback safe we instead ref the owning PtyxisTab (which
+ * outlives its panes) and look up the pane by pointer comparison inside
+ * tab->panes — if the pane has been freed/removed the lookup fails and
+ * we bail out cleanly.
+ */
+typedef struct
+{
+  PtyxisTab       *tab;
+  PtyxisTabPane   *pane;
+} PtyxisPaneWaitData;
+
+static void
+ptyxis_pane_wait_data_free (PtyxisPaneWaitData *data)
+{
+  g_clear_object (&data->tab);
+  g_free (data);
+}
+
+static PtyxisTabPane *
+ptyxis_tab_pane_wait_data_lookup (const PtyxisPaneWaitData *data)
+{
+  for (guint i = 0; i < data->tab->panes->len; i++)
+    {
+      PtyxisTabPane *p = g_ptr_array_index (data->tab->panes, i);
+
+      if (p == data->pane)
+        return p;
+    }
+
+  return NULL;
 }
 
 static void
@@ -3201,15 +3345,30 @@ ptyxis_tab_pane_wait_cb (GObject      *object,
                          gpointer      user_data)
 {
   PtyxisApplication *app = (PtyxisApplication *)object;
+  PtyxisPaneWaitData *wait_data = user_data;
   g_autoptr(PtyxisTab) tab = NULL;
-  PtyxisTabPane *pane = user_data;
+  PtyxisTabPane *pane;
   g_autoptr(GError) error = NULL;
   int exit_code;
 
   g_assert (PTYXIS_IS_APPLICATION (app));
-  g_assert (pane != NULL);
+  g_assert (wait_data != NULL);
+  g_assert (PTYXIS_IS_TAB (wait_data->tab));
 
-  tab = g_object_ref (pane->tab);
+  tab = g_object_ref (wait_data->tab);
+
+  /* The pane may have been freed (by close_pane_widget → pane_free)
+   * while the IPC completion was in flight. Look up by pointer
+   * comparison inside tab->panes; if it's gone, bail out cleanly.
+   * ptyxis_pane_wait_data_free unconditionally drops the tab ref we
+   * added above.
+   */
+  pane = ptyxis_tab_pane_wait_data_lookup (wait_data);
+  ptyxis_pane_wait_data_free (wait_data);
+
+  if (pane == NULL)
+    return;
+
   g_clear_object (&pane->process);
 
   exit_code = ptyxis_application_wait_finish (app, result, &error);
@@ -3292,6 +3451,7 @@ ptyxis_tab_pane_spawn_cb (GObject      *object,
   g_autoptr(PtyxisIpcProcess) process = NULL;
   g_autoptr(PtyxisTab) tab = NULL;
   PtyxisTabPane *pane = user_data;
+  PtyxisPaneWaitData *wait_data;
   g_autoptr(GError) error = NULL;
 
   g_assert (pane != NULL);
@@ -3322,11 +3482,20 @@ ptyxis_tab_pane_spawn_cb (GObject      *object,
   if (tab->active_pane == pane)
     ptyxis_tab_sync_active_pane (tab, pane);
 
+  /* Pass a ref'd PtyxisTab + the (raw) pane pointer through a wrapper.
+   * PtyxisTab outlives its panes, so even if close_pane_widget frees
+   * `pane` before the IPC "exited" callback fires, the wait_cb can
+   * still safely dereference PtyxisTab and check tab->panes for the
+   * pane pointer. */
+  wait_data = g_new0 (PtyxisPaneWaitData, 1);
+  wait_data->tab = g_object_ref (tab);
+  wait_data->pane = pane;
+
   ptyxis_application_wait_async (app,
                                  process,
                                  pane->cancellable,
                                  ptyxis_tab_pane_wait_cb,
-                                 pane);
+                                 wait_data);
 }
 
 static void
@@ -3418,6 +3587,7 @@ ptyxis_tab_close_pane_widget (PtyxisTab     *self,
   GtkWidget *parent;
   GtkWidget *sibling = NULL;
   GtkWidget *grandparent;
+  PtyxisTabPane *restore;
   guint index = GTK_INVALID_LIST_POSITION;
 
   g_assert (PTYXIS_IS_TAB (self));
@@ -3441,6 +3611,41 @@ ptyxis_tab_close_pane_widget (PtyxisTab     *self,
     return FALSE;
 
   grandparent = gtk_widget_get_parent (parent);
+
+  /* Determine the focus restoration target. Walk focus_history (the
+   * ordered list of recently-focused panes, most recent first) and
+   * pick the first entry that is still in self->panes and isn't the
+   * pane we're about to close. This gives the user "focus returns to
+   * the previously-focused pane" semantics that mirror common IDE/editor
+   * tab-close behaviour, instead of GTK's default which tends to land
+   * on the first/top-left pane after the widget tree has been mutated.
+   */
+  restore = ptyxis_tab_find_focus_history_target (self, pane);
+
+  /* Move focus AWAY from the dying pane's terminal *before* the unparent
+   * chain. Two failure modes we have to defend against here:
+   *
+   * 1. GtkPaned's `gtk_paned_set_focus_child()` runs whenever a paned
+   *    child is unparented while it was the paned's focus_child. The
+   *    implementation walks up from the window's focused widget looking
+   *    for the paned, and emits
+   *        "Error finding last focus widget of GtkPaned …"
+   *    if the focused widget is not a descendant of the paned any
+   *    longer. We avoid this by giving the paned itself focus: the
+   *    walk-up from "paned" hits the paned immediately on the first
+   *    iteration, exits the loop cleanly, and never reaches the
+   *    warning branch. Crucially, focusing the paned also means the
+   *    paned's `focus_child` is now the paned (not the dying box or
+   *    its sibling), so neither unparent triggers the set_focus_child
+   *    call in the first place.
+   *
+   * 2. After the unparent chain settles, focus needs to actually be on
+   *    a focusable descendant of the surviving pane (the terminal) so
+   *    that VTE starts blinking the cursor and receives key events.
+   *    We do that explicit grab_focus below, after the tree has been
+   *    rewritten.
+   */
+  gtk_widget_grab_focus (parent);
 
   g_object_ref (sibling);
   gtk_paned_set_start_child (GTK_PANED (parent), NULL);
@@ -3470,25 +3675,60 @@ ptyxis_tab_close_pane_widget (PtyxisTab     *self,
         }
     }
 
+  /* Drop the dying pane from focus_history so it can't be picked as a
+   * restoration target on a later close (it'll be freed by
+   * g_ptr_array_unref below, leaving a dangling pointer otherwise).
+   */
+  if (self->focus_history != NULL)
+    {
+      for (guint i = 0; i < self->focus_history->len; i++)
+        {
+          if (g_ptr_array_index (self->focus_history, i) == pane)
+            {
+              g_ptr_array_remove_index (self->focus_history, i);
+              break;
+            }
+        }
+    }
+
   if (self->active_pane == pane)
     {
       PtyxisTabPane *next = NULL;
 
-      for (guint i = 0; i < self->panes->len; i++)
+      /* Prefer the focus-history target (chosen before the unparent
+       * chain) so focus returns to the pane that was focused right
+       * before the now-closing pane, matching how users expect tab
+       * focus to behave. Fall back to the first remaining pane in
+       * self->panes if the history target is unavailable.
+       */
+      if (restore != NULL && restore != pane)
         {
-          PtyxisTabPane *other = g_ptr_array_index (self->panes, i);
-
-          if (other != pane)
+          next = restore;
+        }
+      else
+        {
+          for (guint i = 0; i < self->panes->len; i++)
             {
-              next = other;
-              break;
+              PtyxisTabPane *other = g_ptr_array_index (self->panes, i);
+
+              if (other != pane)
+                {
+                  next = other;
+                  break;
+                }
             }
         }
 
-      if (next != NULL)
+      if (next != NULL && next->terminal != NULL)
         {
+          /* Promote @next in the focus history so a subsequent close of
+           * another pane will, in turn, restore focus to the pane that
+           * was focused before @next — the history just keeps stepping
+           * backwards through the focus chain.
+           */
+          ptyxis_tab_push_focus_history (self, next);
           ptyxis_tab_sync_active_pane (self, next);
-          gtk_widget_grab_focus (GTK_WIDGET (next->terminal));
+	  gtk_widget_grab_focus (GTK_WIDGET (next->terminal));
         }
     }
 
