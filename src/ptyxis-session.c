@@ -24,6 +24,7 @@
 #include "ptyxis-application.h"
 #include "ptyxis-session.h"
 #include "ptyxis-settings.h"
+#include "ptyxis-tab.h"
 #include "ptyxis-util.h"
 #include "ptyxis-window.h"
 
@@ -99,9 +100,24 @@ ptyxis_session_save (PtyxisApplication *app)
                   container = ptyxis_tab_dup_container (tab);
                   is_active = ptyxis_window_get_active_tab (window) == tab;
 
-                  terminal = ptyxis_tab_get_terminal (tab);
+                  terminal = ptyxis_tab_get_primary_terminal (tab);
                   columns = vte_terminal_get_column_count (VTE_TERMINAL (terminal));
                   rows = vte_terminal_get_row_count (VTE_TERMINAL (terminal));
+                  /* Use the PRIMARY pane's cwd (not the active pane's).
+                   * In a multi-pane tab, ptyxis_tab_get_terminal() returns
+                   * whichever pane the user last focused — which is often a
+                   * non-primary pane. That cwd is fine for restoring the
+                   * specific pane it belonged to (each pane entry carries
+                   * its own cwd via PtyxisTab_dup_panes_state), but it is
+                   * wrong for the tab-level "cwd" that PtyxisSession_restore
+                   * feeds back into PtyxisTab_respawn to pick the primary
+                   * pane's startup directory. Saving the active pane's cwd
+                   * here caused the restored primary to come up in whatever
+                   * directory the LAST-FOCUSED non-primary pane was in —
+                   * matching no pane in particular and confusing the user
+                   * ("the first pane has the wrong directory"). Use the
+                   * primary terminal so each pane restores to its own
+                   * saved cwd via PtyxisTab_restore_panes_state. */
                   cwd = ptyxis_terminal_dup_current_directory_uri (terminal);
                   zoom = ptyxis_tab_get_zoom (tab);
 
@@ -135,6 +151,38 @@ ptyxis_session_save (PtyxisApplication *app)
                   if (container_id != NULL &&
                       g_strcmp0 (default_container, container_id) != 0)
                     g_variant_builder_add_parsed (&builder, "{'container', <%s>}", container_id);
+
+                  /* Split-pane layout for non-primary panes. Each entry
+                   * describes a pane's parent, orientation, divider
+                   * position, working directory and container, so the
+                   * layout can be replayed verbatim on restore.
+                   *
+                   * Use the documented GLib dict-entry pattern (see
+                   * g_variant_builder_add() reference): open a `{sv}`
+                   * sub-builder, add the key with format `s`, add the
+                   * value with format `v` (which wraps the supplied
+                   * GVariant), then close. The earlier attempt to do
+                   * this with `add "s", "panes"` directly on the parent
+                   * `a{sv}` builder tripped `is_of_type` because the
+                   * array builder's `expected_type` is the element type
+                   * `{sv}`, not a bare string key — the cascade of
+                   * `add_value`/`open`/`close` CRITICALs we saw at
+                   * shutdown was triggered by that single bad add, with
+                   * every subsequent builder operation failing the same
+                   * assertion against the now-orphaned builder state. */
+                  if (ptyxis_tab_get_n_panes (tab) > 1)
+                    {
+                      g_autoptr(GVariant) panes_state = ptyxis_tab_dup_panes_state (tab);
+
+                      if (panes_state != NULL)
+                        {
+                          g_variant_builder_open (&builder, G_VARIANT_TYPE ("{sv}"));
+                          g_variant_builder_add (&builder, "s", "panes");
+                          g_variant_builder_add (&builder, "v", panes_state);
+                          g_variant_builder_close (&builder);
+                        }
+                    }
+
                   g_variant_builder_close (&builder);
                 }
             }
@@ -275,6 +323,20 @@ ptyxis_session_restore (PtyxisApplication *app,
 
           ptyxis_window_add_tab_at_end (the_window, the_tab);
           ptyxis_window_set_tab_pinned (the_window, the_tab, pinned);
+
+          /* Replay split-pane layout after the tab is parented so the
+           * tab is mapped (otherwise paned widgets added during split
+           * would not be realized and GtkPaned position adjustments can
+           * no-op silently). ptyxis_tab_restore_panes_state() walks
+           * the saved panes array in order and calls
+           * ptyxis_tab_split_full() for each entry. */
+          if (ptyxis_tab_get_n_panes (the_tab) <= 1)
+            {
+              g_autoptr(GVariant) panes_state = g_variant_lookup_value (tab, "panes", G_VARIANT_TYPE ("aa{sv}"));
+
+              if (panes_state != NULL)
+                ptyxis_tab_restore_panes_state (the_tab, panes_state);
+            }
 
           if (is_active)
             active_tab = the_tab;

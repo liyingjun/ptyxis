@@ -22,6 +22,7 @@
 #pragma once
 
 #include <gtk/gtk.h>
+#include <gio/gio.h>
 
 #include "ptyxis-agent-ipc.h"
 #include "ptyxis-profile.h"
@@ -85,6 +86,7 @@ G_DECLARE_FINAL_TYPE (PtyxisTab, ptyxis_tab, PTYXIS, TAB, GtkWidget)
 
 PtyxisTab          *ptyxis_tab_new                                (PtyxisProfile        *profile);
 PtyxisTerminal     *ptyxis_tab_get_terminal                       (PtyxisTab            *self);
+PtyxisTerminal     *ptyxis_tab_get_primary_terminal               (PtyxisTab            *self);
 PtyxisProfile      *ptyxis_tab_get_profile                        (PtyxisTab            *self);
 void                ptyxis_tab_apply_profile                      (PtyxisTab            *self,
                                                                    PtyxisProfile        *new_profile);
@@ -122,6 +124,9 @@ void                ptyxis_tab_show_banner                        (PtyxisTab    
 void                ptyxis_tab_set_needs_attention                (PtyxisTab            *self,
                                                                    gboolean              needs_attention);
 PtyxisIpcContainer *ptyxis_tab_dup_container                      (PtyxisTab            *self);
+GVariant           *ptyxis_tab_dup_panes_state                    (PtyxisTab            *self);
+gboolean            ptyxis_tab_restore_panes_state                (PtyxisTab            *self,
+                                                                   GVariant             *state);
 void                ptyxis_tab_set_container                      (PtyxisTab            *self,
                                                                    PtyxisIpcContainer   *container);
 gboolean            ptyxis_tab_has_foreground_process             (PtyxisTab            *self,
@@ -145,6 +150,11 @@ char               *ptyxis_tab_query_working_directory_from_agent (PtyxisTab    
 void                ptyxis_tab_grab_focus                         (PtyxisTab            *self);
 void                ptyxis_tab_split                              (PtyxisTab            *self,
                                                                    GtkOrientation        orientation);
+void                ptyxis_tab_split_full                         (PtyxisTab            *self,
+                                                                   GtkOrientation        orientation,
+                                                                   int                   position,
+                                                                   const char           *cwd_uri,
+                                                                   PtyxisIpcContainer   *container);
 gboolean            ptyxis_tab_close_pane                         (PtyxisTab            *self);
 guint               ptyxis_tab_get_n_panes                        (PtyxisTab            *self);
 void                ptyxis_tab_focus_pane                         (PtyxisTab            *self,
