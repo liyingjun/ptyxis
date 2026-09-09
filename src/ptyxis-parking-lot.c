@@ -62,6 +62,9 @@ ptyxis_parking_lot_remove (PtyxisParkingLot *self,
 
   tab = g_steal_pointer (&parked->tab);
 
+  g_debug ("[BUG5] parking_lot_remove tab=%p refcount-before=%u force_quit=%d",
+           (void*)tab, tab ? ((GObject*)tab)->ref_count : 0, force_quit);
+
   g_clear_handle_id (&parked->source_id, g_source_remove);
   g_queue_unlink (&self->tabs, &parked->link);
   parked->lot = NULL;
@@ -73,8 +76,15 @@ ptyxis_parking_lot_remove (PtyxisParkingLot *self,
       g_debug ("Removing tab \"%s\" from parking lot", title);
 
       if (force_quit)
-        ptyxis_tab_force_quit (tab);
+        {
+          g_debug ("[BUG5] parking_lot_remove step=force_quit refcount-before=%u",
+                   ((GObject*)tab)->ref_count);
+          ptyxis_tab_force_quit (tab);
+          g_debug ("[BUG5] parking_lot_remove step=force_quit DONE refcount-after=%u",
+                   ((GObject*)tab)->ref_count);
+        }
     }
+  g_debug ("[BUG5] parking_lot_remove EXIT (autoptr about to drop ref)");
 }
 
 static void

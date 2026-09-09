@@ -2509,15 +2509,16 @@ ptyxis_tab_force_quit_in_idle (gpointer data)
 {
   PtyxisTab *self = data;
 
-  g_assert (PTYXIS_IS_TAB (self));
-
-  /* If dispose() already ran, the tab is being torn down — self->panes
-   * is NULL, signals are disconnected, and iterating would deref freed
-   * memory. Bail cleanly instead of tripping the CRITICAL assertion
-   * cascade the user hit before the SIGKILL-timer-cancellation fix
-   * landed. */
-  if (self->disposed)
+  /* The SIGKILL safety-net source passes @self as a raw pointer with no
+   * strong ref (see ptyxis_tab_force_quit). GObject runs dispose() —
+   * which cancels this source — before finalize(), so this callback can
+   * never fire against a freed PtyxisTab. The disposed flag is the
+   * belt-and-braces check: if dispose already ran (source cancelled but
+   * a stale dispatch slipped through), bail before touching anything. */
+  if (self == NULL || self->disposed)
     return G_SOURCE_REMOVE;
+
+  g_assert (PTYXIS_IS_TAB (self));
 
   if (self->panes != NULL)
     {
@@ -2607,19 +2608,34 @@ ptyxis_tab_force_quit (PtyxisTab *self)
       ptyxis_tab_send_signal (self, SIGHUP);
     }
 
-  /* In case this was not enough for the process to actually exit, we setup
-   * a short timer to send SIGKILL afterwards. Store the source id on
-   * self->pending_kill_source so ptyxis_tab_dispose() can cancel it if
-   * the shell exits cleanly within the 50 ms window (otherwise the
-   * timer would fire against an already-finalized PtyxisTab and trip
-   * the PTYXIS_IS_TAB assertion in ptyxis_tab_force_quit_in_idle).
+  /* In case this was not enough for the process to actually exit, we set
+   * up a short timer to send SIGKILL afterwards. Store the source id on
+   * self->pending_kill_source so ptyxis_tab_dispose() can cancel it.
+   *
+   * The source intentionally does NOT hold a strong reference on @self
+   * (NULL destroy_notify, raw @self pointer as data). An earlier version
+   * passed g_object_ref(self)/g_object_unref here so the callback could
+   * safely deref @self — but that strong ref is what caused Bug 5:
+   * during PtyxisTab.dispose, g_clear_handle_id(&pending_kill_source,
+   * g_source_remove) fires the source's GDestroyNotify (g_object_unref),
+   * and when the timer's was the last remaining ref that unref brought
+   * refcount to 0, GLib finalized the instance *mid-dispose*; the first
+   * dispose then resumed on freed memory and tripped the
+   * GLib-GObject-CRITICAL "invalid unclassed pointer" cascade.
+   *
+   * Without the strong ref, cancelling the source during dispose drops no
+   * tab ref, so the instance cannot be finalized out from under the
+   * running dispose. This is safe because GObject guarantees dispose()
+   * runs before finalize() and dispose() cancels this source — so the
+   * callback can never fire against a freed PtyxisTab. The callback
+   * additionally checks self->disposed and bails if dispose already ran.
    */
   self->pending_kill_source =
       g_timeout_add_full (G_PRIORITY_HIGH,
                           50,
                           ptyxis_tab_force_quit_in_idle,
-                          g_object_ref (self),
-                          g_object_unref);
+                          self,
+                          NULL);
 }
 
 PtyxisIpcProcess *

@@ -60,9 +60,20 @@ do_destroy_window (gpointer user_data)
   GtkApplication *app = user_data;
   GList *windows = gtk_application_get_windows (app);
   PtyxisWindow *win = windows ? PTYXIS_WINDOW (windows->data) : NULL;
+  PtyxisTab *tab = win ? ptyxis_window_get_active_tab (win) : NULL;
 
-  g_print ("[test_bug5] destroy window=%p (parked tab in parking lot)\n",
-           (void*)win);
+  /* Pre-arm the SIGKILL safety-net (exactly what the close-dialog confirm
+   * path does via ptyxis_close_dialog_confirm -> ptyxis_tab_force_quit)
+   * so that pending_kill_source is LIVE when PtyxisTab.dispose runs its
+   * cancel-pending-kill-source step. This is the trigger from the user's
+   * log (source id 683 was live at dispose time). */
+  if (tab != NULL)
+    {
+      g_print ("[test_bug5] pre-arm force_quit on tab=%p\n", (void*)tab);
+      ptyxis_tab_force_quit (tab);
+    }
+
+  g_print ("[test_bug5] destroy window=%p (kill source live)\n", (void*)win);
 
   if (win != NULL)
     gtk_window_destroy (GTK_WINDOW (win));
