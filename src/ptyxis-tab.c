@@ -144,6 +144,17 @@ struct _PtyxisTab
    * the grab sticks, coalescing repeated calls via this single source
    * id. */
   guint                    pending_focus_source;
+
+  /* Source id of the 50 ms SIGKILL safety-net timer scheduled by
+   * ptyxis_tab_force_quit(). The shell often exits cleanly within a
+   * few ms of SIGHUP (especially when the spawned process sees its
+   * stdin close) and PtyxisTab.dispose() runs almost immediately
+   * afterwards — long before the 50 ms SIGKILL timer fires. Without
+   * cancellation the timer callback would dereference an already-
+   * finalized PtyxisTab and trip the PTYXIS_IS_TAB assertion in
+   * ptyxis_tab_force_quit_in_idle(). Tracked here so dispose() can
+   * g_source_remove() it. */
+  guint                    pending_kill_source;
 };
 
 enum {
@@ -1513,6 +1524,15 @@ ptyxis_tab_dispose (GObject *object)
 
   ptyxis_tab_notify_destroy (&self->notify);
 
+  /* Cancel the SIGKILL safety-net timer scheduled by
+   * ptyxis_tab_force_quit() before we drop our last reference. If
+   * the shell exited cleanly within the 50 ms window (very common
+   * for shell scripts that react to SIGHUP), the timer source's
+   * GDestroyNotify (g_object_unref) would otherwise fire against a
+   * already-finalized PtyxisTab, and the timer's callback would
+   * dereference it and trip the PTYXIS_IS_TAB assertion. */
+  g_clear_handle_id (&self->pending_kill_source, g_source_remove);
+
   ptyxis_tab_force_quit (self);
 
   self->active_pane = NULL;
@@ -2452,13 +2472,18 @@ ptyxis_tab_force_quit (PtyxisTab *self)
     }
 
   /* In case this was not enough for the process to actually exit, we setup
-   * a short timer to send SIGKILL afterwards.
+   * a short timer to send SIGKILL afterwards. Store the source id on
+   * self->pending_kill_source so ptyxis_tab_dispose() can cancel it if
+   * the shell exits cleanly within the 50 ms window (otherwise the
+   * timer would fire against an already-finalized PtyxisTab and trip
+   * the PTYXIS_IS_TAB assertion in ptyxis_tab_force_quit_in_idle).
    */
-  g_timeout_add_full (G_PRIORITY_HIGH,
-                      50,
-                      ptyxis_tab_force_quit_in_idle,
-                      g_object_ref (self),
-                      g_object_unref);
+  self->pending_kill_source =
+      g_timeout_add_full (G_PRIORITY_HIGH,
+                          50,
+                          ptyxis_tab_force_quit_in_idle,
+                          g_object_ref (self),
+                          g_object_unref);
 }
 
 PtyxisIpcProcess *
