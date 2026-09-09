@@ -129,6 +129,18 @@ struct _PtyxisTab
   guint                    ignore_osc_title : 1;
   guint                    ignore_snapshot : 1;
 
+  /* Set by ptyxis_tab_dispose() on first entry. Used as a defensive
+   * guard so a second dispose call (which GLib 2.80+ would normally
+   * suppress via G_OBJECT_FLAG_DISPOSED, but which can still happen via
+   * explicit g_object_run_dispose() chains or via PtyxisTabPane code
+   * paths that run inside the first dispose's pending IPC callbacks)
+   * early-returns instead of re-running signal/SIGKILL fan-out and the
+   * gtk_widget_dispose_template dance. Also checked from
+   * ptyxis_tab_force_quit() and ptyxis_tab_force_quit_in_idle() so
+   * the SIGKILL safety-net timer is a no-op once the tab has been
+   * torn down. */
+  guint                    disposed : 1;
+
   guint                    inhibit_cookie;
 
   /* Deferred focus-grab source.
@@ -1501,6 +1513,51 @@ ptyxis_tab_dispose (GObject *object)
   PtyxisTab *self = (PtyxisTab *)object;
   GtkWidget *child;
 
+  /* [BUG5-TRACE] */
+  g_debug ("[BUG5] PtyxisTab.dispose ENTER tab=%p refcount=%u parent=%s",
+           (void*)self,
+           G_OBJECT (self)->ref_count,
+           gtk_widget_get_parent (GTK_WIDGET (self)) ? G_OBJECT_TYPE_NAME (gtk_widget_get_parent (GTK_WIDGET (self))) : "null");
+
+  /* Guard against double-dispose. GLib 2.80+ suppresses a second
+   * g_object_run_dispose() automatically via G_OBJECT_FLAG_DISPOSED, but
+   * PtyxisTab's defensive ptyxis_tab_force_quit(self) call further down
+   * can in principle run while the SIGKILL safety-net timer's destroy
+   * notify is mid-unref — if that path then tripped a second dispose on
+   * the same instance, the widget-template disposal and signal/SIGKILL
+   * fan-out below would re-run against a partially-torn-down object.
+   * Setting self->disposed EARLY (before any work, including before the
+   * `g_clear_handle_id (&self->pending_kill_source, g_source_remove)`
+   * below whose GDestroyNotify = g_object_unref can drop a ref and
+   * trigger g_object_unref_and_queue_free → g_object_free synchronously)
+   * turns any such re-entry into a no-op. Critically: setting this flag
+   * early means GLib's queued-free path sees G_OBJECT_FLAG_DISPOSED set
+   * and short-circuits straight to g_type_free_instance() instead of
+   * dispatching another PtyxisTab.dispose, which was the cascade that
+   * led to the Gtk widget CRITICAL assertions (PtyxisTab was finalized
+   * twice — once by the re-entered dispose, once by the original call's
+   * tail — and the second pass ran against a freed instance). */
+  if (self->disposed)
+    {
+      g_debug ("[BUG5] PtyxisTab.dispose EARLY-RETURN (already disposed)");
+      return;
+    }
+
+  /* Set the disposed flag BEFORE any work that can drop a ref on self
+   * (cancel-pending-kill-source's destroy_notify, signal disconnect
+   * chains, etc.) so that any reentrant PtyxisTab.dispose triggered by
+   * those ref-drops short-circuits at the early-return guard above.
+   * PtyxisTab.force_quit() still checks `self->forced_exit` to dedupe
+   * SIGHUP/SIGKILL delivery, so the second-invocation safety net is
+   * intact without leaning on self->disposed. */
+  self->disposed = TRUE;
+  g_debug ("[BUG5] PtyxisTab.dispose step=self.disposed=TRUE (set early, before any ref-dropping work)");
+
+  g_debug ("[BUG5] PtyxisTab.dispose step=start refcount=%u panes=%u terminal=%p",
+           G_OBJECT (self)->ref_count,
+           self->panes ? self->panes->len : 0,
+           (void*)self->terminal);
+
   g_debug ("Disposing tab");
 
   /* Drop the weak pointer before any teardown so we don't leave GLib
@@ -1508,6 +1565,8 @@ ptyxis_tab_dispose (GObject *object)
    */
   if (self->terminal != NULL)
     {
+      g_debug ("[BUG5] PtyxisTab.dispose step=remove-weak-terminal=%p",
+               (void*)self->terminal);
       g_object_remove_weak_pointer (G_OBJECT (self->terminal),
                                     (gpointer *)&self->terminal);
       self->terminal = NULL;
@@ -1520,8 +1579,13 @@ ptyxis_tab_dispose (GObject *object)
    * Unparenting here is a no-op in the normal flow (the parent has
    * already cleared us) and a safety net otherwise. */
   if (gtk_widget_get_parent (GTK_WIDGET (self)) != NULL)
-    gtk_widget_unparent (GTK_WIDGET (self));
+    {
+      g_debug ("[BUG5] PtyxisTab.dispose step=defensive-unparent from %s",
+               G_OBJECT_TYPE_NAME (gtk_widget_get_parent (GTK_WIDGET (self))));
+      gtk_widget_unparent (GTK_WIDGET (self));
+    }
 
+  g_debug ("[BUG5] PtyxisTab.dispose step=notify-destroy");
   ptyxis_tab_notify_destroy (&self->notify);
 
   /* Cancel the SIGKILL safety-net timer scheduled by
@@ -1531,22 +1595,54 @@ ptyxis_tab_dispose (GObject *object)
    * GDestroyNotify (g_object_unref) would otherwise fire against a
    * already-finalized PtyxisTab, and the timer's callback would
    * dereference it and trip the PTYXIS_IS_TAB assertion. */
+  g_debug ("[BUG5] PtyxisTab.dispose step=cancel-pending-kill-source=%u",
+           self->pending_kill_source);
   g_clear_handle_id (&self->pending_kill_source, g_source_remove);
 
+  /* Send SIGHUP + schedule the SIGKILL safety-net as a defensive net
+   * for close paths that reach dispose without an earlier force_quit
+   * (e.g. window close without prompt-on-close). ptyxis_tab_force_quit()
+   * intentionally no longer bails on self->disposed (we just set it at
+   * the top of this function) so the SIGHUP still fires here; double
+   * SIGHUP/SIGKILL delivery is prevented by the inner forced_exit check. */
+  g_debug ("[BUG5] PtyxisTab.dispose step=force-quit (SIGHUP) refcount-before=%u",
+           G_OBJECT (self)->ref_count);
   ptyxis_tab_force_quit (self);
+  g_debug ("[BUG5] PtyxisTab.dispose step=force-quit DONE refcount-after=%u pending-kill-source=%u",
+           G_OBJECT (self)->ref_count,
+           self->pending_kill_source);
 
   self->active_pane = NULL;
+  g_debug ("[BUG5] PtyxisTab.dispose step=clear-panes (n=%u) refcount-before=%u",
+           self->panes ? self->panes->len : 0,
+           G_OBJECT (self)->ref_count);
   g_clear_pointer (&self->panes, g_ptr_array_unref);
   g_clear_pointer (&self->focus_history, g_ptr_array_unref);
+  g_debug ("[BUG5] PtyxisTab.dispose step=clear-panes DONE refcount-after=%u",
+           G_OBJECT (self)->ref_count);
 
   /* Cancel any pending focus-grab idle so its callback doesn't fire
    * against a partially-disposed PtyxisTab. */
+  g_debug ("[BUG5] PtyxisTab.dispose step=cancel-pending-focus-source=%u",
+           self->pending_focus_source);
   g_clear_handle_id (&self->pending_focus_source, g_source_remove);
 
+  g_debug ("[BUG5] PtyxisTab.dispose step=dispose-template refcount=%u",
+           G_OBJECT (self)->ref_count);
   gtk_widget_dispose_template (GTK_WIDGET (self), PTYXIS_TYPE_TAB);
+  g_debug ("[BUG5] PtyxisTab.dispose step=dispose-template DONE refcount=%u",
+           G_OBJECT (self)->ref_count);
 
+  g_debug ("[BUG5] PtyxisTab.dispose step=unparent-loop refcount=%u",
+           G_OBJECT (self)->ref_count);
   while ((child = gtk_widget_get_first_child (GTK_WIDGET (self))))
-    gtk_widget_unparent (child);
+    {
+      g_debug ("[BUG5]   unparent child %s @ %p",
+               G_OBJECT_TYPE_NAME (child), (void*)child);
+      gtk_widget_unparent (child);
+    }
+  g_debug ("[BUG5] PtyxisTab.dispose step=unparent-loop DONE refcount=%u",
+           G_OBJECT (self)->ref_count);
 
   g_clear_object (&self->cached_texture);
   g_clear_object (&self->profile);
@@ -1570,7 +1666,12 @@ ptyxis_tab_dispose (GObject *object)
   g_clear_pointer (&self->command_line, g_free);
   g_clear_pointer (&self->program_name, g_free);
 
+  g_debug ("[BUG5] PtyxisTab.dispose step=parent-class-dispose refcount=%u",
+           G_OBJECT (self)->ref_count);
   G_OBJECT_CLASS (ptyxis_tab_parent_class)->dispose (object);
+  g_debug ("[BUG5] PtyxisTab.dispose step=parent-class-dispose DONE refcount=%u",
+           G_OBJECT (self)->ref_count);
+  g_debug ("[BUG5] PtyxisTab.dispose EXIT tab=%p", (void*)self);
 }
 
 static void
@@ -1578,9 +1679,12 @@ ptyxis_tab_finalize (GObject *object)
 {
   PtyxisTab *self = (PtyxisTab *)object;
 
+  g_debug ("[BUG5] PtyxisTab.finalize ENTER tab=%p", (void*)self);
+
   g_clear_pointer (&self->uuid, g_free);
 
   G_OBJECT_CLASS (ptyxis_tab_parent_class)->finalize (object);
+  g_debug ("[BUG5] PtyxisTab.finalize EXIT tab=%p", (void*)self);
 }
 
 static void
@@ -2407,6 +2511,14 @@ ptyxis_tab_force_quit_in_idle (gpointer data)
 
   g_assert (PTYXIS_IS_TAB (self));
 
+  /* If dispose() already ran, the tab is being torn down — self->panes
+   * is NULL, signals are disconnected, and iterating would deref freed
+   * memory. Bail cleanly instead of tripping the CRITICAL assertion
+   * cascade the user hit before the SIGKILL-timer-cancellation fix
+   * landed. */
+  if (self->disposed)
+    return G_SOURCE_REMOVE;
+
   if (self->panes != NULL)
     {
       for (guint i = 0; i < self->panes->len; i++)
@@ -2438,7 +2550,31 @@ ptyxis_tab_pane_send_signal (PtyxisTabPane *pane,
 void
 ptyxis_tab_force_quit (PtyxisTab *self)
 {
-  g_return_if_fail (PTYXIS_IS_TAB (self));
+  /* Defensive: callers (parking lot, close dialog, dispose path) can
+   * occasionally race — e.g. PtyxisParkingLot.dispose() fires after a
+   * tab has already been torn down via PtyxisWindow.dispose(). The
+   * PTYXIS_IS_TAB(self) check would log a CRITICAL and return early,
+   * flooding the log under G_MESSAGES_DEBUG=Ptyxis.
+   *
+   * Intentionally do NOT short-circuit on `self->disposed` here:
+   * PtyxisTab.dispose() sets `self->disposed = TRUE` early (before
+   * calling this function as its defensive SIGHUP fan-out) precisely
+   * so the recursive-dispose cascade is broken — the SIGKILL safety-net
+   * timer's destroy_notify can no longer drive a second PtyxisTab.dispose
+   * once the flag is set. If we also bailed on `self->disposed` here,
+   * the dispose path's SIGHUP would be silently dropped and shells
+   * would only ever die from SIGKILL. Double-SIGHUP is instead prevented
+   * by the `forced_exit` check below.
+   *
+   * We deliberately do NOT use g_return_if_fail here because the
+   * CRITICAL it logs was the user's reported "Killed" symptom —
+   * every close of a multi-tab window was producing a
+   * Ptyxis-CRITICAL line followed by another invalid-pointer CRITICAL
+   * inside gtk_widget_dispose_template when the reentered dispose
+   * ran against partially-freed memory.
+   */
+  if (!PTYXIS_IS_TAB (self))
+    return;
 
   /* Skip the diagnostic log + signal/SIGKILL fan-out when force_quit
    * already ran for this tab. The tab's own ptyxis_tab_dispose() calls
@@ -3305,6 +3441,9 @@ ptyxis_tab_pane_free (gpointer data)
   if (pane == NULL)
     return;
 
+  g_debug ("[BUG5] pane_free ENTER pane=%p is_primary=%d terminal=%p box=%p",
+           (void*)pane, pane->is_primary, (void*)pane->terminal, (void*)pane->box);
+
   pane->forced_exit = TRUE;
 
   g_cancellable_cancel (pane->cancellable);
@@ -3343,7 +3482,10 @@ ptyxis_tab_pane_free (gpointer data)
                 }
             }
 
+          g_debug ("[BUG5] pane_free step=clear-non-primary-box refcount-before=%u",
+                   G_OBJECT (pane->box)->ref_count);
           g_clear_object (&pane->box);
+          g_debug ("[BUG5] pane_free step=clear-non-primary-box DONE");
         }
       else
         {
@@ -3352,6 +3494,11 @@ ptyxis_tab_pane_free (gpointer data)
            */
           pane->terminal = NULL;
         }
+    }
+  else
+    {
+      g_debug ("[BUG5] pane_free PRIMARY pane: leaving box=%p terminal=%p for later teardown",
+               (void*)pane->box, (void*)pane->terminal);
     }
 
   g_clear_object (&pane->container_at_creation);
