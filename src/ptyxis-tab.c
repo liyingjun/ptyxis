@@ -2420,6 +2420,18 @@ ptyxis_tab_force_quit (PtyxisTab *self)
 {
   g_return_if_fail (PTYXIS_IS_TAB (self));
 
+  /* Skip the diagnostic log + signal/SIGKILL fan-out when force_quit
+   * already ran for this tab. The tab's own ptyxis_tab_dispose() calls
+   * us as a defensive safety net, so close paths that already invoked
+   * force_quit (close-dialog confirm, parking-lot dispose, window
+   * close-request dialog) used to log "Forcing tab to quit" twice per
+   * tab — once for the explicit kill and once again inside dispose —
+   * flooding the log under G_MESSAGES_DEBUG=Ptyxis when closing a
+   * window with many tabs. forced_exit is the canonical "we already
+   * kicked off shutdown" marker and is set right after this log line. */
+  if (self->forced_exit)
+    return;
+
   g_debug ("Forcing tab to quit");
 
   self->forced_exit = TRUE;
