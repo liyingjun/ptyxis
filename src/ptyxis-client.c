@@ -632,6 +632,13 @@ ptyxis_client_spawn_async (PtyxisClient        *self,
   if (default_shell != NULL && default_shell[0] == 0)
     default_shell = NULL;
 
+  g_debug ("[spawn] client_spawn_async ENTER container=%s default_shell=%s "
+           "last_cwd_uri=%s alt_argv0=%s",
+           ptyxis_ipc_container_get_id (container),
+           default_shell ? default_shell : "(null)",
+           last_working_directory_uri ? last_working_directory_uri : "(null)",
+           alt_argv && alt_argv[0] ? alt_argv[0] : "(null)");
+
   task = g_task_new (self, cancellable, callback, user_data);
   g_task_set_source_tag (task, ptyxis_client_spawn_async);
 
@@ -749,6 +756,14 @@ ptyxis_client_spawn_async (PtyxisClient        *self,
     cwd = "";
 
   full_argv = g_strv_builder_end (argv_builder);
+
+  g_debug ("[spawn] client_spawn_async -> ipc_call_spawn container=%s cwd=%s "
+           "argv[0]=%s argv[1]=%s argv_count=%u",
+           ptyxis_ipc_container_get_id (container),
+           cwd,
+           full_argv && full_argv[0] ? full_argv[0] : "(null)",
+           full_argv && full_argv[1] ? full_argv[1] : "(null)",
+           full_argv ? g_strv_length ((char **)full_argv) : 0);
 
   fd_list = g_unix_fd_list_new ();
 

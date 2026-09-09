@@ -1184,6 +1184,9 @@ ptyxis_terminal_destroy_cb (GtkWidget *widget)
    */
   PtyxisTerminal *self = PTYXIS_TERMINAL (widget);
 
+  g_debug ("[BUG5] PtyxisTerminal.destroy signal fired terminal=%p refcount=%u",
+           (void*)self, ((GObject*)self)->ref_count);
+
   self->disposed = TRUE;
 }
 
@@ -1240,7 +1243,18 @@ ptyxis_terminal_dispose (GObject *object)
 {
   PtyxisTerminal *self = (PtyxisTerminal *)object;
 
-  g_debug ("Disposing %s @ %p", G_OBJECT_TYPE_NAME (self), object);
+  /* [BUG5-TRACE] */
+  g_debug ("[BUG5] PtyxisTerminal.dispose ENTER terminal=%p refcount=%u parent=%s",
+           (void*)self,
+           object->ref_count,
+           gtk_widget_get_parent (GTK_WIDGET (self)) ? G_OBJECT_TYPE_NAME (gtk_widget_get_parent (GTK_WIDGET (self))) : "null");
+
+  /* Guard against double-dispose. */
+  if (self->disposed)
+    {
+      g_debug ("[BUG5] PtyxisTerminal.dispose EARLY-RETURN terminal=%p", (void*)self);
+      return;
+    }
 
   /* Mark disposed *before* chaining up to the parent class dispose so
    * that any property reads triggered during teardown refuse to call
@@ -1248,7 +1262,14 @@ ptyxis_terminal_dispose (GObject *object)
    */
   self->disposed = TRUE;
 
+  g_debug ("[BUG5] PtyxisTerminal.dispose step=start refcount=%u",
+           object->ref_count);
+  g_debug ("Disposing %s @ %p", G_OBJECT_TYPE_NAME (self), object);
+
+  g_debug ("[BUG5] PtyxisTerminal.dispose step=dispose-template");
   gtk_widget_dispose_template (GTK_WIDGET (self), PTYXIS_TYPE_TERMINAL);
+  g_debug ("[BUG5] PtyxisTerminal.dispose step=dispose-template DONE refcount=%u",
+           object->ref_count);
 
   g_clear_object (&self->palette);
   g_clear_object (&self->shortcuts);
@@ -1256,7 +1277,11 @@ ptyxis_terminal_dispose (GObject *object)
   g_clear_pointer (&self->custom_links, g_hash_table_unref);
   g_clear_pointer (&self->url, g_free);
 
+  g_debug ("[BUG5] PtyxisTerminal.dispose step=parent-class-dispose refcount=%u",
+           object->ref_count);
   G_OBJECT_CLASS (ptyxis_terminal_parent_class)->dispose (object);
+  g_debug ("[BUG5] PtyxisTerminal.dispose EXIT terminal=%p refcount=%u",
+           (void*)self, object->ref_count);
 }
 
 static void

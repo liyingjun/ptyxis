@@ -129,7 +129,44 @@ struct _PtyxisTab
   guint                    ignore_osc_title : 1;
   guint                    ignore_snapshot : 1;
 
+  /* Set by ptyxis_tab_dispose() on first entry. Used as a defensive
+   * guard so a second dispose call (which GLib 2.80+ would normally
+   * suppress via G_OBJECT_FLAG_DISPOSED, but which can still happen via
+   * explicit g_object_run_dispose() chains or via PtyxisTabPane code
+   * paths that run inside the first dispose's pending IPC callbacks)
+   * early-returns instead of re-running signal/SIGKILL fan-out and the
+   * gtk_widget_dispose_template dance. Also checked from
+   * ptyxis_tab_force_quit() and ptyxis_tab_force_quit_in_idle() so
+   * the SIGKILL safety-net timer is a no-op once the tab has been
+   * torn down. */
+  guint                    disposed : 1;
+
   guint                    inhibit_cookie;
+
+  /* Deferred focus-grab source.
+   *
+   * When the user (or a notification such as ::selected-page) asks us
+   * to focus the active pane's terminal, the target may not yet be
+   * mapped or realized — for example when switching to a tab 2+ in an
+   * AdwTabView whose paned children only get real allocations after
+   * the page becomes the selected one. Calling gtk_widget_grab_focus()
+   * in that window silently no-ops, leaving focus on the previous tab
+   * (or nowhere) and the first split pane becomes unresponsive to
+   * keystrokes. We schedule a low-priority idle that retries until
+   * the grab sticks, coalescing repeated calls via this single source
+   * id. */
+  guint                    pending_focus_source;
+
+  /* Source id of the 50 ms SIGKILL safety-net timer scheduled by
+   * ptyxis_tab_force_quit(). The shell often exits cleanly within a
+   * few ms of SIGHUP (especially when the spawned process sees its
+   * stdin close) and PtyxisTab.dispose() runs almost immediately
+   * afterwards — long before the 50 ms SIGKILL timer fires. Without
+   * cancellation the timer callback would dereference an already-
+   * finalized PtyxisTab and trip the PTYXIS_IS_TAB assertion in
+   * ptyxis_tab_force_quit_in_idle(). Tracked here so dispose() can
+   * g_source_remove() it. */
+  guint                    pending_kill_source;
 };
 
 enum {
@@ -160,6 +197,9 @@ enum {
 };
 
 static void ptyxis_tab_respawn (PtyxisTab *self);
+static void ptyxis_tab_map_cb (GtkWidget *widget, gpointer user_data);
+static void ptyxis_tab_install_position_guard (GtkWidget *widget);
+static void ptyxis_tab_schedule_focus_grab (PtyxisTab *self);
 static void ptyxis_tab_profile_signals_bind_cb (PtyxisTab     *self,
                                                 PtyxisProfile *profile,
                                                 GSignalGroup  *group);
@@ -623,6 +663,9 @@ ptyxis_tab_spawn_cb (GObject      *object,
 
   if (!(process = ptyxis_application_spawn_finish (app, result, &error)))
     {
+      g_debug ("[spawn] tab_spawn_cb FAIL tab=%p: %s",
+               (void*)self, error ? error->message : "(no error)");
+
       const char *profile_uuid = ptyxis_profile_get_uuid (self->profile);
 
       self->state = PTYXIS_TAB_STATE_FAILED;
@@ -638,6 +681,28 @@ ptyxis_tab_spawn_cb (GObject      *object,
 
       return;
     }
+
+  g_debug ("[spawn] tab_spawn_cb OK tab=%p -> process=%p, queuing wait_async",
+           (void*)self, (void*)process);
+
+  /* Post-spawn PTY probe for the primary pane — same as the non-primary
+   * path. If VTE has no PTY here, the shell ran but its stdio goes
+   * nowhere — the "blinking cursor, no bash" symptom. */
+  {
+    VtePty *pty = vte_terminal_get_pty (VTE_TERMINAL (self->terminal));
+    if (pty == NULL)
+      {
+        g_debug ("[spawn] PTY_PROBE tab=%p (primary): NO PTY attached to VTE — "
+                 "shell ran but its stdio has nowhere to go",
+                 (void*)self);
+      }
+    else
+      {
+        int fd = vte_pty_get_fd (pty);
+        g_debug ("[spawn] PTY_PROBE tab=%p (primary): pty=%p fd=%d",
+                 (void*)self, (void*)pty, fd);
+      }
+  }
 
   self->state = PTYXIS_TAB_STATE_RUNNING;
   self->respawn_time = g_get_monotonic_time ();
@@ -686,6 +751,21 @@ ptyxis_tab_respawn (PtyxisTab *self)
   g_assert (self->state == PTYXIS_TAB_STATE_INITIAL ||
             self->state == PTYXIS_TAB_STATE_EXITED ||
             self->state == PTYXIS_TAB_STATE_FAILED);
+
+  g_debug ("[spawn] tab_respawn ENTER tab=%p primary_pane=%p container=%s "
+           "cwd_uri=%s state=%d",
+           (void*)self, (void*)self->terminal,
+           default_container ? default_container : "(null)",
+           self->initial_working_directory_uri ?
+             self->initial_working_directory_uri : "(null)",
+           self->state);
+
+  if (g_getenv ("PTYXIS_DEBUG_RESPAWN"))
+    {
+      GtkWidget *c = gtk_widget_get_first_child (GTK_WIDGET (self));
+      g_print ("[respawn] start tab=%p first_child=%p [%s]\n",
+               (void*)self, (void*)c, c ? G_OBJECT_TYPE_NAME (c) : "(null)");
+    }
 
   gtk_widget_set_visible (GTK_WIDGET (self->banner), FALSE);
 
@@ -755,6 +835,14 @@ ptyxis_tab_respawn (PtyxisTab *self)
   if (self->initial_working_directory_uri)
     cwd_uri = self->initial_working_directory_uri;
 
+  if (g_getenv ("PTYXIS_DEBUG_RESPAWN"))
+    {
+      GtkWidget *c = gtk_widget_get_first_child (GTK_WIDGET (self));
+      g_print ("[respawn] before spawn_async tab=%p first_child=%p [%s] cwd=%s\n",
+               (void*)self, (void*)c, c ? G_OBJECT_TYPE_NAME (c) : "(null)",
+               cwd_uri ? cwd_uri : "(null)");
+    }
+
   ptyxis_application_spawn_async (PTYXIS_APPLICATION_DEFAULT,
                                   container,
                                   self->profile,
@@ -820,10 +908,45 @@ ptyxis_tab_map (GtkWidget *widget)
 
   g_assert (PTYXIS_IS_TAB (widget));
 
+  if (g_getenv ("PTYXIS_DEBUG_MAP"))
+    {
+      GtkWidget *c = gtk_widget_get_first_child (GTK_WIDGET (self));
+      g_print ("[map] tab %p: first_child=%p [%s] state=%d\n",
+               (void*)self, (void*)c,
+               c ? G_OBJECT_TYPE_NAME (c) : "(null)",
+               self->state);
+    }
+
   GTK_WIDGET_CLASS (ptyxis_tab_parent_class)->map (widget);
+
+  if (g_getenv ("PTYXIS_DEBUG_MAP"))
+    {
+      GtkWidget *c = gtk_widget_get_first_child (GTK_WIDGET (self));
+      g_print ("[map] tab %p: AFTER parent->map() first_child=%p [%s]\n",
+               (void*)self, (void*)c,
+               c ? G_OBJECT_TYPE_NAME (c) : "(null)");
+    }
 
   if (self->state == PTYXIS_TAB_STATE_INITIAL)
     ptyxis_tab_respawn (self);
+
+  /* After map (and a possible first respawn), grab focus into the
+   * tab so the user's keystrokes route into the active terminal
+   * instead of landing on whatever widget had focus before the tab
+   * was activated. In multi-pane tabs this prevents the "I clicked
+   * tab 2 and nothing happens when I type" report: without an
+   * explicit grab_focus here the focus stays on the tab bar /
+   * headerbar and the primary terminal never receives the keystrokes
+   * until the user clicks into it manually.
+   *
+   * Note: ptyxis_tab_grab_focus() prefers the active pane's terminal
+   * over the primary, but after a session restore the active pane is
+   * whichever non-primary was created last by PtyxisTab_split_full().
+   * For a freshly-activated tab we want focus in the PRIMARY
+   * (left/top slot) — the pane the user is most likely to type into
+   * first. Fall through to grab_focus on self->terminal directly. */
+  if (gtk_widget_get_mapped (widget) && self->terminal != NULL)
+    gtk_widget_grab_focus (GTK_WIDGET (self->terminal));
 }
 
 static void
@@ -1390,6 +1513,51 @@ ptyxis_tab_dispose (GObject *object)
   PtyxisTab *self = (PtyxisTab *)object;
   GtkWidget *child;
 
+  /* [BUG5-TRACE] */
+  g_debug ("[BUG5] PtyxisTab.dispose ENTER tab=%p refcount=%u parent=%s",
+           (void*)self,
+           G_OBJECT (self)->ref_count,
+           gtk_widget_get_parent (GTK_WIDGET (self)) ? G_OBJECT_TYPE_NAME (gtk_widget_get_parent (GTK_WIDGET (self))) : "null");
+
+  /* Guard against double-dispose. GLib 2.80+ suppresses a second
+   * g_object_run_dispose() automatically via G_OBJECT_FLAG_DISPOSED, but
+   * PtyxisTab's defensive ptyxis_tab_force_quit(self) call further down
+   * can in principle run while the SIGKILL safety-net timer's destroy
+   * notify is mid-unref — if that path then tripped a second dispose on
+   * the same instance, the widget-template disposal and signal/SIGKILL
+   * fan-out below would re-run against a partially-torn-down object.
+   * Setting self->disposed EARLY (before any work, including before the
+   * `g_clear_handle_id (&self->pending_kill_source, g_source_remove)`
+   * below whose GDestroyNotify = g_object_unref can drop a ref and
+   * trigger g_object_unref_and_queue_free → g_object_free synchronously)
+   * turns any such re-entry into a no-op. Critically: setting this flag
+   * early means GLib's queued-free path sees G_OBJECT_FLAG_DISPOSED set
+   * and short-circuits straight to g_type_free_instance() instead of
+   * dispatching another PtyxisTab.dispose, which was the cascade that
+   * led to the Gtk widget CRITICAL assertions (PtyxisTab was finalized
+   * twice — once by the re-entered dispose, once by the original call's
+   * tail — and the second pass ran against a freed instance). */
+  if (self->disposed)
+    {
+      g_debug ("[BUG5] PtyxisTab.dispose EARLY-RETURN (already disposed)");
+      return;
+    }
+
+  /* Set the disposed flag BEFORE any work that can drop a ref on self
+   * (cancel-pending-kill-source's destroy_notify, signal disconnect
+   * chains, etc.) so that any reentrant PtyxisTab.dispose triggered by
+   * those ref-drops short-circuits at the early-return guard above.
+   * PtyxisTab.force_quit() still checks `self->forced_exit` to dedupe
+   * SIGHUP/SIGKILL delivery, so the second-invocation safety net is
+   * intact without leaning on self->disposed. */
+  self->disposed = TRUE;
+  g_debug ("[BUG5] PtyxisTab.dispose step=self.disposed=TRUE (set early, before any ref-dropping work)");
+
+  g_debug ("[BUG5] PtyxisTab.dispose step=start refcount=%u panes=%u terminal=%p",
+           G_OBJECT (self)->ref_count,
+           self->panes ? self->panes->len : 0,
+           (void*)self->terminal);
+
   g_debug ("Disposing tab");
 
   /* Drop the weak pointer before any teardown so we don't leave GLib
@@ -1397,6 +1565,8 @@ ptyxis_tab_dispose (GObject *object)
    */
   if (self->terminal != NULL)
     {
+      g_debug ("[BUG5] PtyxisTab.dispose step=remove-weak-terminal=%p",
+               (void*)self->terminal);
       g_object_remove_weak_pointer (G_OBJECT (self->terminal),
                                     (gpointer *)&self->terminal);
       self->terminal = NULL;
@@ -1409,20 +1579,70 @@ ptyxis_tab_dispose (GObject *object)
    * Unparenting here is a no-op in the normal flow (the parent has
    * already cleared us) and a safety net otherwise. */
   if (gtk_widget_get_parent (GTK_WIDGET (self)) != NULL)
-    gtk_widget_unparent (GTK_WIDGET (self));
+    {
+      g_debug ("[BUG5] PtyxisTab.dispose step=defensive-unparent from %s",
+               G_OBJECT_TYPE_NAME (gtk_widget_get_parent (GTK_WIDGET (self))));
+      gtk_widget_unparent (GTK_WIDGET (self));
+    }
 
+  g_debug ("[BUG5] PtyxisTab.dispose step=notify-destroy");
   ptyxis_tab_notify_destroy (&self->notify);
 
+  /* Cancel the SIGKILL safety-net timer scheduled by
+   * ptyxis_tab_force_quit() before we drop our last reference. If
+   * the shell exited cleanly within the 50 ms window (very common
+   * for shell scripts that react to SIGHUP), the timer source's
+   * GDestroyNotify (g_object_unref) would otherwise fire against a
+   * already-finalized PtyxisTab, and the timer's callback would
+   * dereference it and trip the PTYXIS_IS_TAB assertion. */
+  g_debug ("[BUG5] PtyxisTab.dispose step=cancel-pending-kill-source=%u",
+           self->pending_kill_source);
+  g_clear_handle_id (&self->pending_kill_source, g_source_remove);
+
+  /* Send SIGHUP + schedule the SIGKILL safety-net as a defensive net
+   * for close paths that reach dispose without an earlier force_quit
+   * (e.g. window close without prompt-on-close). ptyxis_tab_force_quit()
+   * intentionally no longer bails on self->disposed (we just set it at
+   * the top of this function) so the SIGHUP still fires here; double
+   * SIGHUP/SIGKILL delivery is prevented by the inner forced_exit check. */
+  g_debug ("[BUG5] PtyxisTab.dispose step=force-quit (SIGHUP) refcount-before=%u",
+           G_OBJECT (self)->ref_count);
   ptyxis_tab_force_quit (self);
+  g_debug ("[BUG5] PtyxisTab.dispose step=force-quit DONE refcount-after=%u pending-kill-source=%u",
+           G_OBJECT (self)->ref_count,
+           self->pending_kill_source);
 
   self->active_pane = NULL;
+  g_debug ("[BUG5] PtyxisTab.dispose step=clear-panes (n=%u) refcount-before=%u",
+           self->panes ? self->panes->len : 0,
+           G_OBJECT (self)->ref_count);
   g_clear_pointer (&self->panes, g_ptr_array_unref);
   g_clear_pointer (&self->focus_history, g_ptr_array_unref);
+  g_debug ("[BUG5] PtyxisTab.dispose step=clear-panes DONE refcount-after=%u",
+           G_OBJECT (self)->ref_count);
 
+  /* Cancel any pending focus-grab idle so its callback doesn't fire
+   * against a partially-disposed PtyxisTab. */
+  g_debug ("[BUG5] PtyxisTab.dispose step=cancel-pending-focus-source=%u",
+           self->pending_focus_source);
+  g_clear_handle_id (&self->pending_focus_source, g_source_remove);
+
+  g_debug ("[BUG5] PtyxisTab.dispose step=dispose-template refcount=%u",
+           G_OBJECT (self)->ref_count);
   gtk_widget_dispose_template (GTK_WIDGET (self), PTYXIS_TYPE_TAB);
+  g_debug ("[BUG5] PtyxisTab.dispose step=dispose-template DONE refcount=%u",
+           G_OBJECT (self)->ref_count);
 
+  g_debug ("[BUG5] PtyxisTab.dispose step=unparent-loop refcount=%u",
+           G_OBJECT (self)->ref_count);
   while ((child = gtk_widget_get_first_child (GTK_WIDGET (self))))
-    gtk_widget_unparent (child);
+    {
+      g_debug ("[BUG5]   unparent child %s @ %p",
+               G_OBJECT_TYPE_NAME (child), (void*)child);
+      gtk_widget_unparent (child);
+    }
+  g_debug ("[BUG5] PtyxisTab.dispose step=unparent-loop DONE refcount=%u",
+           G_OBJECT (self)->ref_count);
 
   g_clear_object (&self->cached_texture);
   g_clear_object (&self->profile);
@@ -1446,7 +1666,12 @@ ptyxis_tab_dispose (GObject *object)
   g_clear_pointer (&self->command_line, g_free);
   g_clear_pointer (&self->program_name, g_free);
 
+  g_debug ("[BUG5] PtyxisTab.dispose step=parent-class-dispose refcount=%u",
+           G_OBJECT (self)->ref_count);
   G_OBJECT_CLASS (ptyxis_tab_parent_class)->dispose (object);
+  g_debug ("[BUG5] PtyxisTab.dispose step=parent-class-dispose DONE refcount=%u",
+           G_OBJECT (self)->ref_count);
+  g_debug ("[BUG5] PtyxisTab.dispose EXIT tab=%p", (void*)self);
 }
 
 static void
@@ -1454,9 +1679,12 @@ ptyxis_tab_finalize (GObject *object)
 {
   PtyxisTab *self = (PtyxisTab *)object;
 
+  g_debug ("[BUG5] PtyxisTab.finalize ENTER tab=%p", (void*)self);
+
   g_clear_pointer (&self->uuid, g_free);
 
   G_OBJECT_CLASS (ptyxis_tab_parent_class)->finalize (object);
+  g_debug ("[BUG5] PtyxisTab.finalize EXIT tab=%p", (void*)self);
 }
 
 static void
@@ -1758,6 +1986,16 @@ ptyxis_tab_init (PtyxisTab *self)
   self->focus_history = g_ptr_array_new ();
 
   gtk_widget_init_template (GTK_WIDGET (self));
+
+  /* One-shot map handler — when the tab is first mapped (i.e. its
+   * top-level window is shown), walk the paned tree and re-apply any
+   * divider positions stashed during session restore. GTK doesn't
+   * preserve gtk_paned_set_position() values across the unmapped →
+   * mapped transition, so by the time the user sees the layout the
+   * saved positions are gone without this. */
+  g_signal_connect (self, "map",
+                    G_CALLBACK (ptyxis_tab_map_cb),
+                    NULL);
 
   primary = g_new0 (PtyxisTabPane, 1);
   primary->tab = self;
@@ -2133,9 +2371,21 @@ ptyxis_tab_poll_agent_sync_cb (GObject      *object,
 }
 
 static gboolean
+ptyxis_tab_poll_agent_cancel_cb (gpointer user_data)
+{
+  GCancellable *cancellable = user_data;
+
+  g_cancellable_cancel (cancellable);
+
+  return G_SOURCE_REMOVE;
+}
+
+static gboolean
 ptyxis_tab_poll_agent (PtyxisTab *self)
 {
   Wait wait;
+  g_autoptr(GCancellable) cancellable = NULL;
+  GSource *timeout_src = NULL;
 
   g_return_val_if_fail (PTYXIS_IS_TAB (self), FALSE);
 
@@ -2143,13 +2393,57 @@ ptyxis_tab_poll_agent (PtyxisTab *self)
   wait.completed = FALSE;
   wait.success = FALSE;
 
+  /* Bound the time we may block the main loop waiting for the agent.
+   * If the agent is unresponsive (crashed, proxy stale, dbus hiccup) we
+   * must not freeze the UI thread — previously this spun indefinitely,
+   * which is what caused the "not responding" symptom when closing a
+   * tab containing multiple panes (close page -> is_running -> poll).
+   *
+   * Refcount ownership: `cancellable` is the sole owner (g_autoptr →
+   * refcount drops at function exit). g_task_new() and the GSource do
+   * NOT need their own refs because:
+   *   - GTask stores the cancellable internally without taking a ref
+   *     (g_task_new() does g_object_ref the source object but NOT the
+   *     cancellable — see glib/gio documentation).
+   *   - We pass NULL as the GSource's destroy_notify, so the source
+   *     does NOT take ownership of a ref on user_data either.
+   *
+   * Therefore: refcount 1 (from g_cancellable_new, owned by us) until
+   * the function returns and g_autoptr drops it. No double-free path.
+   *
+   * The previous version used g_timeout_add_full(..., g_object_unref)
+   * which transferred a ref to the source — but never destroyed the
+   * source before returning, so its destroy_notify would later fire
+   * on a freed cancellable (segfault inside libglib's refcount inline,
+   * offset 0x9 of the GCancellable struct). Now we own the source
+   * ourselves and destroy it deterministically before exiting.
+   */
+  cancellable = g_cancellable_new ();
+  timeout_src = g_timeout_source_new (5000);
+  g_source_set_callback (timeout_src,
+                         ptyxis_tab_poll_agent_cancel_cb,
+                         cancellable,    /* raw pointer — no ref transfer */
+                         NULL);         /* destroy_notify = NULL: source
+                                           does NOT consume user_data ref */
+  g_source_attach (timeout_src, wait.context);
+
   ptyxis_tab_poll_agent_async (self,
-                               NULL,
+                               cancellable,
                                ptyxis_tab_poll_agent_sync_cb,
                                &wait);
 
   while (!wait.completed)
     g_main_context_iteration (wait.context, TRUE);
+
+  /* If the watchdog fired, ptyxis_tab_poll_agent_cancel_cb already
+   * cancelled. Either way, cancel now (idempotent) to interrupt any
+   * pending D-Bus callback still queued in the main context, then
+   * destroy + unref the source so it is fully gone before our
+   * g_autoptr releases the cancellable.
+   */
+  g_cancellable_cancel (cancellable);
+  g_source_destroy (timeout_src);
+  g_source_unref (timeout_src);
 
   return wait.success;
 }
@@ -2215,6 +2509,15 @@ ptyxis_tab_force_quit_in_idle (gpointer data)
 {
   PtyxisTab *self = data;
 
+  /* The SIGKILL safety-net source passes @self as a raw pointer with no
+   * strong ref (see ptyxis_tab_force_quit). GObject runs dispose() —
+   * which cancels this source — before finalize(), so this callback can
+   * never fire against a freed PtyxisTab. The disposed flag is the
+   * belt-and-braces check: if dispose already ran (source cancelled but
+   * a stale dispatch slipped through), bail before touching anything. */
+  if (self == NULL || self->disposed)
+    return G_SOURCE_REMOVE;
+
   g_assert (PTYXIS_IS_TAB (self));
 
   if (self->panes != NULL)
@@ -2248,7 +2551,43 @@ ptyxis_tab_pane_send_signal (PtyxisTabPane *pane,
 void
 ptyxis_tab_force_quit (PtyxisTab *self)
 {
-  g_return_if_fail (PTYXIS_IS_TAB (self));
+  /* Defensive: callers (parking lot, close dialog, dispose path) can
+   * occasionally race — e.g. PtyxisParkingLot.dispose() fires after a
+   * tab has already been torn down via PtyxisWindow.dispose(). The
+   * PTYXIS_IS_TAB(self) check would log a CRITICAL and return early,
+   * flooding the log under G_MESSAGES_DEBUG=Ptyxis.
+   *
+   * Intentionally do NOT short-circuit on `self->disposed` here:
+   * PtyxisTab.dispose() sets `self->disposed = TRUE` early (before
+   * calling this function as its defensive SIGHUP fan-out) precisely
+   * so the recursive-dispose cascade is broken — the SIGKILL safety-net
+   * timer's destroy_notify can no longer drive a second PtyxisTab.dispose
+   * once the flag is set. If we also bailed on `self->disposed` here,
+   * the dispose path's SIGHUP would be silently dropped and shells
+   * would only ever die from SIGKILL. Double-SIGHUP is instead prevented
+   * by the `forced_exit` check below.
+   *
+   * We deliberately do NOT use g_return_if_fail here because the
+   * CRITICAL it logs was the user's reported "Killed" symptom —
+   * every close of a multi-tab window was producing a
+   * Ptyxis-CRITICAL line followed by another invalid-pointer CRITICAL
+   * inside gtk_widget_dispose_template when the reentered dispose
+   * ran against partially-freed memory.
+   */
+  if (!PTYXIS_IS_TAB (self))
+    return;
+
+  /* Skip the diagnostic log + signal/SIGKILL fan-out when force_quit
+   * already ran for this tab. The tab's own ptyxis_tab_dispose() calls
+   * us as a defensive safety net, so close paths that already invoked
+   * force_quit (close-dialog confirm, parking-lot dispose, window
+   * close-request dialog) used to log "Forcing tab to quit" twice per
+   * tab — once for the explicit kill and once again inside dispose —
+   * flooding the log under G_MESSAGES_DEBUG=Ptyxis when closing a
+   * window with many tabs. forced_exit is the canonical "we already
+   * kicked off shutdown" marker and is set right after this log line. */
+  if (self->forced_exit)
+    return;
 
   g_debug ("Forcing tab to quit");
 
@@ -2269,14 +2608,34 @@ ptyxis_tab_force_quit (PtyxisTab *self)
       ptyxis_tab_send_signal (self, SIGHUP);
     }
 
-  /* In case this was not enough for the process to actually exit, we setup
-   * a short timer to send SIGKILL afterwards.
+  /* In case this was not enough for the process to actually exit, we set
+   * up a short timer to send SIGKILL afterwards. Store the source id on
+   * self->pending_kill_source so ptyxis_tab_dispose() can cancel it.
+   *
+   * The source intentionally does NOT hold a strong reference on @self
+   * (NULL destroy_notify, raw @self pointer as data). An earlier version
+   * passed g_object_ref(self)/g_object_unref here so the callback could
+   * safely deref @self — but that strong ref is what caused Bug 5:
+   * during PtyxisTab.dispose, g_clear_handle_id(&pending_kill_source,
+   * g_source_remove) fires the source's GDestroyNotify (g_object_unref),
+   * and when the timer's was the last remaining ref that unref brought
+   * refcount to 0, GLib finalized the instance *mid-dispose*; the first
+   * dispose then resumed on freed memory and tripped the
+   * GLib-GObject-CRITICAL "invalid unclassed pointer" cascade.
+   *
+   * Without the strong ref, cancelling the source during dispose drops no
+   * tab ref, so the instance cannot be finalized out from under the
+   * running dispose. This is safe because GObject guarantees dispose()
+   * runs before finalize() and dispose() cancels this source — so the
+   * callback can never fire against a freed PtyxisTab. The callback
+   * additionally checks self->disposed and bails if dispose already ran.
    */
-  g_timeout_add_full (G_PRIORITY_HIGH,
-                      50,
-                      ptyxis_tab_force_quit_in_idle,
-                      g_object_ref (self),
-                      g_object_unref);
+  self->pending_kill_source =
+      g_timeout_add_full (G_PRIORITY_HIGH,
+                          50,
+                          ptyxis_tab_force_quit_in_idle,
+                          self,
+                          NULL);
 }
 
 PtyxisIpcProcess *
@@ -2372,6 +2731,7 @@ ptyxis_tab_poll_agent_cb (GObject      *object,
 {
   PtyxisIpcProcess *process = (PtyxisIpcProcess *)object;
   g_autoptr(GTask) task = user_data;
+  g_autoptr(GError) error = NULL;
   g_autofree char *the_cmdline = NULL;
   g_autofree char *the_leader_kind = NULL;
   PtyxisProcessLeaderKind leader_kind;
@@ -2388,14 +2748,24 @@ ptyxis_tab_poll_agent_cb (GObject      *object,
 
   g_assert (PTYXIS_IS_TAB (self));
 
-  ptyxis_ipc_process_call_has_foreground_process_finish (process,
-                                                         &has_foreground_process,
-                                                         &the_pid,
-                                                         &the_cmdline,
-                                                         &the_leader_kind,
-                                                         NULL,
-                                                         result,
-                                                         NULL);
+  if (!ptyxis_ipc_process_call_has_foreground_process_finish (process,
+                                                              &has_foreground_process,
+                                                              &the_pid,
+                                                              &the_cmdline,
+                                                              &the_leader_kind,
+                                                              NULL,
+                                                              result,
+                                                              &error))
+    {
+      /* D-Bus call failed — agent likely gone, proxy stale, or cancelled.
+       * Do NOT clobber the cached tab state with zeroed output params,
+       * otherwise subsequent is_running / has_foreground_process lookups
+       * would suddenly think no process is running. Leave state alone and
+       * just surface the failure to the waiter.
+       */
+      g_task_return_error (task, g_steal_pointer (&error));
+      return;
+    }
 
   if (self->pid != the_pid)
     {
@@ -2956,15 +3326,123 @@ _ptyxis_tab_get_primary_terminal (PtyxisTab *self)
   return self->terminal;
 }
 
+/* Try to grab focus on the active pane's terminal. Returns TRUE if
+ * the grab actually transferred focus (gtk_widget_grab_focus returns
+ * TRUE on success). The result is what we use to decide whether a
+ * deferred retry is still needed. */
+static gboolean
+ptyxis_tab_try_grab_focus (PtyxisTab *self)
+{
+  GtkWidget *target = NULL;
+
+  g_return_val_if_fail (PTYXIS_IS_TAB (self), FALSE);
+
+  if (self->active_pane != NULL && self->active_pane->terminal != NULL)
+    target = GTK_WIDGET (self->active_pane->terminal);
+  else if (self->terminal != NULL)
+    target = GTK_WIDGET (self->terminal);
+
+  if (target == NULL)
+    return FALSE;
+
+  /* If the target isn't mapped yet, gtk_widget_grab_focus is a silent
+   * no-op and the user's keystrokes end up wherever focus was before
+   * (typically the tab bar in tab-switch cases). Bail out so the
+   * scheduler can retry once GTK has had a chance to allocate the
+   * widget. */
+  if (!gtk_widget_get_mapped (target))
+    return FALSE;
+
+  return gtk_widget_grab_focus (target);
+}
+
+/* Idle callback that performs the deferred focus grab. It clears
+ * pending_focus_source itself so the next call to
+ * ptyxis_tab_schedule_focus_grab() can re-arm the source. If the
+ * grab still doesn't take (e.g. the paned tree is still being
+ * allocated because AdwTabView just changed selected-page), re-arm
+ * the source for another iteration. We bound the retries to a small
+ * number to avoid spinning forever on a permanently unmapped widget
+ * (e.g. one inside a destroyed tab). */
+static gboolean
+ptyxis_tab_focus_grab_idle_cb (gpointer user_data)
+{
+  PtyxisTab *self = PTYXIS_TAB (user_data);
+  guint retries;
+
+  g_assert (PTYXIS_IS_TAB (self));
+
+  /* Steal the source id first so a re-schedule below installs a fresh
+   * source rather than mutating one that's currently firing. */
+  self->pending_focus_source = 0;
+
+  if (ptyxis_tab_try_grab_focus (self))
+    return G_SOURCE_REMOVE;
+
+  /* Up to ~50 retries (50 * ~10ms = ~500ms) — enough to wait out a
+   * size-allocate cascade from an AdwTabView page switch without
+   * burning CPU indefinitely. */
+  retries = GPOINTER_TO_UINT (g_object_get_data (G_OBJECT (self),
+                                                 "ptyxis-tab-focus-grab-retries"));
+  if (retries >= 50)
+    {
+      g_object_set_data (G_OBJECT (self),
+                         "ptyxis-tab-focus-grab-retries", NULL);
+      return G_SOURCE_REMOVE;
+    }
+  g_object_set_data (G_OBJECT (self),
+                     "ptyxis-tab-focus-grab-retries",
+                     GUINT_TO_POINTER (retries + 1));
+
+  self->pending_focus_source = g_timeout_add_full (G_PRIORITY_LOW,
+                                                   10,
+                                                   ptyxis_tab_focus_grab_idle_cb,
+                                                   g_object_ref (self),
+                                                   g_object_unref);
+  return G_SOURCE_REMOVE;
+}
+
+/* Arm a deferred focus grab. Coalesces with any previously-scheduled
+ * attempt via pending_focus_source, so rapid-fire calls (e.g. a fast
+ * user paging through tabs) install a single retry rather than a
+ * chain of overlapping ones. The first attempt fires from the main
+ * loop's idle phase, which gives GTK a chance to settle the
+ * size-allocate cascade for newly-selected AdwTabView pages before
+ * we try to grab focus. */
+static void
+ptyxis_tab_schedule_focus_grab (PtyxisTab *self)
+{
+  g_return_if_fail (PTYXIS_IS_TAB (self));
+
+  if (self->pending_focus_source != 0)
+    return;
+
+  /* Clear any leftover retry counter from a previous schedule. */
+  g_object_set_data (G_OBJECT (self),
+                     "ptyxis-tab-focus-grab-retries", NULL);
+
+  self->pending_focus_source = g_idle_add_full (G_PRIORITY_LOW,
+                                                ptyxis_tab_focus_grab_idle_cb,
+                                                g_object_ref (self),
+                                                g_object_unref);
+}
+
 void
 ptyxis_tab_grab_focus (PtyxisTab *self)
 {
   g_return_if_fail (PTYXIS_IS_TAB (self));
 
-  if (self->active_pane != NULL && self->active_pane->terminal != NULL)
-    gtk_widget_grab_focus (GTK_WIDGET (self->active_pane->terminal));
-  else if (self->terminal != NULL)
-    gtk_widget_grab_focus (GTK_WIDGET (self->terminal));
+  /* If the target terminal is already mapped, grab immediately.
+   * Otherwise defer so the grab lands after GTK has had a chance to
+   * allocate the paned tree — see the comment on
+   * pending_focus_source for the failure mode this guards against
+   * (tabs 2+ in a multi-pane restored tab going silent on first
+   * selection because the new page is still getting its
+   * allocation). */
+  if (ptyxis_tab_try_grab_focus (self))
+    return;
+
+  ptyxis_tab_schedule_focus_grab (self);
 }
 
 /* -------------------------------------------------------------------------- */
@@ -2978,6 +3456,9 @@ ptyxis_tab_pane_free (gpointer data)
 
   if (pane == NULL)
     return;
+
+  g_debug ("[BUG5] pane_free ENTER pane=%p is_primary=%d terminal=%p box=%p",
+           (void*)pane, pane->is_primary, (void*)pane->terminal, (void*)pane->box);
 
   pane->forced_exit = TRUE;
 
@@ -3017,7 +3498,10 @@ ptyxis_tab_pane_free (gpointer data)
                 }
             }
 
+          g_debug ("[BUG5] pane_free step=clear-non-primary-box refcount-before=%u",
+                   G_OBJECT (pane->box)->ref_count);
           g_clear_object (&pane->box);
+          g_debug ("[BUG5] pane_free step=clear-non-primary-box DONE");
         }
       else
         {
@@ -3026,6 +3510,11 @@ ptyxis_tab_pane_free (gpointer data)
            */
           pane->terminal = NULL;
         }
+    }
+  else
+    {
+      g_debug ("[BUG5] pane_free PRIMARY pane: leaving box=%p terminal=%p for later teardown",
+               (void*)pane->box, (void*)pane->terminal);
     }
 
   g_clear_object (&pane->container_at_creation);
@@ -3078,8 +3567,35 @@ ptyxis_tab_sync_active_pane (PtyxisTab     *self,
    * finished spawning — otherwise a focus event arriving while the
    * primary is still in SPAWNING (with pane->state == INITIAL) would
    * clobber self->state and break the assertion in ptyxis_tab_spawn_cb.
-   */
-  if (pane->state != PTYXIS_TAB_STATE_INITIAL &&
+   *
+   * The new self->state guard closes the inverse case observed when
+   * restoring a session with multiple panes. Each non-primary pane is
+   * spawned eagerly by ptyxis_tab_create_pane_internal() during
+   * ptyxis_tab_restore_panes_state(), and one of those spawns can
+   * complete while the primary's own ptyxis_application_spawn_async()
+   * is still in flight (state == SPAWNING). If that completed pane is
+   * the active one, the pane-side guard alone would copy pane->state
+   * (RUNNING) onto self->state and the primary's spawn_cb would then
+   * abort at the line 622 assertion. Skipping the mirror while
+   * self->state is SPAWNING keeps the primary's lifecycle undisturbed
+   * until its own callback updates it.
+   *
+   * ALSO skip the mirror while self->state is INITIAL: the primary's
+   * first spawn is gated on the map vfunc, which fires (and triggers
+   * ptyxis_tab_respawn) only when self->state == PTYXIS_TAB_STATE_INITIAL.
+   * During session restore, non-primary panes are spawned eagerly before
+   * the primary has ever been mapped — if a non-primary pane completes
+   * its spawn while active (which it always is, because ptyxis_tab_split_full
+   * sets the newly-created pane as active), it would copy RUNNING onto
+   * self->state here and the primary's map-time respawn would be skipped,
+   * leaving the primary VTE with no PTY and the user staring at a blinking
+   * cursor with no shell. Guard the mirror on the primary having at least
+   * started its own lifecycle (state past INITIAL) so the primary's
+   * map-time spawn chain still fires for restored tabs the user later
+   * activates. */
+  if (self->state != PTYXIS_TAB_STATE_INITIAL &&
+      self->state != PTYXIS_TAB_STATE_SPAWNING &&
+      pane->state != PTYXIS_TAB_STATE_INITIAL &&
       pane->state != PTYXIS_TAB_STATE_SPAWNING)
     self->state = pane->state;
   g_set_object (&self->process, pane->process);
@@ -3300,40 +3816,60 @@ ptyxis_tab_pane_focus_enter_cb (PtyxisTabPane            *pane,
     }
 }
 
-/* Per-pane wait callback user data.
+/* Per-pane async callback user data.
  *
- * The PtyxisTabPane struct itself is owned by PtyxisTab (freed via
- * g_ptr_array_unref). If close_pane_widget removes the pane before the
- * IPC layer fires "exited", the struct memory is gone before this cb
- * runs and dereferencing `pane` would be a use-after-free.
+ * The PtyxisTabPane struct is owned by PtyxisTab (freed via the
+ * g_ptr_array_unref free func). If a pane is removed by close_pane_widget
+ * before the IPC layer fires its callback, the struct memory is gone and
+ * the raw pointer carried in user_data would be dangling — reading it
+ * would be undefined behaviour even for a pointer comparison.
  *
- * To keep the callback safe we instead ref the owning PtyxisTab (which
- * outlives its panes) and look up the pane by pointer comparison inside
- * tab->panes — if the pane has been freed/removed the lookup fails and
- * we bail out cleanly.
+ * To keep both the spawn and wait callbacks safe we instead ref the
+ * owning PtyxisTab (which outlives its panes) and ref the pane's
+ * GCancellable. The cancellable is owned by the pane and gets g_clear_object'd
+ * in ptyxis_tab_pane_free, but our ref here keeps the object alive after the
+ * pane is gone. The callback then locates the live pane (if any) via the
+ * cancellable pointer inside tab->panes — once the pane is freed/removed the
+ * lookup returns NULL and the callback bails out cleanly.
  */
 typedef struct
 {
   PtyxisTab       *tab;
-  PtyxisTabPane   *pane;
-} PtyxisPaneWaitData;
+  GCancellable    *cancellable;
+} PtyxisPaneRefData;
 
 static void
-ptyxis_pane_wait_data_free (PtyxisPaneWaitData *data)
+ptyxis_pane_ref_data_free (PtyxisPaneRefData *data)
 {
   g_clear_object (&data->tab);
+  g_clear_object (&data->cancellable);
   g_free (data);
 }
 
 static PtyxisTabPane *
-ptyxis_tab_pane_wait_data_lookup (const PtyxisPaneWaitData *data)
+ptyxis_tab_pane_lookup (PtyxisTab    *tab,
+                        GCancellable *cancellable)
 {
-  for (guint i = 0; i < data->tab->panes->len; i++)
-    {
-      PtyxisTabPane *p = g_ptr_array_index (data->tab->panes, i);
+  g_assert (PTYXIS_IS_TAB (tab));
+  g_assert (cancellable != NULL);
 
-      if (p == data->pane)
-        return p;
+  /* `tab->panes` may already be NULL if ptyxis_tab_dispose ran before
+   * this callback fired (e.g. closing a tab/window with multiple panes
+   * while a spawn/wait async call was still in flight). Treat that as
+   * "pane gone" — the caller bails. Dereferencing NULL here used to
+   * segfault inside the g_ptr_array_unref's freed slot, manifesting as
+   * a glib ref-count crash because the surrounding free list is the
+   * same allocator.
+   */
+  if (tab->panes == NULL)
+    return NULL;
+
+  for (guint i = 0; i < tab->panes->len; i++)
+    {
+      PtyxisTabPane *pane = g_ptr_array_index (tab->panes, i);
+
+      if (pane->cancellable == cancellable)
+        return pane;
     }
 
   return NULL;
@@ -3345,7 +3881,7 @@ ptyxis_tab_pane_wait_cb (GObject      *object,
                          gpointer      user_data)
 {
   PtyxisApplication *app = (PtyxisApplication *)object;
-  PtyxisPaneWaitData *wait_data = user_data;
+  PtyxisPaneRefData *wait_data = user_data;
   g_autoptr(PtyxisTab) tab = NULL;
   PtyxisTabPane *pane;
   g_autoptr(GError) error = NULL;
@@ -3353,20 +3889,18 @@ ptyxis_tab_pane_wait_cb (GObject      *object,
 
   g_assert (PTYXIS_IS_APPLICATION (app));
   g_assert (wait_data != NULL);
-  g_assert (PTYXIS_IS_TAB (wait_data->tab));
 
-  tab = g_object_ref (wait_data->tab);
-
-  /* The pane may have been freed (by close_pane_widget → pane_free)
-   * while the IPC completion was in flight. Look up by pointer
-   * comparison inside tab->panes; if it's gone, bail out cleanly.
-   * ptyxis_pane_wait_data_free unconditionally drops the tab ref we
-   * added above.
+  /* Borrow the tab pointer first (it is still kept alive by the ref in
+   * wait_data->tab), look up the pane by cancellable, then drop the
+   * ref_data. Order matters: if we free wait_data before the lookup,
+   * wait_data->tab might be the last reference — dropping it could
+   * finalize PtyxisTab and turn the subsequent deref into a UAF.
    */
-  pane = ptyxis_tab_pane_wait_data_lookup (wait_data);
-  ptyxis_pane_wait_data_free (wait_data);
+  tab = g_object_ref (wait_data->tab);
+  pane = ptyxis_tab_pane_lookup (tab, wait_data->cancellable);
+  ptyxis_pane_ref_data_free (wait_data);
 
-  if (pane == NULL)
+  if (pane == NULL || tab->panes == NULL)
     return;
 
   g_clear_object (&pane->process);
@@ -3397,6 +3931,28 @@ ptyxis_tab_pane_wait_cb (GObject      *object,
         {
           pane->state = PTYXIS_TAB_STATE_EXITED;
           ptyxis_tab_pane_respawn (pane);
+          return;
+        }
+
+      /* If the shell died in less than 0.5s and no key has been
+       * pressed in this pane, treat it as a failed spawn rather
+       * than an intentional exit. Auto-closing a non-primary pane
+       * immediately on a likely-spawn-failure drops the user's
+       * restored layout (the pane just disappears mid-tab-switch,
+       * leaving the surviving paned children re-laid out) and
+       * leaves them with a frozen-looking first pane in tabs 2+:
+       * the shell exited before the user could see the prompt, the
+       * pane auto-closed, and the visual that remains is just the
+       * adjacent pane with its idle cursor. Mirror the primary's
+       * 0.5s/never-typed guard so a broken spawn shows a banner
+       * the user can act on, instead of silently shrinking the
+       * tab. */
+      if ((g_get_monotonic_time () - pane->respawn_time) < (G_USEC_PER_SEC/2) &&
+          !ptyxis_tab_monitor_get_has_pressed_key (tab->monitor))
+        {
+          pane->state = PTYXIS_TAB_STATE_FAILED;
+          adw_banner_set_title (pane->banner, _("Failed to launch terminal"));
+          gtk_widget_set_visible (GTK_WIDGET (pane->banner), TRUE);
           return;
         }
 
@@ -3448,22 +4004,51 @@ ptyxis_tab_pane_spawn_cb (GObject      *object,
                           gpointer      user_data)
 {
   PtyxisApplication *app = (PtyxisApplication *)object;
+  PtyxisPaneRefData *spawn_data = user_data;
   g_autoptr(PtyxisIpcProcess) process = NULL;
   g_autoptr(PtyxisTab) tab = NULL;
-  PtyxisTabPane *pane = user_data;
-  PtyxisPaneWaitData *wait_data;
+  PtyxisTabPane *pane;
+  PtyxisPaneRefData *wait_data;
   g_autoptr(GError) error = NULL;
 
-  g_assert (pane != NULL);
+  g_assert (spawn_data != NULL);
+
+  /* Borrow the tab pointer first (kept alive by spawn_data->tab's ref),
+   * look up the pane by cancellable, then drop the ref_data. Freeing
+   * wait_data before the lookup could drop the last tab ref and turn
+   * the subsequent deref into a UAF. */
+  tab = g_object_ref (spawn_data->tab);
+
+  /* The pane may have been freed (by close_pane_widget → pane_free)
+   * while the spawn was in flight, OR the tab may have been disposed
+   * (tab->panes == NULL). Locate by the ref'd cancellable; bail out
+   * cleanly either way. */
+  pane = ptyxis_tab_pane_lookup (tab, spawn_data->cancellable);
+  if (pane == NULL)
+    {
+      g_debug ("[spawn] pane_spawn_cb BAIL tab=%p: pane lookup by cancellable failed "
+               "(pane freed during spawn?)", (void*)tab);
+      ptyxis_pane_ref_data_free (spawn_data);
+      return;
+    }
+
   g_assert (pane->state == PTYXIS_TAB_STATE_SPAWNING);
 
-  tab = g_object_ref (pane->tab);
-
   if (g_cancellable_is_cancelled (pane->cancellable))
-    return;
+    {
+      g_debug ("[spawn] pane_spawn_cb BAIL tab=%p pane=%p: cancellable already cancelled",
+               (void*)tab, (void*)pane);
+      ptyxis_pane_ref_data_free (spawn_data);
+      return;
+    }
 
   if (!(process = ptyxis_application_spawn_finish (app, result, &error)))
     {
+      g_debug ("[spawn] pane_spawn_cb FAIL tab=%p pane=%p: %s",
+               (void*)tab, (void*)pane,
+               error ? error->message : "(no error message)");
+      ptyxis_pane_ref_data_free (spawn_data);
+
       if (g_error_matches (error, G_IO_ERROR, G_IO_ERROR_CANCELLED))
         return;
 
@@ -3475,6 +4060,30 @@ ptyxis_tab_pane_spawn_cb (GObject      *object,
       return;
     }
 
+  g_debug ("[spawn] pane_spawn_cb OK tab=%p pane=%p -> process=%p, queuing wait_async",
+           (void*)tab, (void*)pane, (void*)process);
+
+  /* Post-spawn PTY probe: confirm that the VTE widget actually has a
+   * backing PTY and that the PTY's read side is open. If VTE has no
+   * PTY, the spawn "succeeded" on the IPC side but the shell will
+   * never produce visible output — explaining the "blinking cursor,
+   * no bash" symptom. */
+  {
+    VtePty *pty = vte_terminal_get_pty (VTE_TERMINAL (pane->terminal));
+    if (pty == NULL)
+      {
+        g_debug ("[spawn] PTY_PROBE tab=%p pane=%p: NO PTY attached to VTE widget — "
+                 "shell ran but its stdio has nowhere to go",
+                 (void*)tab, (void*)pane);
+      }
+    else
+      {
+        int fd = vte_pty_get_fd (pty);
+        g_debug ("[spawn] PTY_PROBE tab=%p pane=%p: pty=%p fd=%d",
+                 (void*)tab, (void*)pane, (void*)pty, fd);
+      }
+  }
+
   pane->state = PTYXIS_TAB_STATE_RUNNING;
   pane->respawn_time = g_get_monotonic_time ();
   g_set_object (&pane->process, process);
@@ -3482,20 +4091,24 @@ ptyxis_tab_pane_spawn_cb (GObject      *object,
   if (tab->active_pane == pane)
     ptyxis_tab_sync_active_pane (tab, pane);
 
-  /* Pass a ref'd PtyxisTab + the (raw) pane pointer through a wrapper.
+  /* Hand a ref'd PtyxisTab + a ref'd GCancellable to the wait callback.
    * PtyxisTab outlives its panes, so even if close_pane_widget frees
    * `pane` before the IPC "exited" callback fires, the wait_cb can
-   * still safely dereference PtyxisTab and check tab->panes for the
-   * pane pointer. */
-  wait_data = g_new0 (PtyxisPaneWaitData, 1);
+   * still safely dereference PtyxisTab and resolve the pane via the
+   * cancellable. The cancellable's ref keeps it alive even after
+   * ptyxis_tab_pane_free drops the pane's own reference. */
+  wait_data = g_new0 (PtyxisPaneRefData, 1);
   wait_data->tab = g_object_ref (tab);
-  wait_data->pane = pane;
+  wait_data->cancellable = g_object_ref (pane->cancellable);
 
   ptyxis_application_wait_async (app,
                                  process,
                                  pane->cancellable,
                                  ptyxis_tab_pane_wait_cb,
                                  wait_data);
+
+  /* Done with the spawn_data wrapper now that the wait has been queued. */
+  ptyxis_pane_ref_data_free (spawn_data);
 }
 
 static void
@@ -3507,14 +4120,25 @@ ptyxis_tab_pane_respawn (PtyxisTabPane *pane)
   PtyxisTab *self;
   const char *cwd_uri;
   VtePty *pty;
+  guint pane_index;
 
   g_assert (pane != NULL);
   g_assert (pane->tab != NULL);
 
   self = pane->tab;
 
+  /* Capture pane index BEFORE the optional early return so the log
+   * line is meaningful when the primary path takes over. */
+  pane_index = pane == self->active_pane && self->panes != NULL
+      ? (guint)(self->active_pane - (PtyxisTabPane *)self->panes->pdata)
+      : (self->panes ? self->panes->len : 0);
+
   if (pane->is_primary)
     {
+      g_debug ("[spawn] pane_respawn tab=%p pane=%p (primary, delegating to tab_respawn) "
+               "pane_index=%u cwd_uri=%s",
+               (void*)self, (void*)pane, pane_index,
+               pane->initial_working_directory_uri ? pane->initial_working_directory_uri : "(null)");
       ptyxis_tab_respawn (self);
       return;
     }
@@ -3522,6 +4146,14 @@ ptyxis_tab_pane_respawn (PtyxisTabPane *pane)
   gtk_widget_set_visible (GTK_WIDGET (pane->banner), FALSE);
 
   default_container = ptyxis_profile_dup_default_container (self->profile);
+
+  g_debug ("[spawn] pane_respawn ENTER tab=%p pane=%p pane_index=%u is_primary=%d "
+           "container_at_creation=%s default_container=%s tab_panes=%u",
+           (void*)self, (void*)pane, pane_index, pane->is_primary,
+           pane->container_at_creation ?
+             ptyxis_ipc_container_get_id (pane->container_at_creation) : "(null)",
+           default_container ? default_container : "(null)",
+           self->panes ? self->panes->len : 0);
 
   if (pane->container_at_creation != NULL)
     container = g_object_ref (pane->container_at_creation);
@@ -3533,6 +4165,9 @@ ptyxis_tab_pane_respawn (PtyxisTabPane *pane)
 
   if (container == NULL)
     {
+      g_debug ("[spawn] pane_respawn FAIL tab=%p pane=%p pane_index=%u: "
+               "container lookup returned NULL (no usable container)",
+               (void*)self, (void*)pane, pane_index);
       pane->state = PTYXIS_TAB_STATE_FAILED;
       adw_banner_set_title (pane->banner, _("Failed to launch terminal"));
       gtk_widget_set_visible (GTK_WIDGET (pane->banner), TRUE);
@@ -3549,9 +4184,15 @@ ptyxis_tab_pane_respawn (PtyxisTabPane *pane)
     {
       g_autoptr(GError) error = NULL;
 
+      g_debug ("[spawn] pane_respawn creating PTY tab=%p pane=%p pane_index=%u",
+               (void*)self, (void*)pane, pane_index);
       new_pty = ptyxis_application_create_pty (PTYXIS_APPLICATION_DEFAULT, &error);
       if (new_pty == NULL)
         {
+          g_debug ("[spawn] pane_respawn FAIL tab=%p pane=%p pane_index=%u: "
+                   "PTY create failed: %s",
+                   (void*)self, (void*)pane, pane_index,
+                   error ? error->message : "(no error)");
           pane->state = PTYXIS_TAB_STATE_FAILED;
           adw_banner_set_title (pane->banner, _("Failed to create pseudo terminal device"));
           gtk_widget_set_visible (GTK_WIDGET (pane->banner), TRUE);
@@ -3563,10 +4204,24 @@ ptyxis_tab_pane_respawn (PtyxisTabPane *pane)
     }
 
   cwd_uri = pane->previous_working_directory_uri;
-  if (pane->initial_working_directory_uri)
+  if (!ptyxis_str_empty0 (pane->initial_working_directory_uri))
     cwd_uri = pane->initial_working_directory_uri;
-  else if (cwd_uri == NULL)
+  else if (ptyxis_str_empty0 (cwd_uri))
     cwd_uri = self->previous_working_directory_uri;
+
+  g_debug ("[spawn] pane_respawn -> spawn_async tab=%p pane=%p pane_index=%u "
+           "container=%s cwd_uri=%s argv0=%s",
+           (void*)self, (void*)pane, pane_index,
+           ptyxis_ipc_container_get_id (container),
+           cwd_uri ? cwd_uri : "(null)",
+           pane->command && pane->command[0] ? pane->command[0] : "(null)");
+
+  /* Wrap the tab + cancellable so spawn_cb can resolve the pane
+   * safely even if close_pane_widget frees the pane before the IPC
+   * completion fires. See PtyxisPaneRefData. */
+  PtyxisPaneRefData *spawn_data = g_new0 (PtyxisPaneRefData, 1);
+  spawn_data->tab = g_object_ref (self);
+  spawn_data->cancellable = g_object_ref (pane->cancellable);
 
   ptyxis_application_spawn_async (PTYXIS_APPLICATION_DEFAULT,
                                   container,
@@ -3576,7 +4231,7 @@ ptyxis_tab_pane_respawn (PtyxisTabPane *pane)
                                   (const char * const *)pane->command,
                                   pane->cancellable,
                                   ptyxis_tab_pane_spawn_cb,
-                                  pane);
+                                  spawn_data);
 }
 
 static gboolean
@@ -3775,7 +4430,9 @@ ptyxis_tab_close_pane_widget (PtyxisTab     *self,
 }
 
 static PtyxisTabPane *
-ptyxis_tab_create_pane (PtyxisTab *self)
+ptyxis_tab_create_pane_internal (PtyxisTab          *self,
+                                 const char         *override_cwd_uri,
+                                 PtyxisIpcContainer *override_container)
 {
   PtyxisTabPane *pane;
   PtyxisTabPane *source;
@@ -3821,22 +4478,41 @@ ptyxis_tab_create_pane (PtyxisTab *self)
   pane->state = PTYXIS_TAB_STATE_INITIAL;
   pane->is_primary = FALSE;
 
-  /* Inherit working directory / container from the source pane. */
-  if (source->is_primary)
+  /* Explicit overrides (used by session restore) win over inheritance. */
+  if (override_cwd_uri != NULL)
     {
-      cwd_uri = ptyxis_tab_dup_current_directory_uri (self);
-      if (self->container_at_creation != NULL)
-        pane->container_at_creation = g_object_ref (self->container_at_creation);
+      pane->initial_working_directory_uri = g_strdup (override_cwd_uri);
     }
   else
     {
-      cwd_uri = ptyxis_terminal_dup_current_directory_uri (source->terminal);
-      if (source->container_at_creation != NULL)
-        pane->container_at_creation = g_object_ref (source->container_at_creation);
+      /* Inherit working directory from the source pane. */
+      if (source->is_primary)
+        cwd_uri = ptyxis_tab_dup_current_directory_uri (self);
+      else
+        cwd_uri = ptyxis_terminal_dup_current_directory_uri (source->terminal);
+
+      if (cwd_uri != NULL)
+        pane->initial_working_directory_uri = g_steal_pointer (&cwd_uri);
     }
 
-  if (cwd_uri != NULL)
-    pane->initial_working_directory_uri = g_steal_pointer (&cwd_uri);
+  if (override_container != NULL)
+    {
+      pane->container_at_creation = g_object_ref (override_container);
+    }
+  else
+    {
+      /* Inherit container from the source pane. */
+      if (source->is_primary)
+        {
+          if (self->container_at_creation != NULL)
+            pane->container_at_creation = g_object_ref (self->container_at_creation);
+        }
+      else
+        {
+          if (source->container_at_creation != NULL)
+            pane->container_at_creation = g_object_ref (source->container_at_creation);
+        }
+    }
 
   focus = gtk_event_controller_focus_new ();
   g_signal_connect_swapped (focus,
@@ -3883,14 +4559,236 @@ ptyxis_tab_create_pane (PtyxisTab *self)
   ptyxis_tab_pane_apply_scrollbar_policy (pane);
 
   g_ptr_array_add (self->panes, pane);
+  g_debug ("[spawn] create_pane_internal DONE tab=%p pane=%p pane_index=%u "
+           "is_primary=%d cwd=%s container=%s -> calling pane_respawn",
+           (void*)self, (void*)pane,
+           self->panes->len - 1, pane->is_primary,
+           pane->initial_working_directory_uri ?
+             pane->initial_working_directory_uri : "(null)",
+           pane->container_at_creation ?
+             ptyxis_ipc_container_get_id (pane->container_at_creation) : "(null)");
   ptyxis_tab_pane_respawn (pane);
 
   return pane;
 }
 
+/* Thin wrapper kept for the interactive split action: inherit cwd and
+ * container from the active pane. */
+static PtyxisTabPane *
+ptyxis_tab_create_pane (PtyxisTab *self)
+{
+  return ptyxis_tab_create_pane_internal (self, NULL, NULL);
+}
+
+/* "map" signal handler for the tab root widget — fires exactly once
+ * when the tab is first mapped (i.e. when its top-level window is
+ * shown). The actual work is in ptyxis_tab_install_position_guard
+ * below; this callback is just the trigger that walks the paned tree.
+ */
+
+/* notify::position handler for restoring split-pane divider positions.
+ *
+ * Connected by ptyxis_tab_install_position_guard() for every paned that
+ * has a stashed saved position from session restore. The reason we
+ * can't just call gtk_paned_set_position once at map time:
+ *
+ * In an AdwTabView, only the *active* page is allocated real size.
+ * Inactive tabs (siblings of the focused one) get map events but with
+ * 0x0 allocations. Calling gtk_paned_set_position on a 0x0 paned stores
+ * the value but GTK may silently overwrite it later when the tab is
+ * finally activated and its paneds get real size — GTK recomputes the
+ * divider position from the children's natural sizes at that point
+ * unless position-set is TRUE *and* the value was set after allocation.
+ *
+ * The fix: connect to notify::position. Whenever GTK changes the
+ * position away from our saved value (which it does during the
+ * size-allocate cascade when the tab gets its real allocation), we
+ * re-apply the saved value. We self-disconnect after the position
+ * has been stable for a few cycles, so we don't fight the user when
+ * they later drag the divider.
+ */
+static void
+ptyxis_tab_position_notify_cb (GObject    *gobject,
+                               GParamSpec *pspec,
+                               gpointer    user_data)
+{
+  GtkPaned *paned = GTK_PANED (gobject);
+  int saved = GPOINTER_TO_INT (g_object_get_data (gobject, "ptyxis-tab-saved-position"));
+  int current = gtk_paned_get_position (paned);
+  int stable_count;
+
+  if (saved < 0)
+    {
+      /* Already cleared by a previous callback pass — just disconnect. */
+      g_signal_handlers_disconnect_by_func (gobject, ptyxis_tab_position_notify_cb, NULL);
+      g_object_set_data (gobject, "ptyxis-tab-guard-connected", GINT_TO_POINTER (0));
+      return;
+    }
+
+  if (current != saved)
+    {
+      gtk_paned_set_position (paned, saved);
+      /* Reset stability counter — we're still fighting GTK. */
+      g_object_set_data (gobject, "ptyxis-tab-stable-count", GINT_TO_POINTER (0));
+      return;
+    }
+
+  /* Position matches the saved value. After a couple of stable
+   * notifications (position no longer changes), GTK has finished its
+   * size-allocate settling and we can release control back to the user. */
+  stable_count = GPOINTER_TO_INT (g_object_get_data (gobject, "ptyxis-tab-stable-count"));
+  stable_count++;
+  g_object_set_data (gobject, "ptyxis-tab-stable-count",
+                     GINT_TO_POINTER (stable_count));
+  if (stable_count >= 2)
+    {
+      g_signal_handlers_disconnect_by_func (gobject, ptyxis_tab_position_notify_cb, NULL);
+      g_object_set_data (gobject, "ptyxis-tab-saved-position", GINT_TO_POINTER (-1));
+      g_object_set_data (gobject, "ptyxis-tab-stable-count", GINT_TO_POINTER (0));
+      g_object_set_data (gobject, "ptyxis-tab-guard-connected", GINT_TO_POINTER (0));
+    }
+}
+
+static void
+ptyxis_tab_paned_destroy_cb (GtkWidget *widget, gpointer user_data)
+{
+  if (g_getenv ("PTYXIS_DEBUG_DESTROY"))
+    g_print ("[destroy] paned %p destroyed, parent at destroy=%p\n",
+             (void*)widget,
+             (void*)gtk_widget_get_parent (widget));
+}
+
+static void
+ptyxis_tab_widget_parent_notify_cb (GObject *gobject, GParamSpec *pspec, gpointer user_data)
+{
+  GtkWidget *w = GTK_WIDGET (gobject);
+  g_print ("[parent] %s %p parent -> %p\n",
+           G_OBJECT_TYPE_NAME (w),
+           (void*)w, (void*)gtk_widget_get_parent (w));
+}
+
+static void
+ptyxis_tab_widget_destroy_cb (GtkWidget *widget, gpointer user_data)
+{
+  g_print ("[destroy] %s %p destroyed, parent at destroy=%p\n",
+           G_OBJECT_TYPE_NAME (widget),
+           (void*)widget,
+           (void*)gtk_widget_get_parent (widget));
+}
+
+static void
+ptyxis_tab_install_position_guard (GtkWidget *widget)
+{
+  GtkWidget *child;
+
+  if (g_getenv ("PTYXIS_DEBUG_GUARD"))
+    g_print ("[guard] walking %p [%s] first_child=%p\n",
+             (void*)widget, G_OBJECT_TYPE_NAME (widget),
+             (void*)gtk_widget_get_first_child (widget));
+
+  if (GTK_IS_PANED (widget))
+    {
+      int saved = GPOINTER_TO_INT (g_object_get_data (G_OBJECT (widget),
+                                                      "ptyxis-tab-saved-position"));
+      if (saved >= 0)
+        {
+          /* Idempotent: if the guard is already connected (e.g. this
+           * paned was set up by ptyxis_tab_split_full during restore and
+           * the map handler is now re-walking the tree), don't connect
+           * a second notify::position handler and — crucially — don't
+           * reset the stability counter, which would defeat a guard that
+           * is mid-stabilization. Just re-apply the saved position in
+           * case the allocation changed since last time. */
+          if (!GPOINTER_TO_INT (g_object_get_data (G_OBJECT (widget),
+                                                   "ptyxis-tab-guard-connected")))
+            {
+              g_object_set_data (G_OBJECT (widget),
+                                 "ptyxis-tab-stable-count",
+                                 GINT_TO_POINTER (0));
+              g_object_set_data (G_OBJECT (widget),
+                                 "ptyxis-tab-guard-connected",
+                                 GINT_TO_POINTER (1));
+              g_signal_connect (widget, "notify::position",
+                                G_CALLBACK (ptyxis_tab_position_notify_cb),
+                                NULL);
+            }
+          /* Apply now too in case the paned already has an allocation. */
+          gtk_paned_set_position (GTK_PANED (widget), saved);
+        }
+    }
+
+  for (child = gtk_widget_get_first_child (widget);
+       child != NULL;
+       child = gtk_widget_get_next_sibling (child))
+    ptyxis_tab_install_position_guard (child);
+}
+
+static gboolean
+ptyxis_tab_dump_layout_cb (gpointer user_data)
+{
+  GtkWidget *tab = GTK_WIDGET (user_data);
+  if (g_getenv ("PTYXIS_DEBUG_LAYOUT") == NULL)
+    return G_SOURCE_REMOVE;
+
+  g_print ("=== PTYXIS DEBUG: layout of tab @ %p ===\n", tab);
+  for (GtkWidget *c = gtk_widget_get_first_child (tab); c != NULL;
+       c = gtk_widget_get_next_sibling (c))
+    {
+      if (GTK_IS_PANED (c))
+        {
+          g_print ("  root paned orient=%s pos=%d alloc=%s\n",
+                   gtk_orientable_get_orientation (GTK_ORIENTABLE (c)) == GTK_ORIENTATION_HORIZONTAL ? "H" : "V",
+                   gtk_paned_get_position (GTK_PANED (c)),
+                   "see parent");
+          for (GtkWidget *sc = gtk_paned_get_start_child (GTK_PANED (c));
+               sc != NULL;
+               sc = gtk_widget_get_first_child (sc))
+            {
+              if (GTK_IS_PANED (sc))
+                g_print ("    inner paned (start) orient=%s pos=%d\n",
+                         gtk_orientable_get_orientation (GTK_ORIENTABLE (sc)) == GTK_ORIENTATION_HORIZONTAL ? "H" : "V",
+                         gtk_paned_get_position (GTK_PANED (sc)));
+            }
+          for (GtkWidget *ec = gtk_paned_get_end_child (GTK_PANED (c));
+               ec != NULL;
+               ec = gtk_widget_get_first_child (ec))
+            {
+              if (GTK_IS_PANED (ec))
+                g_print ("    inner paned (end) orient=%s pos=%d\n",
+                         gtk_orientable_get_orientation (GTK_ORIENTABLE (ec)) == GTK_ORIENTATION_HORIZONTAL ? "H" : "V",
+                         gtk_paned_get_position (GTK_PANED (ec)));
+            }
+        }
+    }
+  g_print ("=== END ===\n");
+  return G_SOURCE_REMOVE;
+}
+
+static void
+ptyxis_tab_map_cb (GtkWidget *widget, gpointer user_data)
+{
+  /* Walk the paned tree and connect a notify::position guard on every
+   * paned that has a stashed saved position. The guard re-applies the
+   * saved value whenever GTK tries to overwrite it (typically during
+   * the size-allocate cascade that fires when the tab gets its real
+   * allocation, which may be much later than map time if the tab is
+   * not the active tab in its AdwTabView). */
+  ptyxis_tab_install_position_guard (widget);
+
+  /* Debug dump if PTYXIS_DEBUG_LAYOUT is set, after 1.5s for layout to settle. */
+  if (g_getenv ("PTYXIS_DEBUG_LAYOUT") != NULL)
+    g_timeout_add (1500, ptyxis_tab_dump_layout_cb, widget);
+
+  /* One-shot — disconnect so we don't fire again on unmap/remap. */
+  g_signal_handlers_disconnect_by_func (widget, ptyxis_tab_map_cb, NULL);
+}
+
 void
-ptyxis_tab_split (PtyxisTab      *self,
-                  GtkOrientation  orientation)
+ptyxis_tab_split_full (PtyxisTab       *self,
+                       GtkOrientation   orientation,
+                       int              position,
+                       const char      *cwd_uri,
+                       PtyxisIpcContainer *container)
 {
   PtyxisTabPane *source;
   PtyxisTabPane *created;
@@ -3906,7 +4804,15 @@ ptyxis_tab_split (PtyxisTab      *self,
   source_box = source->box;
   parent = gtk_widget_get_parent (source_box);
 
-  created = ptyxis_tab_create_pane (self);
+  g_debug ("[spawn] split_full ENTER tab=%p orient=%d pos=%d cwd=%s "
+           "container=%s source_pane=%p is_primary=%d n_panes_before=%u",
+           (void*)self, (int)orientation, position,
+           cwd_uri ? cwd_uri : "(null)",
+           container ? ptyxis_ipc_container_get_id (container) : "(null)",
+           (void*)source, source->is_primary,
+           self->panes->len);
+
+  created = ptyxis_tab_create_pane_internal (self, cwd_uri, container);
 
   paned = gtk_paned_new (orientation);
   gtk_widget_add_css_class (paned, "ptyxis-split");
@@ -3948,12 +4854,84 @@ ptyxis_tab_split (PtyxisTab      *self,
   gtk_paned_set_end_child (GTK_PANED (paned), created->box);
   g_object_unref (source_box);
 
-  if (size > 0)
+  if (g_getenv ("PTYXIS_DEBUG_DESTROY"))
+    {
+      g_signal_connect (paned, "destroy", G_CALLBACK (ptyxis_tab_paned_destroy_cb), NULL);
+      g_signal_connect (paned, "notify::parent", G_CALLBACK (ptyxis_tab_widget_parent_notify_cb), NULL);
+      g_signal_connect (created->box, "notify::parent", G_CALLBACK (ptyxis_tab_widget_parent_notify_cb), NULL);
+      g_signal_connect (created->box, "destroy", G_CALLBACK (ptyxis_tab_widget_destroy_cb), NULL);
+    }
+
+  /* @position < 0 means "compute from source box size" (the default for
+   * an interactive split). Otherwise honor the explicit position so
+   * session restore can reproduce the saved divider placement.
+   *
+   * For session restore, the paned is built while the tab is being
+   * constructed (during ptyxis_session_restore, BEFORE the window has
+   * been presented via gtk_window_present). At that point the paned
+   * has no allocation yet, so gtk_paned_set_position is a no-op if
+   * called too early.
+   *
+   * The deeper problem the user reported: when we build a chain of N
+   * nested paneds, each split_full() call replaces an end_child slot
+   * with a new paned, which queues a resize. GTK then re-allocates the
+   * outer paned with its new child, and during that re-allocation GTK
+   * RECOMPUTES the position based on the children's natural sizes —
+   * silently overwriting the value we just set in the previous
+   * iteration. By the time the whole chain is built, the outer
+   * paneds' positions have all been clobbered with GTK defaults, which
+   * is why the restored layout collapses to "all horizontal" or "all
+   * vertical" instead of the saved H,H,V,V,V,V,V shape.
+   *
+   * Fix: stash every non-default position on the paned itself, and
+   * re-apply it on every size-allocate until it sticks. We do this via
+   * a "size-allocate" signal handler that fires after GTK's own
+   * allocation logic — at that point we know the paned has its final
+   * geometry for the current size cycle. We keep re-applying on
+   * subsequent size-allocates (e.g. window resize) so the saved
+   * proportions are preserved across window size changes.
+   */
+  if (position >= 0)
+    {
+      /* Stash the saved position on the paned and install the
+       * notify::position guard immediately. The guard re-applies the
+       * saved divider position whenever GTK overwrites it during the
+       * size-allocate cascade (paneds built during session restore have
+       * no allocation yet, so the direct gtk_paned_set_position below is
+       * a no-op and GTK later recomputes the position from the children's
+       * natural sizes — clobbering ours). The guard keeps fighting back
+       * until the value stabilizes, then releases control to the user.
+       *
+       * The saved value MUST persist on the paned (do NOT clear it to -1
+       * here): the guard's notify::position callback reads it on every
+       * fire. An earlier version cleared it right after installing the
+       * guard, which meant the first time GTK clobbered the position the
+       * guard read saved=-1 and disconnected without re-applying — so
+       * restored split layouts collapsed. The guard itself clears the
+       * value (to -1) once it has stabilized. install_position_guard is
+       * idempotent so the one-shot map handler can safely re-walk the
+       * tree later without double-connecting or resetting the counter. */
+      g_object_set_data (G_OBJECT (paned),
+                         "ptyxis-tab-saved-position",
+                         GINT_TO_POINTER (position));
+
+      gtk_paned_set_position (GTK_PANED (paned), position);
+
+      ptyxis_tab_install_position_guard (paned);
+    }
+  else if (size > 0)
     gtk_paned_set_position (GTK_PANED (paned), size / 2);
 
   ptyxis_tab_sync_active_pane (self, created);
   g_object_notify_by_pspec (G_OBJECT (self), properties[PROP_N_PANES]);
   gtk_widget_grab_focus (GTK_WIDGET (created->terminal));
+}
+
+void
+ptyxis_tab_split (PtyxisTab      *self,
+                  GtkOrientation  orientation)
+{
+  ptyxis_tab_split_full (self, orientation, -1, NULL, NULL);
 }
 
 gboolean
@@ -3979,6 +4957,446 @@ ptyxis_tab_get_n_panes (PtyxisTab *self)
     return 1;
 
   return self->panes->len;
+}
+
+/* Walk the paned widget tree from @pane's box up to its split source.
+ *
+ * The split tree mirrors how ptyxis_tab_split builds the widget tree:
+ * when pane S is split into { S, N }, the new paned has S as start_child
+ * and N as end_child. S becomes the start_child of a paned that was
+ * just created around it, so to recover S's own split source we have to
+ * climb up to S's enclosing paned's parent paned and take its
+ * start_child. N is always the end_child, so N's split source is just
+ * the start_child of its enclosing paned.
+ *
+ * Returns the index in self->panes of the pane that was split to
+ * create @pane, or G_MAXUINT for the primary pane (or on layout
+ * corruption).
+ */
+static guint
+ptyxis_tab_find_split_parent_index (PtyxisTab     *self,
+                                    PtyxisTabPane *pane)
+{
+  GtkWidget *current;
+  guint index;
+
+  g_assert (PTYXIS_IS_TAB (self));
+  g_assert (pane != NULL);
+
+  if (pane->is_primary)
+    return G_MAXUINT;
+
+  current = pane->box;
+
+  for (;;)
+    {
+      GtkWidget *parent = gtk_widget_get_parent (current);
+      GtkWidget *sibling;
+
+      if (parent == NULL || PTYXIS_IS_TAB (parent))
+        return G_MAXUINT;
+
+      if (!GTK_IS_PANED (parent))
+        return G_MAXUINT;
+
+      if (gtk_paned_get_end_child (GTK_PANED (parent)) == current)
+        {
+          /* current is the NEW pane of this paned; its source is the
+           * pane that owns the start_child.
+           */
+          sibling = gtk_paned_get_start_child (GTK_PANED (parent));
+          for (index = 0; index < self->panes->len; index++)
+            {
+              PtyxisTabPane *other = g_ptr_array_index (self->panes, index);
+
+              if (other != pane && other->box == sibling)
+                return index;
+            }
+
+          return G_MAXUINT;
+        }
+
+      /* current is the SOURCE pane of this paned. Step out to the
+       * enclosing paned and try again from there.
+       */
+      current = parent;
+    }
+}
+
+/* Find the GtkPaned that was created when @pane was first split off.
+ *
+ * This is NOT necessarily the immediate parent of @pane->box. When a
+ * pane is later split again, the source pane gets re-wrapped: the new
+ * paned replaces the source's old paned-end-child slot, so the source
+ * is now the start-child of a NEW paned (which is itself the end-child
+ * of the OLD paned). The paned that was created FOR the source — and
+ * that carries the orientation/position of the original split — is
+ * therefore one level UP, at the top of the end-child chain.
+ *
+ * Concretely, for a 3-pane layout built by splitting pane[0] H, then
+ * pane[0] V, then pane[1] H, the tree is:
+ *
+ *   paned_a (H, pos=400)  ← created when pane[0] was split (entry 0)
+ *     start: pane[0]
+ *     end:   paned_b (V, pos=250)  ← created when pane[1] was split (entry 1)
+ *       start: pane[1]
+ *       end:   paned_c (H, pos=300)  ← created when pane[2] was split (entry 2)
+ *         start: pane[2]
+ *         end:   pane[3]
+ *
+ * Here:
+ *   pane[1] is start-child of paned_b. Its "owning" paned (the one
+ *     with the saved H/400 values) is paned_a — the paned whose
+ *     end-child is paned_b. Going up from pane[1].box → paned_b → ONE
+ *     MORE STEP (parent of paned_b) → paned_a. We must stop there.
+ *   pane[2] is start-child of paned_c. Its owning paned is paned_b —
+ *     the paned whose end-child is paned_c. One step up from
+ *     pane[2].box → paned_c → parent of paned_c → paned_b. Stop.
+ *   pane[3] is end-child of paned_c. Its owning paned is paned_c
+ *     itself — no walking needed.
+ *
+ * The rule is therefore:
+ *   immediate P = gtk_widget_get_parent(pane->box)
+ *   if P is null/not-a-paned: return NULL (corrupt)
+ *   if pane->box is P's end-child:  return P
+ *   else (pane->box is P's start-child): return gtk_widget_get_parent(P)
+ *     — that is, the paned whose end-child is P.
+ *
+ * Returns: (transfer none) (nullable): the GtkPaned that owns the
+ *   saved orientation/position for this pane, or NULL if @pane is the
+ *   primary (direct child of the tab) or the tree is corrupt.
+ */
+static GtkPaned *
+ptyxis_tab_find_paned_for_pane (PtyxisTabPane *pane)
+{
+  GtkWidget *parent;
+
+  g_assert (pane != NULL);
+  g_assert (pane->box != NULL);
+
+  parent = gtk_widget_get_parent (pane->box);
+
+  if (!GTK_IS_PANED (parent))
+    return NULL;
+
+  if (gtk_paned_get_end_child (GTK_PANED (parent)) == pane->box)
+    {
+      /* pane->box is end-child of parent — no re-wrapping has happened.
+       * The "owning" paned is the immediate parent. */
+      return GTK_PANED (parent);
+    }
+
+  /* pane->box is start-child of parent (re-wrapped). The owning paned
+   * is the paned whose end-child is `parent`. That's one step up. */
+  parent = gtk_widget_get_parent (parent);
+
+  if (!GTK_IS_PANED (parent))
+    return NULL;
+
+  return GTK_PANED (parent);
+}
+
+/**
+ * ptyxis_tab_dup_panes_state:
+ * @self: a #PtyxisTab
+ *
+ * Serializes the split-pane layout into a `aa{sv}` GVariant for inclusion
+ * in the saved session. The first pane (primary) is not emitted — it is
+ * reconstructed from the tab-level fields already present in the saved
+ * session.
+ *
+ * Returns: (transfer full): a new GVariant describing every non-primary
+ *   pane in DFS order, or an empty array if there are no extra panes.
+ */
+GVariant *
+ptyxis_tab_dup_panes_state (PtyxisTab *self)
+{
+  GVariantBuilder builder;
+  g_autoptr(GVariant) ret = NULL;
+
+  g_return_val_if_fail (PTYXIS_IS_TAB (self), NULL);
+
+  g_variant_builder_init (&builder, G_VARIANT_TYPE ("aa{sv}"));
+
+  /* Empty / single-pane case: skip building entirely rather than calling
+   * g_variant_builder_end() on a builder with zero children. GLib permits
+   * ending an indefinite-type builder with no children, but the resulting
+   * GVariant's type-info node points into builder state that is about to
+   * become stack garbage; if anything then reuses that info (e.g. the
+   * outer `g_variant_builder_add("v", panes_state)` sink + the eventual
+   * g_variant_get_data_as_bytes walk in ptyxis_application_save_session)
+   * it can read freed memory. Returning NULL is the safe contract: the
+   * caller skips the "panes" entry and serializes the tab as a single
+   * pane, which is what we want for non-split tabs anyway. */
+  if (self->panes == NULL || self->panes->len <= 1)
+    {
+      g_variant_builder_clear (&builder);
+      return NULL;
+    }
+
+  for (guint i = 1; i < self->panes->len; i++)
+    {
+      PtyxisTabPane *pane = g_ptr_array_index (self->panes, i);
+      GtkPaned *paned;
+      guint parent_index;
+      g_autofree char *cwd = NULL;
+      const char *container_id = NULL;
+      int position = -1;
+
+      g_debug ("[spawn] save pane[%u] start: pane=%p is_primary=%d",
+               i, (void*)pane, pane->is_primary);
+
+      parent_index = ptyxis_tab_find_split_parent_index (self, pane);
+
+      /* Sanity check: panes are always appended to self->panes in
+       * creation order (via g_ptr_array_add at the end of
+       * ptyxis_tab_create_pane_internal). The pane at index i was
+       * therefore created AFTER pane[0..i-1], so its split source
+       * must have an index strictly less than i. A parent_index >= i
+       * indicates the widget tree is in an unexpected state — for
+       * example, find_split_parent_index climbed into a paned whose
+       * start_child was created later than pane[i] (impossible in a
+       * well-formed tree, but can be observed if a previous split
+       * used a stale source pointer). Log it as a debug message so we
+       * can identify the bug, then fold it into G_MAXUINT so the
+       * existing synthesizer below produces a sensible
+       * (parent=0) entry instead of writing the bogus index to disk
+       * for the restore side to clamp. */
+      if (parent_index != G_MAXUINT && parent_index >= i)
+        {
+          g_debug ("Pane %u has parent_index=%u which is >= %u; "
+                   "treating as detached",
+                   i, parent_index, i);
+          parent_index = G_MAXUINT;
+        }
+
+      /* Use the GtkPaned that was actually created when this pane was
+       * split off (its "owning" paned), NOT the immediate parent of
+       * pane->box. If the source was later split again, the source
+       * gets re-wrapped: it moves from being the end-child of the
+       * original paned to the start-child of a new paned, which
+       * becomes the end-child of the original. So the immediate
+       * parent of pane->box is the new paned (entry N+1), not the
+       * one that holds this entry's saved orientation/position. */
+      paned = ptyxis_tab_find_paned_for_pane (pane);
+      if (paned == NULL)
+        {
+          g_warning ("Pane %u has no owning GtkPaned; skipping", i);
+          continue;
+        }
+
+      /* If we couldn't recover a parent index for this pane (the
+       * GtkPaned tree is detached or in some other unexpected state),
+       * write the entry anyway but synthesize parent=0 so the restore
+       * side can still reconstruct a valid tree. Writing G_MAXUINT
+       * here is the actual cause of the cascade-of-warnings the user
+       * saw: G_MAXUINT triggers "Saved pane is missing 'parent' or
+       * parent is detached" at restore, which skips the entry; the
+       * next entry's parent index then doesn't match the (now-shorter)
+       * self->panes array and triggers "out of range". Falling back
+       * to 0 means restore replays every pane as a child of the
+       * primary, which may not be geometrically correct but at least
+       * produces a structurally complete, non-empty tree — exactly the
+       * behavior the user wants ("show all my panes") versus the
+       * current "show nothing, panic".
+       *
+       * Demoted from g_warning to g_debug: this can fire during normal
+       * shutdown if a pane's GtkPaned has been torn down (e.g. the
+       * shell exited and close_pane_widget unwrapped the paned before
+       * save ran), but the fallback produces a correct-enough tree on
+       * restore, so the user-facing warning was noise. Re-enable with
+       * G_MESSAGES_DEBUG=Ptyxis-Tab if a real bug needs investigation.
+       */
+      if (parent_index == G_MAXUINT)
+        {
+          g_debug ("Pane %u has detached parent in save walk; "
+                   "synthesizing parent=0 to keep restore complete",
+                   i);
+          parent_index = 0;
+        }
+
+      position = gtk_paned_get_position (paned);
+      if (position < 0)
+        position = -1;
+
+      cwd = ptyxis_terminal_dup_current_directory_uri (pane->terminal);
+      if (ptyxis_str_empty0 (cwd))
+        {
+          g_clear_pointer (&cwd, g_free);
+          if (!ptyxis_str_empty0 (pane->initial_working_directory_uri))
+            cwd = g_strdup (pane->initial_working_directory_uri);
+        }
+
+      if (pane->container_at_creation != NULL)
+        container_id = ptyxis_ipc_container_get_id (pane->container_at_creation);
+
+      g_variant_builder_open (&builder, G_VARIANT_TYPE ("a{sv}"));
+      g_variant_builder_add_parsed (&builder, "{'parent', <%u>}", parent_index);
+      g_variant_builder_add_parsed (&builder,
+                                    "{'orientation', <%u>}",
+                                    gtk_orientable_get_orientation (GTK_ORIENTABLE (paned)));
+      g_variant_builder_add_parsed (&builder, "{'position', <%i>}", position);
+      if (cwd != NULL)
+        g_variant_builder_add_parsed (&builder, "{'cwd', <%s>}", cwd);
+      if (container_id != NULL)
+        g_variant_builder_add_parsed (&builder, "{'container', <%s>}", container_id);
+      g_variant_builder_close (&builder);
+
+      g_debug ("[spawn] save pane[%u] EMITTED: parent=%u orient=%u pos=%d "
+               "cwd=%s container=%s",
+               i, parent_index,
+               gtk_orientable_get_orientation (GTK_ORIENTABLE (paned)),
+               position,
+               cwd ? cwd : "(null)",
+               container_id ? container_id : "(null)");
+    }
+
+  /* g_variant_builder_end() returns a floating reference. The outer
+   * ptyxis_session_save will sink it via g_variant_builder_add("v", ...),
+   * but we still return a floating reference to match the documented
+   * (transfer full) contract — the caller sinks either way, but making
+   * this explicit via g_variant_ref_sink avoids any window where the
+   * builder's internal children[] could be observed before the sink
+   * happens (which is the failure mode seen in the core dump taken on
+   * the user host: g_variant_get_data_as_bytes walking children[].type
+   * found a dangling pointer inside a child builder's storage). */
+  return g_variant_ref_sink (g_variant_builder_end (&builder));
+}
+
+/**
+ * ptyxis_tab_restore_panes_state:
+ * @self: a #PtyxisTab
+ * @state: a `aa{sv}` previously returned by ptyxis_tab_dup_panes_state()
+ *
+ * Replays a saved split-pane layout onto @self. Each entry in @state
+ * describes a non-primary pane that was created by splitting off an
+ * existing pane; this function calls ptyxis_tab_split_full() with the
+ * saved orientation, divider position, working directory and container
+ * so the resulting tree mirrors what the user had at save time.
+ *
+ * The order of entries matters: a pane's `parent` index must already be
+ * a valid index in self->panes at the moment that entry is replayed.
+ * ptyxis_tab_dup_panes_state() emits entries in DFS order so this
+ * invariant holds.
+ *
+ * Returns: TRUE if at least one pane was restored, FALSE otherwise.
+ */
+gboolean
+ptyxis_tab_restore_panes_state (PtyxisTab *self,
+                                GVariant  *state)
+{
+  GVariantIter iter;
+  GVariant *pane_var;
+  guint restored = 0;
+  PtyxisApplication *app;
+
+  g_return_val_if_fail (PTYXIS_IS_TAB (self), FALSE);
+  g_return_val_if_fail (state != NULL, FALSE);
+  g_return_val_if_fail (g_variant_is_of_type (state, G_VARIANT_TYPE ("aa{sv}")), FALSE);
+
+  if (g_variant_n_children (state) == 0)
+    return FALSE;
+
+  app = PTYXIS_APPLICATION_DEFAULT;
+
+  g_debug ("[spawn] restore_panes_state ENTER tab=%p n_entries=%lu current_n_panes=%u",
+           (void*)self,
+           (unsigned long)g_variant_n_children (state),
+           self->panes ? self->panes->len : 0);
+
+  g_variant_iter_init (&iter, state);
+  while (g_variant_iter_loop (&iter, "@a{sv}", &pane_var))
+    {
+      guint32 parent_index = G_MAXUINT;
+      guint32 orientation = GTK_ORIENTATION_HORIZONTAL;
+      gint32 position = -1;
+      g_autofree char *cwd = NULL;
+      g_autofree char *container_id = NULL;
+      PtyxisTabPane *parent_pane;
+      g_autoptr(PtyxisIpcContainer) container = NULL;
+
+      /* g_variant_lookup returns FALSE when the key is absent but leaves
+       * parent_index unchanged from its initial G_MAXUINT sentinel, so a
+       * missing "parent" key would fall through into the "out of range"
+       * branch and produce the misleading warning
+       *   "Saved pane parent index 4294967295 out of range ..."
+       * The duplicate ordering check (parent_index >= self->panes->len
+       * covers both out-of-range and the G_MAXUINT sentinel) collapses
+       * both cases into one branch and prints a single accurate warning.
+       *
+       * Why G_MAXUINT: ptyxis_tab_find_split_parent_index() returns
+       * G_MAXUINT for the primary pane and for any non-primary pane
+       * that lost its GtkPaned parent (e.g. mid-tear-down). The save
+       * side skips the primary (loop starts at i=1) but a detached
+       * non-primary could still slip through and write G_MAXUINT; the
+       * restore side treats that as corrupt and skips it. */
+      if (!g_variant_lookup (pane_var, "parent", "u", &parent_index) ||
+          parent_index == G_MAXUINT)
+        {
+          if (parent_index == G_MAXUINT)
+            g_warning ("Saved pane is missing 'parent' or parent is detached; falling back to parent=0");
+          else
+            g_warning ("Saved pane is missing 'parent' key; falling back to parent=0");
+          parent_index = 0;
+        }
+
+      if (parent_index >= self->panes->len)
+        {
+          /* Earlier entries may have been dropped (G_MAXUINT or other
+           * reconstruction failure), so this entry's recorded parent
+           * index now points past the end. Clamp to the highest valid
+           * index so we still create the pane instead of silently
+           * dropping it. */
+          g_warning ("Saved pane parent index %u out of range (have %u panes); clamping to %u",
+                     parent_index, self->panes->len, self->panes->len - 1);
+          parent_index = self->panes->len - 1;
+        }
+
+      g_variant_lookup (pane_var, "orientation", "u", &orientation);
+      g_variant_lookup (pane_var, "position", "i", &position);
+      /* Use format "s" (not "&s"). Per the GVariant format strings
+       * reference, "s" tells GLib to allocate a fresh copy of the string
+       * via g_strdup(), which is safe to pass to g_autoptr/free.
+       * Format "&s" returns a pointer directly into the parent GVariant's
+       * serialized data buffer — borrowed, NOT allocated — so freeing it
+       * is undefined behaviour and glibc detects the resulting non-heap
+       * pointer as "free(): invalid pointer" on the g_autoptr cleanup
+       * when the loop iteration exits. (The original reverse-the-docs
+       * confusion here is what produced the new abort on restore after
+       * the previous session-save fix: the string was fine inside the
+       * loop body, but the g_autoptr cleanup on scope-exit called g_free()
+       * on a pointer the variant still owned.) */
+      g_variant_lookup (pane_var, "cwd", "s", &cwd);
+      g_variant_lookup (pane_var, "container", "s", &container_id);
+
+      parent_pane = g_ptr_array_index (self->panes, parent_index);
+
+      if (!ptyxis_str_empty0 (container_id))
+        container = ptyxis_application_lookup_container (app, container_id);
+
+      /* ptyxis_tab_split_full() reads self->active_pane to decide which
+       * existing pane is the split source. Override it for each entry
+       * so nested splits replay against the correct parent rather than
+       * against whichever pane happened to be focused last. */
+      self->active_pane = parent_pane;
+
+      ptyxis_tab_split_full (self,
+                             (GtkOrientation)orientation,
+                             (int)position,
+                             cwd,
+                             container);
+
+      g_debug ("[spawn] restore entry[%u] processed: parent=%u orient=%u pos=%d "
+               "cwd=%s container=%s -> pane_index_after=%u",
+               restored, parent_index, orientation, position,
+               cwd ? cwd : "(null)",
+               container_id ? container_id : "(null)",
+               self->panes ? self->panes->len : 0);
+
+      restored++;
+    }
+
+  return restored > 0;
 }
 
 static PtyxisTabPane *
@@ -4087,6 +5505,37 @@ ptyxis_tab_get_terminal (PtyxisTab *self)
 
   if (self->active_pane != NULL && self->active_pane->terminal != NULL)
     return self->active_pane->terminal;
+
+  return self->terminal;
+}
+
+/**
+ * ptyxis_tab_get_primary_terminal:
+ * @self: a #PtyxisTab
+ *
+ * Returns the template-level PtyxisTerminal widget that is the
+ * primary pane's terminal. This is the widget that survives the
+ * tab's full lifetime, including across split/close/re-split
+ * cycles, and is the same PtyxisTerminal that
+ * PtyxisTab::ptyxis_tab_respawn() will use as the target of the
+ * next spawn.
+ *
+ * Contrast with ptyxis_tab_get_terminal() which returns the active
+ * pane's terminal — useful for "the terminal I am currently typing
+ * into" but wrong for code paths that need to read the primary's
+ * own state (e.g. the session-save walker: a tab with multi-pane
+ * layout has self->active_pane pointing at whichever pane the user
+ * last focused, but the cwd we save and later feed back to the
+ * primary at respawn time must be the primary pane's own cwd,
+ * otherwise the primary restores into whatever directory some
+ * non-primary pane happened to be in at quit time).
+ *
+ * Returns: (transfer none) (nullable): the primary terminal.
+ */
+PtyxisTerminal *
+ptyxis_tab_get_primary_terminal (PtyxisTab *self)
+{
+  g_return_val_if_fail (PTYXIS_IS_TAB (self), NULL);
 
   return self->terminal;
 }

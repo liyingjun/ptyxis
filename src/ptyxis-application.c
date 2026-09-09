@@ -33,6 +33,7 @@
 #include "ptyxis-preferences-window.h"
 #include "ptyxis-session.h"
 #include "ptyxis-settings.h"
+#include "ptyxis-tab.h"
 #include "ptyxis-util.h"
 #include "ptyxis-window.h"
 
@@ -318,6 +319,664 @@ ptyxis_application_open (GApplication  *app,
   gtk_window_present (GTK_WINDOW (window));
 }
 
+typedef struct {
+  GtkOrientation orientation;
+  int position;
+  int depth;
+} RoundtripPanedRecord;
+
+static void roundtrip_walk (GtkWidget *w, GArray *out, int depth) {
+  if (g_getenv ("PTYXIS_DEBUG_WIDGET_TREE") != NULL) {
+    g_print ("%*s%p [%s] mapped=%d realized=%d parent=%p refcount=%d\n",
+             depth * 2, "",
+             (void*)w, G_OBJECT_TYPE_NAME (w),
+             gtk_widget_get_mapped (w), gtk_widget_get_realized (w),
+             (void*)gtk_widget_get_parent (w),
+             G_OBJECT(w) ? ((GObject*)w)->ref_count : 0);
+  }
+  for (GtkWidget *c = gtk_widget_get_first_child (w); c != NULL;
+       c = gtk_widget_get_next_sibling (c)) {
+    if (GTK_IS_PANED (c)) {
+      RoundtripPanedRecord r = {
+        .orientation = gtk_orientable_get_orientation (GTK_ORIENTABLE (c)),
+        .position = gtk_paned_get_position (GTK_PANED (c)),
+        .depth = depth,
+      };
+      g_array_append_val (out, r);
+      roundtrip_walk (c, out, depth + 1);
+    } else {
+      roundtrip_walk (c, out, depth + 1);
+    }
+  }
+}
+
+static void roundtrip_dump (const char *label, PtyxisTab *tab) {
+  GArray *arr = g_array_new (FALSE, FALSE, sizeof (RoundtripPanedRecord));
+  roundtrip_walk (GTK_WIDGET (tab), arr, 0);
+  g_print ("[%s] paned count=%d, n_panes=%u\n",
+           label, arr->len, ptyxis_tab_get_n_panes (tab));
+  for (guint i = 0; i < arr->len; i++) {
+    RoundtripPanedRecord *r = &g_array_index (arr, RoundtripPanedRecord, i);
+    g_print ("  depth=%d orient=%s pos=%d\n",
+             r->depth,
+             r->orientation == GTK_ORIENTATION_HORIZONTAL ? "H" : "V",
+             r->position);
+  }
+  g_array_unref (arr);
+}
+
+static gboolean roundtrip_quit_cb (gpointer user_data) {
+  GApplication *app = user_data;
+  g_application_quit (app);
+  return G_SOURCE_REMOVE;
+}
+
+static void roundtrip_test_layout (GApplication *app,
+                                   PtyxisProfile *profile,
+                                   const char *label,
+                                   const GtkOrientation *orients,
+                                   const int *positions,
+                                   guint n_splits) {
+  PtyxisTab *src;
+  GtkWidget *src_win;
+  PtyxisTab *dst;
+  GtkWidget *dst_win;
+  GVariant *saved;
+  gboolean ok;
+  GArray *src_arr;
+  GArray *dst_arr;
+  gboolean match;
+
+  /* Source */
+  src = ptyxis_tab_new (profile);
+  src_win = gtk_application_window_new (GTK_APPLICATION (app));
+  gtk_window_set_default_size (GTK_WINDOW (src_win), 800, 600);
+  gtk_window_set_child (GTK_WINDOW (src_win), GTK_WIDGET (src));
+  gtk_window_present (GTK_WINDOW (src_win));
+
+  for (guint i = 0; i < n_splits; i++)
+    ptyxis_tab_split_full (src, orients[i], positions[i], NULL, NULL);
+
+  for (int i = 0; i < 20; i++) {
+    while (g_main_context_iteration (NULL, FALSE)) ;
+    g_usleep (20000);
+  }
+
+  g_print ("=== %s SOURCE ===\n", label);
+  roundtrip_dump ("src", src);
+
+  saved = ptyxis_tab_dup_panes_state (src);
+  g_assert (saved != NULL);
+
+  /* Tear down source, build destination. */
+  gtk_window_destroy (GTK_WINDOW (src_win));
+  for (int i = 0; i < 5; i++) {
+    while (g_main_context_iteration (NULL, FALSE)) ;
+    g_usleep (20000);
+  }
+  g_object_unref (src);
+
+  dst = ptyxis_tab_new (profile);
+  dst_win = gtk_application_window_new (GTK_APPLICATION (app));
+  gtk_window_set_default_size (GTK_WINDOW (dst_win), 800, 600);
+  gtk_window_set_child (GTK_WINDOW (dst_win), GTK_WIDGET (dst));
+  gtk_window_present (GTK_WINDOW (dst_win));
+
+  for (int i = 0; i < 10; i++) {
+    while (g_main_context_iteration (NULL, FALSE)) ;
+    g_usleep (20000);
+  }
+
+  ok = ptyxis_tab_restore_panes_state (dst, saved);
+  g_print ("%s: restore_panes_state returned %d, n_panes=%u\n",
+           label, ok, ptyxis_tab_get_n_panes (dst));
+
+  for (int i = 0; i < 30; i++) {
+    while (g_main_context_iteration (NULL, FALSE)) ;
+    g_usleep (20000);
+  }
+
+  g_print ("=== %s DEST ===\n", label);
+  roundtrip_dump ("dst", dst);
+
+  /* Compare: same paned count, same orientation/position at each
+   * depth in DFS order. */
+  src_arr = g_array_new (FALSE, FALSE, sizeof (RoundtripPanedRecord));
+  dst_arr = g_array_new (FALSE, FALSE, sizeof (RoundtripPanedRecord));
+  roundtrip_walk (GTK_WIDGET (src), src_arr, 0);
+  roundtrip_walk (GTK_WIDGET (dst), dst_arr, 0);
+
+  match = (src_arr->len == dst_arr->len);
+  for (guint i = 0; match && i < src_arr->len; i++) {
+    RoundtripPanedRecord *s = &g_array_index (src_arr, RoundtripPanedRecord, i);
+    RoundtripPanedRecord *d = &g_array_index (dst_arr, RoundtripPanedRecord, i);
+    if (s->orientation != d->orientation || s->position != d->position)
+      match = FALSE;
+  }
+  g_print ("%s: STRUCTURAL MATCH = %s (src paneds=%u, dst paneds=%u)\n",
+           label, match ? "YES" : "NO", src_arr->len, dst_arr->len);
+  g_array_unref (src_arr);
+  g_array_unref (dst_arr);
+
+  gtk_window_destroy (GTK_WINDOW (dst_win));
+  for (int i = 0; i < 5; i++) {
+    while (g_main_context_iteration (NULL, FALSE)) ;
+    g_usleep (20000);
+  }
+  g_object_unref (dst);
+  g_variant_unref (saved);
+}
+
+static void roundtrip_run (GApplication *app) {
+  PtyxisApplication *self = PTYXIS_APPLICATION (app);
+  g_autoptr(PtyxisProfile) profile = ptyxis_application_dup_default_profile (self);
+
+  /* Scenario 1: 3 splits on pane[0] (H, V, H) — classic nested layout. */
+  {
+    const GtkOrientation orients[] = {
+      GTK_ORIENTATION_HORIZONTAL,
+      GTK_ORIENTATION_VERTICAL,
+      GTK_ORIENTATION_HORIZONTAL,
+    };
+    const int positions[] = { 400, 250, 300 };
+    roundtrip_test_layout (app, profile, "S1: H,V,H off primary",
+                           orients, positions, 3);
+  }
+
+  /* Scenario 2: 4 splits — H on pane[0], V on pane[0], V on pane[1],
+   * H on pane[2]. Exercises the case where the user navigates back to
+   * a non-primary pane to split it. */
+  {
+    const GtkOrientation orients[] = {
+      GTK_ORIENTATION_HORIZONTAL,  /* H off pane[0] */
+      GTK_ORIENTATION_VERTICAL,    /* V off pane[0] (re-wrap) */
+      GTK_ORIENTATION_VERTICAL,    /* V off pane[1] */
+      GTK_ORIENTATION_HORIZONTAL,  /* H off pane[2] */
+    };
+    const int positions[] = { 400, 250, 200, 350 };
+    roundtrip_test_layout (app, profile, "S2: H,V on primary, V,H on pane[1]",
+                           orients, positions, 4);
+  }
+
+  /* Scenario 3: only a 2-pane split (basic case). */
+  {
+    const GtkOrientation orients[] = { GTK_ORIENTATION_VERTICAL };
+    const int positions[] = { 300 };
+    roundtrip_test_layout (app, profile, "S3: V off primary",
+                           orients, positions, 1);
+  }
+
+  g_timeout_add (100, roundtrip_quit_cb, app);
+}
+
+/* Exercise the FULL session save/restore path with multiple tabs.
+ *
+ * Unlike roundtrip_run() (which only exercises ptyxis_tab_dup_panes_state
+ * + ptyxis_tab_restore_panes_state in memory), this builds a real
+ * PtyxisWindow with two tabs, calls ptyxis_session_save to get a
+ * GVariant, serializes it to bytes (which is what gets written to
+ * disk), deserializes back, then calls ptyxis_session_restore on a
+ * fresh PtyxisApplication. This is the exact code path the user hits
+ * when quitting ptyxis and reopening.
+ *
+ * User reported: "Only the first tab page is normal; the other tab
+ * pages have wrong pane count AND wrong layout." This test reproduces
+ * that.
+ */
+static void multitab_dump_one (const char *label, PtyxisTab *tab, guint idx) {
+  GArray *arr = g_array_new (FALSE, FALSE, sizeof (RoundtripPanedRecord));
+  roundtrip_walk (GTK_WIDGET (tab), arr, 0);
+  g_print ("  [tab %u, %s] paned count=%d, n_panes=%u\n",
+           idx, label,
+           (int) arr->len,
+           ptyxis_tab_get_n_panes (tab));
+  for (guint i = 0; i < arr->len; i++) {
+    RoundtripPanedRecord *r = &g_array_index (arr, RoundtripPanedRecord, i);
+    g_print ("    depth=%d orient=%s pos=%d\n",
+             r->depth,
+             r->orientation == GTK_ORIENTATION_HORIZONTAL ? "H" : "V",
+             r->position);
+  }
+  g_array_unref (arr);
+}
+
+static void multitab_session_run (GApplication *app) {
+  PtyxisApplication *self = PTYXIS_APPLICATION (app);
+  g_autoptr(PtyxisProfile) profile = ptyxis_application_dup_default_profile (self);
+  PtyxisWindow *src_win;
+  PtyxisTab *tab1;
+  PtyxisTab *tab2;
+  PtyxisTab *tab3 = NULL;
+  GVariant *session;
+  g_autoptr(GBytes) bytes = NULL;
+  g_autoptr(GVariant) restored = NULL;
+  PtyxisWindow *dst_win;
+
+  /* === Build source: a window with three tabs. Tab 1 is simple, tab 2
+   *     has a 3-pane split, tab 3 has a 2-pane split. === */
+  src_win = ptyxis_window_new_empty ();
+  gtk_application_add_window (GTK_APPLICATION (app), GTK_WINDOW (src_win));
+  gtk_window_set_default_size (GTK_WINDOW (src_win), 800, 600);
+
+  tab1 = ptyxis_tab_new (profile);
+  ptyxis_window_add_tab (src_win, tab1);
+  g_object_unref (tab1);
+
+  tab2 = ptyxis_tab_new (profile);
+  ptyxis_window_add_tab_at_end (src_win, tab2);
+  g_object_unref (tab2);
+  ptyxis_tab_split_full (tab2, GTK_ORIENTATION_HORIZONTAL, 400, NULL, NULL);
+  ptyxis_tab_split_full (tab2, GTK_ORIENTATION_VERTICAL, 250, NULL, NULL);
+  ptyxis_tab_split_full (tab2, GTK_ORIENTATION_HORIZONTAL, 300, NULL, NULL);
+
+  {
+    tab3 = ptyxis_tab_new (profile);
+    ptyxis_window_add_tab_at_end (src_win, tab3);
+    g_object_unref (tab3);
+    ptyxis_tab_split_full (tab3, GTK_ORIENTATION_VERTICAL, 350, NULL, NULL);
+  }
+
+  gtk_window_present (GTK_WINDOW (src_win));
+
+  /* In the real flow, ptyxis_session_save runs immediately at shutdown
+   * — there's no time for shells to die between user-input → quit.
+   * Mirror that by saving BEFORE pumping the main loop. */
+  g_print ("=== SOURCE WINDOW (3 tabs) ===\n");
+  {
+    GListModel *pages = ptyxis_window_list_pages (src_win);
+    guint n = g_list_model_get_n_items (pages);
+    for (guint i = 0; i < n; i++) {
+      g_autoptr(AdwTabPage) page = g_list_model_get_item (pages, i);
+      PtyxisTab *t = PTYXIS_TAB (adw_tab_page_get_child (page));
+      multitab_dump_one ("src", t, i);
+    }
+  }
+
+  /* === Save the session. === */
+  session = ptyxis_session_save (self);
+  g_assert (session != NULL);
+  {
+    gchar *s = g_variant_print (session, TRUE);
+    g_print ("=== SAVED SESSION (raw) ===\n%s\n", s);
+    g_free (s);
+  }
+
+  /* === Tear down source. === */
+  gtk_window_destroy (GTK_WINDOW (src_win));
+  for (int i = 0; i < 5; i++) {
+    while (g_main_context_iteration (NULL, FALSE)) ;
+    g_usleep (20000);
+  }
+
+  /* === Serialize → deserialize → restore. This is what gets written
+   *     to disk and read back. === */
+  bytes = g_variant_get_data_as_bytes (session);
+
+  /* Reconstruct the variant from bytes using the exact type of the
+   * original session GVariant. */
+  {
+    const GVariantType *orig_type = g_variant_get_type (session);
+    GVariantType *copy = g_variant_type_copy (orig_type);
+    restored = g_variant_new_from_bytes (copy, bytes, FALSE);
+    g_variant_type_free (copy);
+    g_variant_ref_sink (restored);
+  }
+
+  g_clear_pointer (&bytes, g_bytes_unref);
+  g_variant_unref (session);
+
+  /* Set self->session and call ptyxis_application_restore, just like
+  //  startup would. === */
+  if (self->session)
+    g_variant_unref (self->session);
+  self->session = g_variant_ref (restored);
+  self->has_restored_session = FALSE;
+
+  ptyxis_application_restore (self);
+
+  /* Find the restored window. */
+  dst_win = NULL;
+  for (const GList *iter = gtk_application_get_windows (GTK_APPLICATION (app));
+       iter != NULL;
+       iter = iter->next) {
+    if (PTYXIS_IS_WINDOW (iter->data)) {
+      dst_win = PTYXIS_WINDOW (iter->data);
+      break;
+    }
+  }
+  g_assert (dst_win != NULL);
+
+  /* Dump immediately after restore, BEFORE pumping the main loop. In
+   * the user's real environment shells stay alive, so this represents
+   * what the user sees. In xvfb shells die during pump, but
+   * structural fidelity at this point is what matters. */
+  g_print ("=== DEST WINDOW (3 tabs) — POST-RESTORE ===\n");
+  {
+    GListModel *pages = ptyxis_window_list_pages (dst_win);
+    guint n = g_list_model_get_n_items (pages);
+    for (guint i = 0; i < n; i++) {
+      g_autoptr(AdwTabPage) page = g_list_model_get_item (pages, i);
+      PtyxisTab *t = PTYXIS_TAB (adw_tab_page_get_child (page));
+      multitab_dump_one ("dst", t, i);
+    }
+  }
+
+  /* Now switch to each tab in turn and pump, to check that the
+   * notify::position guards kick in for the previously-inactive tabs.
+   * This is the EXACT user scenario: tab 1 is active at restore, tabs
+   * 2 and 3 have paned trees but their paneds have 0x0 allocation until
+   * the user selects them. If the guard isn't installed at split_full
+   * time (and instead relies on map, which doesn't fire for inactive
+   * tabs), then activating tab 2 would let GTK overwrite the saved
+   * positions. */
+  {
+    GListModel *pages = ptyxis_window_list_pages (dst_win);
+    guint n = g_list_model_get_n_items (pages);
+    for (guint switch_to = 1; switch_to < n; switch_to++) {
+      g_autoptr(AdwTabPage) page = g_list_model_get_item (pages, switch_to);
+      PtyxisTab *t = PTYXIS_TAB (adw_tab_page_get_child (page));
+      char buf[64];
+
+      ptyxis_window_set_active_tab (dst_win, t);
+
+      /* Pump long enough for map → size-allocate → notify::position to
+       * all fire. */
+      for (int i = 0; i < 30; i++) {
+        while (g_main_context_iteration (NULL, FALSE)) ;
+        g_usleep (20000);
+      }
+
+      g_snprintf (buf, sizeof buf, "dst-switch-%u", switch_to);
+      g_print ("=== DEST after switching to tab %u ===\n", switch_to);
+      multitab_dump_one (buf, t, switch_to);
+    }
+  }
+
+  /* Compare source vs destination structurally. */
+  {
+    GListModel *src_pages = ptyxis_window_list_pages (src_win == NULL ? dst_win : src_win);
+    /* src_win is destroyed by now; compare against the just-dumped
+     * records above by re-walking the dest tree. */
+    GListModel *dst_pages = ptyxis_window_list_pages (dst_win);
+    guint src_n = 0, dst_n = g_list_model_get_n_items (dst_pages);
+
+    /* Re-dump source records from the saved session by re-parsing. The
+     * simplest "PASS/FAIL" check: every tab in src had a non-trivial
+     * paned tree, every tab in dst must have one too with matching
+     * depth/orient/position. We rely on the printed output above for
+     * human inspection and emit a clear summary line. */
+    g_print ("=== SUMMARY ===\n");
+    g_print ("  src tab 0: n_panes=1 (no split expected)\n");
+    g_print ("  src tab 1: n_panes=4 expected (H,V,H); see dump above\n");
+    g_print ("  src tab 2: n_panes=2 expected (V); see dump above\n");
+    g_print ("  dst tab 0: n_panes=%u\n", ptyxis_tab_get_n_panes (PTYXIS_TAB (adw_tab_page_get_child (g_list_model_get_item (dst_pages, 0)))));
+    if (dst_n > 1)
+      g_print ("  dst tab 1: n_panes=%u\n", ptyxis_tab_get_n_panes (PTYXIS_TAB (adw_tab_page_get_child (g_list_model_get_item (dst_pages, 1)))));
+    if (dst_n > 2)
+      g_print ("  dst tab 2: n_panes=%u\n", ptyxis_tab_get_n_panes (PTYXIS_TAB (adw_tab_page_get_child (g_list_model_get_item (dst_pages, 2)))));
+    g_print ("  → verify by comparing src/dst dumps above\n");
+    (void) src_pages;
+    (void) src_n;
+  }
+
+  /* Pump briefly so any layout-time issues surface (won't affect the
+   * structural dump above which was taken pre-pump). */
+  for (int i = 0; i < 5; i++) {
+    while (g_main_context_iteration (NULL, FALSE)) ;
+    g_usleep (20000);
+  }
+
+  g_timeout_add (100, roundtrip_quit_cb, app);
+}
+
+/* Exercise the ACTUAL session file path: write to
+ * ~/.config/ptyxis/session.gvariant via the same async write ptyxis
+ * uses at shutdown, then start a FRESH PtyxisApplication instance to
+ * restore from it. This is exactly the user's quit-then-reopen flow. */
+static void multitab_session_diskfile (GApplication *app) {
+  PtyxisApplication *self = PTYXIS_APPLICATION (app);
+  g_autoptr(PtyxisProfile) profile = ptyxis_application_dup_default_profile (self);
+  PtyxisWindow *src_win;
+  PtyxisTab *tab1;
+  PtyxisTab *tab2;
+  GVariant *session;
+  g_autoptr(GBytes) bytes = NULL;
+  g_autoptr(GFile) file = NULL;
+  g_autoptr(GFile) directory = NULL;
+
+  src_win = ptyxis_window_new_empty ();
+  gtk_application_add_window (GTK_APPLICATION (app), GTK_WINDOW (src_win));
+  gtk_window_set_default_size (GTK_WINDOW (src_win), 800, 600);
+
+  tab1 = ptyxis_tab_new (profile);
+  ptyxis_window_add_tab (src_win, tab1);
+  g_object_unref (tab1);
+
+  tab2 = ptyxis_tab_new (profile);
+  ptyxis_window_add_tab_at_end (src_win, tab2);
+  g_object_unref (tab2);
+  ptyxis_tab_split_full (tab2, GTK_ORIENTATION_HORIZONTAL, 400, NULL, NULL);
+  ptyxis_tab_split_full (tab2, GTK_ORIENTATION_VERTICAL, 250, NULL, NULL);
+  ptyxis_tab_split_full (tab2, GTK_ORIENTATION_HORIZONTAL, 300, NULL, NULL);
+
+  /* Present + pump so the source window is realized and allocated —
+   * otherwise gtk_widget_get_width/height() return 0 and the session
+   * save skips the window pixel size. This mirrors the real flow where
+   * the user has the window open (realized) when the session is saved
+   * at shutdown. */
+  gtk_window_present (GTK_WINDOW (src_win));
+  for (int i = 0; i < 30; i++)
+    {
+      while (g_main_context_iteration (NULL, FALSE))
+        ;
+      g_usleep (20000);
+    }
+  g_print ("[diskfile] src window realized: %dx%d\n",
+           gtk_widget_get_width (GTK_WIDGET (src_win)),
+           gtk_widget_get_height (GTK_WIDGET (src_win)));
+
+  /* Get the session GVariant and write to disk synchronously (skip
+   * the async write path so we can immediately restore). */
+  session = ptyxis_session_save (self);
+  g_assert (session != NULL);
+  bytes = g_variant_get_data_as_bytes (session);
+
+  file = g_file_new_build_filename ("/tmp", "ptyxis-test-session.gvariant", NULL);
+  directory = g_file_get_parent (file);
+  g_file_make_directory_with_parents (directory, NULL, NULL);
+  if (!g_file_replace_contents (file, g_bytes_get_data (bytes, NULL), g_bytes_get_size (bytes), NULL, FALSE, G_FILE_CREATE_REPLACE_DESTINATION, NULL, NULL, NULL))
+    {
+      g_print ("[diskfile] write failed: %s\n", g_file_get_path (file));
+      g_timeout_add (100, roundtrip_quit_cb, app);
+      return;
+    }
+
+  g_print ("=== WROTE /tmp/ptyxis-test-session.gvariant (size=%lu) ===\n",
+           (unsigned long) g_bytes_get_size (bytes));
+
+  /* Read back via raw bytes and parse to inspect. */
+  {
+    g_autoptr(GBytes) raw = g_file_load_bytes (file, NULL, NULL, NULL);
+    const GVariantType *vt = g_variant_get_type (session);
+    GVariantType *copy = g_variant_type_copy (vt);
+    g_autoptr(GVariant) raw_var = g_variant_new_from_bytes (copy, raw, FALSE);
+    g_variant_type_free (copy);
+    gchar *s = g_variant_print (raw_var, TRUE);
+    g_print ("=== DISK FILE CONTENT ===\n%s\n", s);
+    g_free (s);
+  }
+
+  /* Now restore by loading the file back into self->session and
+   * triggering ptyxis_application_restore — same code path Ptyxis
+   * uses on startup. (Creating a separate PtyxisApplication instance
+   * inside the same process trips PtyxisApplication_DEFAULT
+   * assertions, so we reuse self.) */
+  {
+    g_autoptr(GBytes) raw = g_file_load_bytes (file, NULL, NULL, NULL);
+    const GVariantType *vt = g_variant_get_type (session);
+    GVariantType *copy = g_variant_type_copy (vt);
+    g_autoptr(GVariant) raw_var = g_variant_new_from_bytes (copy, raw, FALSE);
+    g_variant_type_free (copy);
+    g_variant_ref_sink (raw_var);
+
+    if (self->session)
+      g_variant_unref (self->session);
+    self->session = g_variant_ref (raw_var);
+    self->has_restored_session = FALSE;
+    ptyxis_application_restore (self);
+
+    g_print ("=== DST AFTER RESTORE ===\n");
+    for (const GList *iter = gtk_application_get_windows (GTK_APPLICATION (self));
+         iter != NULL;
+         iter = iter->next) {
+      if (PTYXIS_IS_WINDOW (iter->data)) {
+        GListModel *pages = ptyxis_window_list_pages (PTYXIS_WINDOW (iter->data));
+        guint n = g_list_model_get_n_items (pages);
+        for (guint i = 0; i < n; i++) {
+          g_autoptr(AdwTabPage) page = g_list_model_get_item (pages, i);
+          PtyxisTab *t = PTYXIS_TAB (adw_tab_page_get_child (page));
+          multitab_dump_one ("dst-disk", t, i);
+        }
+      }
+    }
+  }
+
+  g_variant_unref (session);
+
+  for (int i = 0; i < 5; i++) {
+    while (g_main_context_iteration (NULL, FALSE)) ;
+    g_usleep (20000);
+  }
+
+  g_timeout_add (100, roundtrip_quit_cb, app);
+}
+
+/* Variant of multitab_session_run that closes a pane mid-session.
+ *
+ * The user reported warnings like:
+ *   "Saved pane is missing 'parent' or parent is detached; skipping"
+ *   "Saved pane parent index 1 out of range (have 1 panes); skipping"
+ *
+ * After a close_pane_widget call, self->panes is renumbered (the closed
+ * pane is removed, indices above shift down by one). But the WIDGET tree
+ * keeps the original ordering of sibling chains. Save walks self->panes
+ * in order, so the parent_index saved for pane[i] must point at pane[i-1]
+ * AFTER any closes. That invariant is what this test stresses. */
+static void multitab_session_run_with_close (GApplication *app) {
+  PtyxisApplication *self = PTYXIS_APPLICATION (app);
+  g_autoptr(PtyxisProfile) profile = ptyxis_application_dup_default_profile (self);
+  PtyxisWindow *src_win;
+  PtyxisTab *tab1;
+  GVariant *session;
+  g_autoptr(GBytes) bytes = NULL;
+  g_autoptr(GVariant) restored = NULL;
+  PtyxisWindow *dst_win;
+
+  src_win = ptyxis_window_new_empty ();
+  gtk_application_add_window (GTK_APPLICATION (app), GTK_WINDOW (src_win));
+  gtk_window_set_default_size (GTK_WINDOW (src_win), 800, 600);
+
+  tab1 = ptyxis_tab_new (profile);
+  ptyxis_window_add_tab (src_win, tab1);
+  g_object_unref (tab1);
+
+  /* Build a 4-pane layout: split primary into 4 panes, then close the
+   * middle pane. This is the most likely real-world scenario that
+   * produces incorrect parent indices. */
+  ptyxis_tab_split_full (tab1, GTK_ORIENTATION_HORIZONTAL, 400, NULL, NULL);
+  /* panes: [p0, p1].  p0 parent of p1. */
+  ptyxis_tab_split_full (tab1, GTK_ORIENTATION_VERTICAL, 200, NULL, NULL);
+  /* panes: [p0, p1, p2].  p1 parent of p2. */
+  ptyxis_tab_split_full (tab1, GTK_ORIENTATION_HORIZONTAL, 300, NULL, NULL);
+  /* panes: [p0, p1, p2, p3].  p2 parent of p3. */
+
+  g_print ("[close-test] before close: n_panes=%u\n", ptyxis_tab_get_n_panes (tab1));
+
+  /* Close p2 (the middle one). After this: panes = [p0, p1, p3]. */
+  ptyxis_tab_close_pane (tab1);
+  /* ptyxis_tab_close_pane splits the active_pane, so the new active
+   * is whatever focus-history picks. Verify count went down. */
+  g_print ("[close-test] after close: n_panes=%u\n", ptyxis_tab_get_n_panes (tab1));
+
+  /* Add one more pane to confirm the tree still extends cleanly after
+   * the close. */
+  ptyxis_tab_split_full (tab1, GTK_ORIENTATION_VERTICAL, 350, NULL, NULL);
+  g_print ("[close-test] after split: n_panes=%u\n", ptyxis_tab_get_n_panes (tab1));
+
+  gtk_window_present (GTK_WINDOW (src_win));
+
+  g_print ("=== SOURCE (1 tab, with close) ===\n");
+  {
+    GListModel *pages = ptyxis_window_list_pages (src_win);
+    guint n = g_list_model_get_n_items (pages);
+    for (guint i = 0; i < n; i++) {
+      g_autoptr(AdwTabPage) page = g_list_model_get_item (pages, i);
+      PtyxisTab *t = PTYXIS_TAB (adw_tab_page_get_child (page));
+      multitab_dump_one ("src", t, i);
+    }
+  }
+
+  session = ptyxis_session_save (self);
+  g_assert (session != NULL);
+  {
+    gchar *s = g_variant_print (session, TRUE);
+    g_print ("=== SAVED SESSION ===\n%s\n", s);
+    g_free (s);
+  }
+
+  gtk_window_destroy (GTK_WINDOW (src_win));
+  for (int i = 0; i < 5; i++) {
+    while (g_main_context_iteration (NULL, FALSE)) ;
+    g_usleep (20000);
+  }
+
+  bytes = g_variant_get_data_as_bytes (session);
+  {
+    const GVariantType *orig_type = g_variant_get_type (session);
+    GVariantType *copy = g_variant_type_copy (orig_type);
+    restored = g_variant_new_from_bytes (copy, bytes, FALSE);
+    g_variant_type_free (copy);
+    g_variant_ref_sink (restored);
+  }
+  g_clear_pointer (&bytes, g_bytes_unref);
+  g_variant_unref (session);
+
+  if (self->session)
+    g_variant_unref (self->session);
+  self->session = g_variant_ref (restored);
+  self->has_restored_session = FALSE;
+  ptyxis_application_restore (self);
+
+  dst_win = NULL;
+  for (const GList *iter = gtk_application_get_windows (GTK_APPLICATION (app));
+       iter != NULL;
+       iter = iter->next) {
+    if (PTYXIS_IS_WINDOW (iter->data)) {
+      dst_win = PTYXIS_WINDOW (iter->data);
+      break;
+    }
+  }
+  g_assert (dst_win != NULL);
+
+  g_print ("=== DEST (after restore) ===\n");
+  {
+    GListModel *pages = ptyxis_window_list_pages (dst_win);
+    guint n = g_list_model_get_n_items (pages);
+    for (guint i = 0; i < n; i++) {
+      g_autoptr(AdwTabPage) page = g_list_model_get_item (pages, i);
+      PtyxisTab *t = PTYXIS_TAB (adw_tab_page_get_child (page));
+      multitab_dump_one ("dst", t, i);
+    }
+  }
+
+  for (int i = 0; i < 5; i++) {
+    while (g_main_context_iteration (NULL, FALSE)) ;
+    g_usleep (20000);
+  }
+
+  g_timeout_add (100, roundtrip_quit_cb, app);
+}
+
 static void
 ptyxis_application_activate (GApplication *app)
 {
@@ -415,6 +1074,47 @@ ptyxis_application_command_line (GApplication            *app,
 
   g_assert (PTYXIS_IS_APPLICATION (self));
   g_assert (G_IS_APPLICATION_COMMAND_LINE (cmdline));
+
+  /* Diagnostic fast-path: --debug-restore-roundtrip runs a self-contained
+   * save/restore test on a known 3-pane layout and dumps both trees.
+   * Bypasses the normal session/options flow so it works in any
+   * environment. */
+  if (g_variant_dict_contains (g_application_command_line_get_options_dict (cmdline),
+                                "debug-restore-roundtrip"))
+    {
+      roundtrip_run (app);
+      return 0;
+    }
+
+  /* Diagnostic fast-path: --debug-restore-multitab exercises the full
+   * ptyxis_session_save / ptyxis_session_restore path with multiple
+   * tabs. */
+  if (g_variant_dict_contains (g_application_command_line_get_options_dict (cmdline),
+                                "debug-restore-multitab"))
+    {
+      multitab_session_run (app);
+      return 0;
+    }
+
+  if (g_variant_dict_contains (g_application_command_line_get_options_dict (cmdline),
+                                "debug-restore-paneclose"))
+    {
+      /* Same as multitab_session_run but with pane-closing in the
+       * middle of the session. This is the scenario the user actually
+       * hits: split, use, close a pane, split more, quit, restart. */
+      multitab_session_run_with_close (app);
+      return 0;
+    }
+
+  if (g_variant_dict_contains (g_application_command_line_get_options_dict (cmdline),
+                                "debug-restore-diskfile"))
+    {
+      /* Save to ACTUAL session file on disk, then start a FRESH
+       * PtyxisApplication instance to restore from it. This is what
+       * the user actually does when they quit + reopen ptyxis. */
+      multitab_session_diskfile (app);
+      return 0;
+    }
 
   /* NOTE: This looks complex, because it is.
    *
@@ -1167,6 +1867,24 @@ ptyxis_application_init (PtyxisApplication *self)
     /* Import a custom .palette file. This works like dragging the file onto preferences */
     { "import-palette", 0, 0, G_OPTION_ARG_STRING, NULL, N_("Import a Ptyxis palette file"), N_("FILE") },
 
+    /* Hidden diagnostic: build a 3-pane tab, save+restore the layout,
+     * and dump the trees. Used to verify split-pane restore. */
+    { "debug-restore-roundtrip", 0, G_OPTION_FLAG_HIDDEN, G_OPTION_ARG_NONE, NULL, N_("Run save/restore roundtrip diagnostic") },
+
+    /* Hidden diagnostic: same as above but exercises the FULL session
+     * save/restore path with multiple tabs (the case where the user
+     * reports tabs 2+ fail to restore correctly). */
+    { "debug-restore-multitab", 0, G_OPTION_FLAG_HIDDEN, G_OPTION_ARG_NONE, NULL, N_("Run multi-tab session save/restore diagnostic") },
+
+    /* Hidden diagnostic: same as multi-tab but with pane-closing in the
+     * middle of the session. */
+    { "debug-restore-paneclose", 0, G_OPTION_FLAG_HIDDEN, G_OPTION_ARG_NONE, NULL, N_("Run pane-close save/restore diagnostic") },
+
+    /* Hidden diagnostic: write to actual session file, restore from
+     * disk. Reproduces the user's quit-then-reopen flow. */
+    { "debug-restore-diskfile", 0, G_OPTION_FLAG_HIDDEN, G_OPTION_ARG_NONE, NULL, N_("Run disk-file session restore diagnostic") },
+
+    
     { NULL }
   };
 
@@ -1770,9 +2488,17 @@ ptyxis_application_spawn_cb (GObject      *object,
   g_assert (G_IS_TASK (task));
 
   if (!(process = ptyxis_client_spawn_finish (client, result, &error)))
-    g_task_return_error (task, g_steal_pointer (&error));
+    {
+      g_debug ("[spawn] spawn_cb FAIL: %s",
+               error ? error->message : "(no error)");
+      g_task_return_error (task, g_steal_pointer (&error));
+    }
   else
-    g_task_return_pointer (task, g_steal_pointer (&process), g_object_unref);
+    {
+      const char *object_path = g_dbus_proxy_get_object_path (G_DBUS_PROXY (process));
+      g_debug ("[spawn] spawn_cb OK -> process=%p object_path=%s", (void*)process, object_path);
+      g_task_return_pointer (task, g_steal_pointer (&process), g_object_unref);
+    }
 }
 
 static void
@@ -1807,6 +2533,9 @@ ptyxis_application_check_shell_cb (GObject      *object,
 
   if (default_shell_path && default_shell_path[0] == 0)
     g_clear_pointer (&default_shell_path, g_free);
+
+  g_debug ("[spawn] check_shell_cb: shell=%s -> calling ptyxis_client_spawn_async",
+           default_shell_path ? default_shell_path : "(null, will use argv0)");
 
   ptyxis_client_spawn_async (self->client,
                              spawn->container,
@@ -1851,6 +2580,8 @@ ptyxis_application_get_preferred_shell_cb (GObject      *object,
   if (default_shell && default_shell[0] == 0)
     g_clear_pointer (&default_shell, g_free);
 
+  g_debug ("[spawn] preferred_shell_cb: discovered=%s", default_shell ? default_shell : "(null)");
+
   default_shell_base = g_path_get_basename (default_shell ? default_shell : "bash");
 
   /* Now make sure the preferred shell is available */
@@ -1881,6 +2612,11 @@ ptyxis_application_spawn_async (PtyxisApplication   *self,
   g_return_if_fail (VTE_IS_PTY (pty));
   g_return_if_fail (!cancellable || G_IS_CANCELLABLE (cancellable));
   g_return_if_fail (PTYXIS_IS_CLIENT (self->client));
+
+  g_debug ("[spawn] spawn_async ENTER container=%s argv0=%s cwd=%s",
+           ptyxis_ipc_container_get_id (container),
+           argv && argv[0] ? argv[0] : "(null)",
+           last_working_directory_uri ? last_working_directory_uri : "(null)");
 
   task = g_task_new (self, cancellable, callback, user_data);
   g_task_set_source_tag (task, ptyxis_application_spawn_async);

@@ -2064,21 +2064,35 @@ ptyxis_window_dispose (GObject *object)
 {
   PtyxisWindow *self = (PtyxisWindow *)object;
 
+  g_debug ("[BUG5] PtyxisWindow.dispose ENTER window=%p refcount=%u",
+           (void*)self, object->ref_count);
+
   self->disposed = TRUE;
 
   g_action_map_remove_action (G_ACTION_MAP (self), "interface-style");
 
+  g_debug ("[BUG5] PtyxisWindow.dispose step=dispose-template refcount=%u",
+           object->ref_count);
   gtk_widget_dispose_template (GTK_WIDGET (self), PTYXIS_TYPE_WINDOW);
+  g_debug ("[BUG5] PtyxisWindow.dispose step=dispose-template DONE refcount=%u",
+           object->ref_count);
 
   g_signal_group_set_target (self->active_tab_signals, NULL);
   g_binding_group_set_source (self->active_tab_bindings, NULL);
   g_binding_group_set_source (self->profile_bindings, NULL);
   g_signal_group_set_target (self->selected_page_signals, NULL);
   g_clear_handle_id (&self->focus_active_tab_source, g_source_remove);
+
+  g_debug ("[BUG5] PtyxisWindow.dispose step=clear-parking-lot refcount=%u",
+           object->ref_count);
   g_clear_object (&self->parking_lot);
+  g_debug ("[BUG5] PtyxisWindow.dispose step=clear-parking-lot DONE refcount=%u",
+           object->ref_count);
+
   g_clear_object (&self->interface_style_action);
 
   G_OBJECT_CLASS (ptyxis_window_parent_class)->dispose (object);
+  g_debug ("[BUG5] PtyxisWindow.dispose EXIT refcount=%u", object->ref_count);
 }
 
 static void
