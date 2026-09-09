@@ -759,6 +759,22 @@ static void multitab_session_diskfile (GApplication *app) {
   ptyxis_tab_split_full (tab2, GTK_ORIENTATION_VERTICAL, 250, NULL, NULL);
   ptyxis_tab_split_full (tab2, GTK_ORIENTATION_HORIZONTAL, 300, NULL, NULL);
 
+  /* Present + pump so the source window is realized and allocated —
+   * otherwise gtk_widget_get_width/height() return 0 and the session
+   * save skips the window pixel size. This mirrors the real flow where
+   * the user has the window open (realized) when the session is saved
+   * at shutdown. */
+  gtk_window_present (GTK_WINDOW (src_win));
+  for (int i = 0; i < 30; i++)
+    {
+      while (g_main_context_iteration (NULL, FALSE))
+        ;
+      g_usleep (20000);
+    }
+  g_print ("[diskfile] src window realized: %dx%d\n",
+           gtk_widget_get_width (GTK_WIDGET (src_win)),
+           gtk_widget_get_height (GTK_WIDGET (src_win)));
+
   /* Get the session GVariant and write to disk synchronously (skip
    * the async write path so we can immediately restore). */
   session = ptyxis_session_save (self);

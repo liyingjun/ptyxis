@@ -61,6 +61,25 @@ ptyxis_session_save (PtyxisApplication *app)
 
           if (gtk_window_is_maximized (GTK_WINDOW (window)))
             g_variant_builder_add_parsed (&builder, "{'maximized', <%b>}", TRUE);
+          else
+            {
+              /* Save the window's pixel size so session restore can
+               * reproduce the exact geometry the user had — not just
+               * the primary pane's terminal grid (which is too small
+               * for a split-pane tab, where the primary pane is only
+               * one of several side-by-side terminals). The per-tab
+               * 'size' below is still saved as a fallback for windows
+               * whose pixel size we couldn't read (e.g. not yet
+               * realized). Restoring the pixel size is also what makes
+               * the saved per-pane divider positions (which are in
+               * pixels) land in the right place. */
+              int window_w = gtk_widget_get_width (GTK_WIDGET (window));
+              int window_h = gtk_widget_get_height (GTK_WIDGET (window));
+              if (window_w > 0 && window_h > 0)
+                g_variant_builder_add_parsed (&builder,
+                                              "{'window-size', <(%i,%i)>}",
+                                              window_w, window_h);
+            }
 
           g_variant_builder_open (&builder, G_VARIANT_TYPE ("{sv}"));
           g_variant_builder_add (&builder, "s", "tabs");
@@ -237,6 +256,8 @@ ptyxis_session_restore (PtyxisApplication *app,
       PtyxisTab *active_tab = NULL;
       GVariantIter tab_iter;
       gboolean maximized;
+      int saved_window_w = -1;
+      int saved_window_h = -1;
 
       if (!(tabs = g_variant_lookup_value (window, "tabs", G_VARIANT_TYPE ("aa{sv}"))) ||
           g_variant_n_children (tabs) == 0)
@@ -244,6 +265,13 @@ ptyxis_session_restore (PtyxisApplication *app,
 
       if (!g_variant_lookup (window, "maximized", "b", &maximized))
         maximized = FALSE;
+
+      /* Read the saved window pixel size (written by ptyxis_session_save).
+       * Applied below before gtk_window_present(), once the window exists. */
+      if (!maximized)
+        g_variant_lookup (window, "window-size", "(ii)",
+                          &saved_window_w, &saved_window_h);
+
 
       g_variant_iter_init (&tab_iter, tabs);
       while (g_variant_iter_loop (&tab_iter, "@a{sv}", &tab))
@@ -363,6 +391,17 @@ ptyxis_session_restore (PtyxisApplication *app,
 
           if (maximized)
             gtk_window_maximize (GTK_WINDOW (the_window));
+          else if (saved_window_w > 0 && saved_window_h > 0)
+            {
+              /* Restore the exact pixel geometry the user had. This is
+               * what makes a split-pane tab come back at the right size
+               * (the per-tab terminal grid only describes the primary
+               * pane) and what makes the saved per-pane divider positions
+               * (which are in pixels) land correctly. Must be set before
+               * the window is first mapped, i.e. before present(). */
+              gtk_window_set_default_size (GTK_WINDOW (the_window),
+                                           saved_window_w, saved_window_h);
+            }
 
           gtk_window_present (GTK_WINDOW (the_window));
 

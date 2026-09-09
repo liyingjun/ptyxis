@@ -4621,6 +4621,7 @@ ptyxis_tab_position_notify_cb (GObject    *gobject,
     {
       /* Already cleared by a previous callback pass — just disconnect. */
       g_signal_handlers_disconnect_by_func (gobject, ptyxis_tab_position_notify_cb, NULL);
+      g_object_set_data (gobject, "ptyxis-tab-guard-connected", GINT_TO_POINTER (0));
       return;
     }
 
@@ -4644,6 +4645,7 @@ ptyxis_tab_position_notify_cb (GObject    *gobject,
       g_signal_handlers_disconnect_by_func (gobject, ptyxis_tab_position_notify_cb, NULL);
       g_object_set_data (gobject, "ptyxis-tab-saved-position", GINT_TO_POINTER (-1));
       g_object_set_data (gobject, "ptyxis-tab-stable-count", GINT_TO_POINTER (0));
+      g_object_set_data (gobject, "ptyxis-tab-guard-connected", GINT_TO_POINTER (0));
     }
 }
 
@@ -4690,12 +4692,26 @@ ptyxis_tab_install_position_guard (GtkWidget *widget)
                                                       "ptyxis-tab-saved-position"));
       if (saved >= 0)
         {
-          g_object_set_data (G_OBJECT (widget),
-                             "ptyxis-tab-stable-count",
-                             GINT_TO_POINTER (0));
-          g_signal_connect (widget, "notify::position",
-                            G_CALLBACK (ptyxis_tab_position_notify_cb),
-                            NULL);
+          /* Idempotent: if the guard is already connected (e.g. this
+           * paned was set up by ptyxis_tab_split_full during restore and
+           * the map handler is now re-walking the tree), don't connect
+           * a second notify::position handler and — crucially — don't
+           * reset the stability counter, which would defeat a guard that
+           * is mid-stabilization. Just re-apply the saved position in
+           * case the allocation changed since last time. */
+          if (!GPOINTER_TO_INT (g_object_get_data (G_OBJECT (widget),
+                                                   "ptyxis-tab-guard-connected")))
+            {
+              g_object_set_data (G_OBJECT (widget),
+                                 "ptyxis-tab-stable-count",
+                                 GINT_TO_POINTER (0));
+              g_object_set_data (G_OBJECT (widget),
+                                 "ptyxis-tab-guard-connected",
+                                 GINT_TO_POINTER (1));
+              g_signal_connect (widget, "notify::position",
+                                G_CALLBACK (ptyxis_tab_position_notify_cb),
+                                NULL);
+            }
           /* Apply now too in case the paned already has an allocation. */
           gtk_paned_set_position (GTK_PANED (widget), saved);
         }
@@ -4877,34 +4893,31 @@ ptyxis_tab_split_full (PtyxisTab       *self,
    */
   if (position >= 0)
     {
-      /* Stash the saved position on the paned so the one-shot map
-       * handler on the tab (see ptyxis_tab_apply_pane_positions) can
-       * re-apply it once the window has been mapped and all paneds
-       * have stable allocations. */
+      /* Stash the saved position on the paned and install the
+       * notify::position guard immediately. The guard re-applies the
+       * saved divider position whenever GTK overwrites it during the
+       * size-allocate cascade (paneds built during session restore have
+       * no allocation yet, so the direct gtk_paned_set_position below is
+       * a no-op and GTK later recomputes the position from the children's
+       * natural sizes — clobbering ours). The guard keeps fighting back
+       * until the value stabilizes, then releases control to the user.
+       *
+       * The saved value MUST persist on the paned (do NOT clear it to -1
+       * here): the guard's notify::position callback reads it on every
+       * fire. An earlier version cleared it right after installing the
+       * guard, which meant the first time GTK clobbered the position the
+       * guard read saved=-1 and disconnected without re-applying — so
+       * restored split layouts collapsed. The guard itself clears the
+       * value (to -1) once it has stabilized. install_position_guard is
+       * idempotent so the one-shot map handler can safely re-walk the
+       * tree later without double-connecting or resetting the counter. */
       g_object_set_data (G_OBJECT (paned),
                          "ptyxis-tab-saved-position",
                          GINT_TO_POINTER (position));
 
-      /* Try the direct set first — it works for the interactive-split
-       * case (paned already realized). If we're in restore mode this
-       * set will likely be a no-op, but the map handler picks it up. */
       gtk_paned_set_position (GTK_PANED (paned), position);
 
-      /* Install the notify::position guard NOW, not later on map. The
-       * map handler only fires for the active tab — AdwTabView doesn't
-       * map (and therefore doesn't allocate) inactive pages until the
-       * user selects them. If we wait for map, the guard wouldn't be
-       * connected for tabs that were restored but not yet focused, and
-       * when the user finally selects them GTK's first allocation would
-       * overwrite our saved divider position with whatever fits the
-       * children's natural sizes. Connecting the guard right here means
-       * it's ready by the time the paned is first allocated, regardless
-       * of which tab is currently visible. The map handler will see
-       * saved-position already cleared and skip. */
       ptyxis_tab_install_position_guard (paned);
-      g_object_set_data (G_OBJECT (paned),
-                         "ptyxis-tab-saved-position",
-                         GINT_TO_POINTER (-1));
     }
   else if (size > 0)
     gtk_paned_set_position (GTK_PANED (paned), size / 2);
