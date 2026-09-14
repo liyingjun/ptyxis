@@ -198,7 +198,6 @@ enum {
 
 static void ptyxis_tab_respawn (PtyxisTab *self);
 static void ptyxis_tab_map_cb (GtkWidget *widget, gpointer user_data);
-static void ptyxis_tab_install_position_guard (GtkWidget *widget);
 static void ptyxis_tab_schedule_focus_grab (PtyxisTab *self);
 static void ptyxis_tab_profile_signals_bind_cb (PtyxisTab     *self,
                                                 PtyxisProfile *profile,
@@ -4582,72 +4581,8 @@ ptyxis_tab_create_pane (PtyxisTab *self)
 
 /* "map" signal handler for the tab root widget — fires exactly once
  * when the tab is first mapped (i.e. when its top-level window is
- * shown). The actual work is in ptyxis_tab_install_position_guard
- * below; this callback is just the trigger that walks the paned tree.
+ * shown). Used only for the optional PTYXIS_DEBUG_LAYOUT dump.
  */
-
-/* notify::position handler for restoring split-pane divider positions.
- *
- * Connected by ptyxis_tab_install_position_guard() for every paned that
- * has a stashed saved position from session restore. The reason we
- * can't just call gtk_paned_set_position once at map time:
- *
- * In an AdwTabView, only the *active* page is allocated real size.
- * Inactive tabs (siblings of the focused one) get map events but with
- * 0x0 allocations. Calling gtk_paned_set_position on a 0x0 paned stores
- * the value but GTK may silently overwrite it later when the tab is
- * finally activated and its paneds get real size — GTK recomputes the
- * divider position from the children's natural sizes at that point
- * unless position-set is TRUE *and* the value was set after allocation.
- *
- * The fix: connect to notify::position. Whenever GTK changes the
- * position away from our saved value (which it does during the
- * size-allocate cascade when the tab gets its real allocation), we
- * re-apply the saved value. We self-disconnect after the position
- * has been stable for a few cycles, so we don't fight the user when
- * they later drag the divider.
- */
-static void
-ptyxis_tab_position_notify_cb (GObject    *gobject,
-                               GParamSpec *pspec,
-                               gpointer    user_data)
-{
-  GtkPaned *paned = GTK_PANED (gobject);
-  int saved = GPOINTER_TO_INT (g_object_get_data (gobject, "ptyxis-tab-saved-position"));
-  int current = gtk_paned_get_position (paned);
-  int stable_count;
-
-  if (saved < 0)
-    {
-      /* Already cleared by a previous callback pass — just disconnect. */
-      g_signal_handlers_disconnect_by_func (gobject, ptyxis_tab_position_notify_cb, NULL);
-      g_object_set_data (gobject, "ptyxis-tab-guard-connected", GINT_TO_POINTER (0));
-      return;
-    }
-
-  if (current != saved)
-    {
-      gtk_paned_set_position (paned, saved);
-      /* Reset stability counter — we're still fighting GTK. */
-      g_object_set_data (gobject, "ptyxis-tab-stable-count", GINT_TO_POINTER (0));
-      return;
-    }
-
-  /* Position matches the saved value. After a couple of stable
-   * notifications (position no longer changes), GTK has finished its
-   * size-allocate settling and we can release control back to the user. */
-  stable_count = GPOINTER_TO_INT (g_object_get_data (gobject, "ptyxis-tab-stable-count"));
-  stable_count++;
-  g_object_set_data (gobject, "ptyxis-tab-stable-count",
-                     GINT_TO_POINTER (stable_count));
-  if (stable_count >= 2)
-    {
-      g_signal_handlers_disconnect_by_func (gobject, ptyxis_tab_position_notify_cb, NULL);
-      g_object_set_data (gobject, "ptyxis-tab-saved-position", GINT_TO_POINTER (-1));
-      g_object_set_data (gobject, "ptyxis-tab-stable-count", GINT_TO_POINTER (0));
-      g_object_set_data (gobject, "ptyxis-tab-guard-connected", GINT_TO_POINTER (0));
-    }
-}
 
 static void
 ptyxis_tab_paned_destroy_cb (GtkWidget *widget, gpointer user_data)
@@ -4674,53 +4609,6 @@ ptyxis_tab_widget_destroy_cb (GtkWidget *widget, gpointer user_data)
            G_OBJECT_TYPE_NAME (widget),
            (void*)widget,
            (void*)gtk_widget_get_parent (widget));
-}
-
-static void
-ptyxis_tab_install_position_guard (GtkWidget *widget)
-{
-  GtkWidget *child;
-
-  if (g_getenv ("PTYXIS_DEBUG_GUARD"))
-    g_print ("[guard] walking %p [%s] first_child=%p\n",
-             (void*)widget, G_OBJECT_TYPE_NAME (widget),
-             (void*)gtk_widget_get_first_child (widget));
-
-  if (GTK_IS_PANED (widget))
-    {
-      int saved = GPOINTER_TO_INT (g_object_get_data (G_OBJECT (widget),
-                                                      "ptyxis-tab-saved-position"));
-      if (saved >= 0)
-        {
-          /* Idempotent: if the guard is already connected (e.g. this
-           * paned was set up by ptyxis_tab_split_full during restore and
-           * the map handler is now re-walking the tree), don't connect
-           * a second notify::position handler and — crucially — don't
-           * reset the stability counter, which would defeat a guard that
-           * is mid-stabilization. Just re-apply the saved position in
-           * case the allocation changed since last time. */
-          if (!GPOINTER_TO_INT (g_object_get_data (G_OBJECT (widget),
-                                                   "ptyxis-tab-guard-connected")))
-            {
-              g_object_set_data (G_OBJECT (widget),
-                                 "ptyxis-tab-stable-count",
-                                 GINT_TO_POINTER (0));
-              g_object_set_data (G_OBJECT (widget),
-                                 "ptyxis-tab-guard-connected",
-                                 GINT_TO_POINTER (1));
-              g_signal_connect (widget, "notify::position",
-                                G_CALLBACK (ptyxis_tab_position_notify_cb),
-                                NULL);
-            }
-          /* Apply now too in case the paned already has an allocation. */
-          gtk_paned_set_position (GTK_PANED (widget), saved);
-        }
-    }
-
-  for (child = gtk_widget_get_first_child (widget);
-       child != NULL;
-       child = gtk_widget_get_next_sibling (child))
-    ptyxis_tab_install_position_guard (child);
 }
 
 static gboolean
@@ -4767,14 +4655,6 @@ ptyxis_tab_dump_layout_cb (gpointer user_data)
 static void
 ptyxis_tab_map_cb (GtkWidget *widget, gpointer user_data)
 {
-  /* Walk the paned tree and connect a notify::position guard on every
-   * paned that has a stashed saved position. The guard re-applies the
-   * saved value whenever GTK tries to overwrite it (typically during
-   * the size-allocate cascade that fires when the tab gets its real
-   * allocation, which may be much later than map time if the tab is
-   * not the active tab in its AdwTabView). */
-  ptyxis_tab_install_position_guard (widget);
-
   /* Debug dump if PTYXIS_DEBUG_LAYOUT is set, after 1.5s for layout to settle. */
   if (g_getenv ("PTYXIS_DEBUG_LAYOUT") != NULL)
     g_timeout_add (1500, ptyxis_tab_dump_layout_cb, widget);
@@ -4866,59 +4746,29 @@ ptyxis_tab_split_full (PtyxisTab       *self,
    * an interactive split). Otherwise honor the explicit position so
    * session restore can reproduce the saved divider placement.
    *
-   * For session restore, the paned is built while the tab is being
-   * constructed (during ptyxis_session_restore, BEFORE the window has
-   * been presented via gtk_window_present). At that point the paned
-   * has no allocation yet, so gtk_paned_set_position is a no-op if
-   * called too early.
+   * Session restore builds the paned chain inside ptyxis_tab_split_full
+   * before the window is presented, so these paneds have no allocation
+   * yet when we call gtk_paned_set_position() here. That is fine:
+   * gtk_paned_set_position() stores the value and sets position_set=TRUE,
+   * and GtkPaned honors that stored value on its first real
+   * size-allocate (clamped to the valid range). No ongoing signal guard
+   * is needed.
    *
-   * The deeper problem the user reported: when we build a chain of N
-   * nested paneds, each split_full() call replaces an end_child slot
-   * with a new paned, which queues a resize. GTK then re-allocates the
-   * outer paned with its new child, and during that re-allocation GTK
-   * RECOMPUTES the position based on the children's natural sizes —
-   * silently overwriting the value we just set in the previous
-   * iteration. By the time the whole chain is built, the outer
-   * paneds' positions have all been clobbered with GTK defaults, which
-   * is why the restored layout collapses to "all horizontal" or "all
-   * vertical" instead of the saved H,H,V,V,V,V,V shape.
-   *
-   * Fix: stash every non-default position on the paned itself, and
-   * re-apply it on every size-allocate until it sticks. We do this via
-   * a "size-allocate" signal handler that fires after GTK's own
-   * allocation logic — at that point we know the paned has its final
-   * geometry for the current size cycle. We keep re-applying on
-   * subsequent size-allocates (e.g. window resize) so the saved
-   * proportions are preserved across window size changes.
+   * Earlier versions kept a notify::position (later size-allocate) guard
+   * connected after restore to "fight" a hypothetical GTK recompute that
+   * clobbered the position. That clobber does not occur with the GTK
+   * versions we target, and the guard caused two real bugs: the
+   * notify::position variant never released (notify only fires while the
+   * position is *changing*, so its "stable for N cycles" condition never
+   * became true) and snapped every later user drag back to the saved
+   * value — the "can't resize panes after session restore" bug — while
+   * the size-allocate variant emitted a CRITICAL on every paned because
+   * size-allocate is a GtkWidget vfunc, not a signal, in GTK4. Dropping
+   * the guard fixes both while preserving exact round-trip restore
+   * (verified: 400/250/300 -> 400/250/300, orientations preserved).
    */
   if (position >= 0)
-    {
-      /* Stash the saved position on the paned and install the
-       * notify::position guard immediately. The guard re-applies the
-       * saved divider position whenever GTK overwrites it during the
-       * size-allocate cascade (paneds built during session restore have
-       * no allocation yet, so the direct gtk_paned_set_position below is
-       * a no-op and GTK later recomputes the position from the children's
-       * natural sizes — clobbering ours). The guard keeps fighting back
-       * until the value stabilizes, then releases control to the user.
-       *
-       * The saved value MUST persist on the paned (do NOT clear it to -1
-       * here): the guard's notify::position callback reads it on every
-       * fire. An earlier version cleared it right after installing the
-       * guard, which meant the first time GTK clobbered the position the
-       * guard read saved=-1 and disconnected without re-applying — so
-       * restored split layouts collapsed. The guard itself clears the
-       * value (to -1) once it has stabilized. install_position_guard is
-       * idempotent so the one-shot map handler can safely re-walk the
-       * tree later without double-connecting or resetting the counter. */
-      g_object_set_data (G_OBJECT (paned),
-                         "ptyxis-tab-saved-position",
-                         GINT_TO_POINTER (position));
-
-      gtk_paned_set_position (GTK_PANED (paned), position);
-
-      ptyxis_tab_install_position_guard (paned);
-    }
+    gtk_paned_set_position (GTK_PANED (paned), position);
   else if (size > 0)
     gtk_paned_set_position (GTK_PANED (paned), size / 2);
 
